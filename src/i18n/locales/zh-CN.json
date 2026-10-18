@@ -192,6 +192,23 @@
       "loading": "加载中…"
     }
   },
+  "font": {
+    "builtIn": "内置字体",
+    "decrease": "减小字号",
+    "error": "字体设置保存失败。",
+    "family": "字体",
+    "hint": "选择内置字体或 Windows 已安装字体，修改立即生效。",
+    "increase": "增大字号",
+    "listError": "无法加载系统字体。",
+    "loading": "正在加载系统字体…",
+    "range": "{{min}}–{{max}} px · 可输入、滚动鼠标或点击箭头调整。",
+    "saved": "已保存",
+    "saving": "正在保存…",
+    "size": "字号（px）",
+    "systemDefault": "系统默认",
+    "systemFonts": "系统字体",
+    "title": "字体"
+  },
   "heatmap": {
     "cell": "{{date}} · 专注 {{minutes}} 分钟 · 完成 {{tasks}} 个任务",
     "empty": "过去一年还没有专注记录。",
@@ -289,12 +306,50 @@
       "hint": "改动即保存；计时进行中不可修改。"
     }
   },
+  "sidebar": {
+    "hint": "拖动手柄调整面板顺序，使用开关显示或隐藏面板。更改立即生效。",
+    "moveDown": "下移{{panel}}",
+    "moveUp": "上移{{panel}}",
+    "reset": "恢复默认侧栏",
+    "saveError": "布局已生效，但未能保存供下次启动使用。请再次尝试调整。",
+    "settingsAlwaysVisible": "设置入口始终显示在末尾。",
+    "show": "在侧栏显示{{panel}}",
+    "title": "侧栏面板",
+    "edit": "编辑侧栏",
+    "done": "完成",
+    "editorHint": "拖动手柄调整面板顺序，使用开关显示或隐藏面板。更改立即生效。",
+    "summary": "已显示 {{visible}} / {{total}} 个面板",
+    "drag": "调整{{panel}}的顺序",
+    "keyboardHint": "按上下方向键移动面板，按 Home 或 End 移到首尾。",
+    "reordered": "{{panel}}已移至第 {{position}} 位，共 {{total}} 个面板"
+  },
   "todo": {
+    "display": {
+      "title": "任务显示方式",
+      "hint": "选择单次任务和循环任务在列表中的排列方式，更改后自动保存。",
+      "separated": "分区显示",
+      "merged": "合并显示",
+      "twoColumns": "双栏显示",
+      "description": {
+        "separated": "单次任务和循环任务分为两个区域，上下排列。",
+        "merged": "所有任务合并为一个列表，通过标签区分任务类型。",
+        "twoColumns": "单次任务和循环任务在同一视图中左右并排显示。"
+      },
+      "error": "无法读取或保存任务显示方式，请重试。"
+    },
+    "section": {
+      "oneTime": "单次任务",
+      "recurring": "循环任务"
+    },
+    "type": {
+      "oneTime": "单次",
+      "recurring": "循环"
+    },
     "add": "添加",
     "delete": "删除任务",
     "edit": "编辑任务",
     "empty": "这里还没有任务。",
-    "error": "列表加载失败。",
+    "error": "任务加载或保存失败。",
     "filter": {
       "all": "全部",
       "active": "进行中",
@@ -343,7 +398,53 @@
       "minutes": "{{count}} 分钟前",
       "now": "刚刚"
     },
-    "toggle": "标记为完成"
+    "toggle": "标记为完成",
+    "reopen": "重新打开任务",
+    "recurrence": {
+      "label": "重复",
+      "once": "一次性",
+      "daily": "每天",
+      "weekly": "每周",
+      "monthly": "每月",
+      "custom": "自定义",
+      "interval": "每隔",
+      "unit": "单位",
+      "units": {
+        "day": "天",
+        "week": "周",
+        "month": "月"
+      },
+      "hint": "从今天开始，在下一个计划日期的本地零点重置。较短月份取月末。",
+      "next": "下个周期：{{date}}",
+      "summary": {
+        "day_one": "每天",
+        "day_other": "每 {{count}} 天",
+        "week_one": "每周",
+        "week_other": "每 {{count}} 周",
+        "month_one": "每月",
+        "month_other": "每 {{count}} 个月"
+      }
+    },
+    "cancel": "取消",
+    "date": {
+      "clear": "清除",
+      "day": "日",
+      "month": "月",
+      "today": "今天",
+      "tomorrow": "明天",
+      "year": "年"
+    },
+    "dueDate": "截止日期（可选）",
+    "dueOn": "截止 {{date}}",
+    "save": "保存",
+    "setDueDate": "设置截止日期",
+    "sort": {
+      "label": "排序",
+      "default": "默认顺序",
+      "dueDateAsc": "截止日期：从早到晚",
+      "dueDateDesc": "截止日期：从晚到早"
+    },
+    "overdue": "已逾期"
   },
   "window": {
     "minimize": "最小化",

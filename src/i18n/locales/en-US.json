@@ -192,6 +192,23 @@
       "loading": "Loading…"
     }
   },
+  "font": {
+    "builtIn": "Built-in",
+    "decrease": "Decrease font size",
+    "error": "The font settings could not be saved.",
+    "family": "Font",
+    "hint": "Choose a built-in or installed Windows font. Changes apply immediately.",
+    "increase": "Increase font size",
+    "listError": "System fonts could not be loaded.",
+    "loading": "Loading system fonts…",
+    "range": "{{min}}–{{max}} px · Type, scroll, or use the arrows.",
+    "saved": "Saved",
+    "saving": "Saving…",
+    "size": "Font size (px)",
+    "systemDefault": "System default",
+    "systemFonts": "System fonts",
+    "title": "Typography"
+  },
   "heatmap": {
     "cell": "{{date}} · {{minutes}} min focused · {{tasks}} tasks",
     "empty": "No focus time in the last year yet.",
@@ -289,12 +306,50 @@
       "hint": "Changes save as you type; the fields lock while the timer runs."
     }
   },
+  "sidebar": {
+    "hint": "Drag the handles to reorder panels. Use the switches to show or hide them. Changes apply immediately.",
+    "moveDown": "Move {{panel}} down",
+    "moveUp": "Move {{panel}} up",
+    "reset": "Restore default sidebar",
+    "saveError": "The layout applies now, but could not be saved for the next launch. Try changing it again.",
+    "settingsAlwaysVisible": "Settings always stays visible at the end.",
+    "show": "Show {{panel}} in sidebar",
+    "title": "Sidebar panels",
+    "edit": "Edit sidebar",
+    "done": "Done",
+    "editorHint": "Drag the handles to reorder panels. Use the switches to show or hide them. Changes apply immediately.",
+    "summary": "{{visible}} of {{total}} panels visible",
+    "drag": "Reorder {{panel}}",
+    "keyboardHint": "Use Up and Down to move this panel, or Home and End to move it to either end.",
+    "reordered": "{{panel}} moved to position {{position}} of {{total}}"
+  },
   "todo": {
     "add": "Add",
+    "display": {
+      "title": "Task display",
+      "hint": "Choose how one-time and recurring tasks share the task list. Your choice is saved automatically.",
+      "separated": "Separated",
+      "merged": "Merged",
+      "twoColumns": "Two columns",
+      "description": {
+        "separated": "One-time and recurring tasks appear in separate sections, one below the other.",
+        "merged": "All tasks share one list, with a label identifying each task type.",
+        "twoColumns": "One-time and recurring tasks appear side by side in the same view."
+      },
+      "error": "The task display preference could not be loaded or saved. Please try again."
+    },
+    "section": {
+      "oneTime": "One-time tasks",
+      "recurring": "Recurring tasks"
+    },
+    "type": {
+      "oneTime": "One-time",
+      "recurring": "Recurring"
+    },
     "delete": "Delete task",
     "edit": "Edit task",
     "empty": "No tasks here.",
-    "error": "The list could not be loaded.",
+    "error": "Tasks could not be loaded or saved.",
     "filter": {
       "all": "All",
       "active": "Active",
@@ -343,7 +398,53 @@
       "minutes": "{{count}}m ago",
       "now": "just now"
     },
-    "toggle": "Mark as done"
+    "toggle": "Mark as done",
+    "reopen": "Reopen task",
+    "recurrence": {
+      "label": "Repeat",
+      "once": "One-time",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "custom": "Custom",
+      "interval": "Every",
+      "unit": "Unit",
+      "units": {
+        "day": "Days",
+        "week": "Weeks",
+        "month": "Months"
+      },
+      "hint": "Starts today and resets at local midnight on the next scheduled date. Shorter months use their last day.",
+      "next": "Next cycle: {{date}}",
+      "summary": {
+        "day_one": "Daily",
+        "day_other": "Every {{count}} days",
+        "week_one": "Weekly",
+        "week_other": "Every {{count}} weeks",
+        "month_one": "Monthly",
+        "month_other": "Every {{count}} months"
+      }
+    },
+    "cancel": "Cancel",
+    "date": {
+      "clear": "Clear",
+      "day": "Day",
+      "month": "Month",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "year": "Year"
+    },
+    "dueDate": "Due date (optional)",
+    "dueOn": "Due {{date}}",
+    "save": "Save",
+    "setDueDate": "Set due date",
+    "sort": {
+      "label": "Sort",
+      "default": "Default order",
+      "dueDateAsc": "Due date: earliest first",
+      "dueDateDesc": "Due date: latest first"
+    },
+    "overdue": "Overdue"
   },
   "window": {
     "minimize": "Minimize",

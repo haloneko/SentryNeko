@@ -9,6 +9,7 @@ export interface SegmentedOption<T extends string> {
 }
 
 export interface SegmentedControlProps<T extends string> {
+  disabled?: boolean;
   /** Accessible name of the group. */
   label: string;
   options: readonly SegmentedOption<T>[];
@@ -18,6 +19,7 @@ export interface SegmentedControlProps<T extends string> {
 
 /** Renders the options in one track and keeps the highlight under the active one. */
 export function SegmentedControl<T extends string>({
+  disabled = false,
   label,
   options,
   value,
@@ -51,22 +53,32 @@ export function SegmentedControl<T extends string>({
       return;
     }
 
-    const next = {
-      height: active.offsetHeight,
-      left: active.offsetLeft,
-      top: active.offsetTop,
-      width: active.offsetWidth,
+    const measure = (): void => {
+      const next = {
+        height: active.offsetHeight,
+        left: active.offsetLeft,
+        top: active.offsetTop,
+        width: active.offsetWidth,
+      };
+
+      setHighlight((current) =>
+        current &&
+        current.left === next.left &&
+        current.top === next.top &&
+        current.width === next.width &&
+        current.height === next.height
+          ? current
+          : next,
+      );
     };
 
-    setHighlight((current) =>
-      current &&
-      current.left === next.left &&
-      current.top === next.top &&
-      current.width === next.width &&
-      current.height === next.height
-        ? current
-        : next,
-    );
+    measure();
+    // Family and size can change outside this component, including after a font finishes loading.
+    const observer = new ResizeObserver(measure);
+    observer.observe(track);
+    observer.observe(active);
+
+    return () => observer.disconnect();
   });
 
   return (
@@ -86,6 +98,7 @@ export function SegmentedControl<T extends string>({
         <button
           aria-pressed={option.value === value}
           className="segmented-option"
+          disabled={disabled}
           key={option.value}
           onClick={() => {
             onChange(option.value);

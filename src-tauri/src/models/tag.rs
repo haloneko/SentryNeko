@@ -203,7 +203,7 @@ mod tests {
         let db = migrated();
         let work = Tag::add(&db, "work").expect("stored");
         let home = Tag::add(&db, "home").expect("stored");
-        let todo = Todo::add(&db, "write the report").expect("stored");
+        let todo = Todo::add_with_due_date(&db, "write the report", None).expect("stored");
 
         Todo::set_tags(&db, todo.id, &[home.id, work.id, work.id]).expect("tags are linked");
 
@@ -222,7 +222,7 @@ mod tests {
         let db = migrated();
         let work = Tag::add(&db, "work").expect("stored");
         let home = Tag::add(&db, "home").expect("stored");
-        let todo = Todo::add(&db, "plan the week").expect("stored");
+        let todo = Todo::add_with_due_date(&db, "plan the week", None).expect("stored");
 
         Todo::set_tags(&db, todo.id, &[work.id, home.id]).expect("tags are linked");
         Tag::delete(&db, work.id).expect("deleted");

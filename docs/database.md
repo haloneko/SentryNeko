@@ -40,7 +40,8 @@ app.manage(db);
 {
   "databasePath": "C:\\Users\\you\\AppData\\Roaming\\com.sentryneko.desktop\\sentryneko.db",
   "language": "en-US",
-  "colorMode": "system"
+  "colorMode": "system",
+  "fontSettings": { "family": null, "size": 14 }
 }
 ```
 
@@ -49,6 +50,7 @@ app.manage(db);
 | `databasePath` | SQLite file the application opens | `<app data dir>/sentryneko.db` |
 | `language` | Language tag, listed in `docs/i18n.md` | Detected system language, falling back to `en-US` |
 | `colorMode` | `dark`, `light` or `system`; `system` follows the operating system | `system` |
+| `fontSettings` | Font family (`null` for system default, `JetBrains Mono` for the bundled font, or an installed family name) and integer base size in pixels (10–32) | `{ "family": null, "size": 14 }` |
 
 Rules:
 
@@ -63,6 +65,12 @@ Rules:
   precedence on subsequent launches; settings can override it.
 - An unknown `language` tag falls back to `Language::DEFAULT` and leaves the file as it is.
 - An unknown `colorMode` falls back to `ColorMode::DEFAULT` (`system`) the same way.
+- Missing font preferences, an out-of-range size or an invalid family name fall back to the
+  default system font at 14 px. Existing configuration files need no migration.
+- Typography is restored before rendering. The frontend mirrors it in local storage for browser
+  preview and startup fallback, applies changes immediately, and serializes backend writes so
+  rapid adjustments cannot persist an older choice after a newer one. Failed saves remain visible
+  on the settings page; the last successfully saved configuration is authoritative on restart.
 - A file that does not parse is reported as `IO` with the parser message in `details` and is
   never overwritten — fix or delete it by hand to recover.
 - Writes land in `config.json.tmp` and are renamed into place, so a crash cannot truncate the file.
@@ -71,22 +79,47 @@ Rules:
 
 ## Schema
 
-The schema holds seven tables:
+The schema holds nine tables:
 
 | Table | Holds | Key columns |
 | --- | --- | --- |
-| `todos` | Tasks the user maintains | `title`, `completed`, `completed_at`, `created_at`, `updated_at`, `tag_ids` |
+| `todos` | Tasks the user maintains | `title`, `completed`, `completed_at`, `created_at`, `updated_at`, `tag_ids`, `due_date` |
 | `pomodoro_sessions` | One focus or break interval | `phase`, `planned_seconds`, `actual_seconds`, `started_at`, `ended_at`, `todo_id` |
 | `app_events` | Foreground application activity | `app_name`, `window_title`, `started_at`, `ended_at` |
 | `alarms` | One-off or weekly reminders | `label`, `hour`, `minute`, `repeat_days`, `enabled`, `created_at` |
 | `settings` | Key/value application settings | `key`, `value`, `updated_at` |
 | `tags` | Tag names a task can carry | `name` (unique, case-insensitive), `created_at` |
 | `todo_tags` | Link between a task and a tag | `todo_id`, `tag_id` |
+| `todo_recurrences` | Optional task schedule and current cycle | `todo_id` (primary key), `unit`, `interval`, `current_at`, `next_at` |
+| `todo_completions` | Completed recurring cycles retained for the heatmap | `todo_id`, `occurrence_at` (composite primary key), `completed_at` |
+
+`todos.due_date` is nullable UTC epoch seconds at midnight, encoding a calendar date from
+1970-01-01 to 9999-12-31. `NULL` means no due date, including for tasks created before this
+column existed. `Todo::update` saves the title and due date together without changing completion
+or tags. The frontend formats this value in UTC so timezone offsets cannot change the selected day.
 
 Tags are stored twice on purpose: `todos.tag_ids` is a JSON array of tag ids, so one task row
 answers "which tags" without a join, while `todo_tags` is the index the other direction reads —
 `idx_todo_tags_tag_id` finds every task carrying a tag. `Todo::set_tags` writes both sides in one
 transaction, and `Tag::delete` removes its id from the cache of every task that listed it.
+
+An absent `todo_recurrences` row means a one-time task, so adding these tables leaves existing
+tasks and their completion flags untouched. A recurring task keeps one stable todo id and its
+tags. Its schedule repeats every 1–365 days, weeks or months, anchored to the local creation date:
+
+- The first cycle starts at creation. Later cycles start at local midnight on the scheduled date,
+  using Windows time zone rules rather than fixed 24-hour durations. A skipped midnight uses the
+  first valid hour of that date.
+- Months clamp to the last day when necessary without losing the anchor: January 31 → February
+  28/29 → March 31. Custom intervals use the same calendar arithmetic.
+- The background scheduler checks `next_at` each second. Startup and task-list/count reads also
+  catch up, skipping missed cycles to leave one current task rather than a backlog.
+- At a boundary, completed cycles are copied to `todo_completions` before `completed` and
+  `completed_at` are reset. The schedule and task update in the same transaction; retrying cannot
+  duplicate a cycle. An unfinished cycle resets too, without recording a completion.
+- Undoing completion before the boundary removes that cycle's completion. Deleting the task
+  cascades to its schedule and archived completions. Repeated completion calls keep the original
+  completion timestamp; a completion at the boundary belongs to the new cycle.
 
 The pomodoro durations are a single `settings` row: key `pomodoro.durations`, value the JSON form
 of `PomodoroDurations`. A missing row means the defaults apply. The alarm defaults are the same
@@ -99,6 +132,16 @@ The dashboard layout is the third such row: key `dashboard.grid`, value
 sits in and how many cells it spans on a two-column grid. The `id` is what makes a placement
 addressable, so the same `kind` may appear more than once. A missing row means the dashboard was
 never customised and the page falls back to its built-in layout.
+
+The task list layout uses key `todo.displayMode` with a JSON string value: `"separated"`
+(the default when the row is absent), `"merged"` or `"twoColumns"`. Settings saves it through
+`set_todo_display_mode`; startup reads it through `get_todo_display_mode` before rendering.
+Changing this row never changes tasks, completion state, recurrence rules or list ordering.
+Separate sections stack vertically; the two-column layout sits side by side and stacks when
+the list has at most 560 CSS pixels of room. Merged mode labels each task type. Completion
+filters and the remaining count apply to both types in every layout. A non-null `recurrence`
+field identifies recurring tasks (provided by #25); absent or null fields mean one-time tasks,
+so existing task payloads remain compatible.
 
 `app_events` is written by the foreground collector (`collectors/foreground_app.rs`), which samples
 the foreground window once a second:
@@ -135,9 +178,12 @@ The heatmap (`models/heatmap.rs`) rolls `pomodoro_sessions` and `todos` up into 
 - A task counts on the day `completed_at` names. `set_completed` stamps it when the box is ticked
   and clears it when the task is reopened, so renaming a finished task never moves it to another
   day.
+- Archived recurring completions count on their original completion day alongside current task
+  completions; resetting a task therefore does not erase previous days' activity.
 
 The completion rate (`models/todo.rs`) reads `todos` from two angles: `all` counts every stored
-task, `today` only those whose `created_at` falls after local midnight. The numerator is the tasks
+task's current state, `today` only those created or whose current recurring cycle started after
+local midnight (`COALESCE(todo_recurrences.current_at, todos.created_at)`). The numerator is the tasks
 of that scope with `completed` set, so reopening a task moves the rate back, and a deleted task
 leaves both sides — the rate follows the list the user sees.
 
@@ -165,9 +211,10 @@ leaves both sides — the rate follows the list the user sees.
 
 ## Schema creation
 
-`ensure` runs the script in a transaction on every start: a missing table or index is created, an
-existing one is left alone. Nothing is versioned, because the app has not shipped — a schema
-change is a local rebuild rather than a migration.
+`ensure` runs the script in a transaction on every start: a missing table or index is created.
+It also checks `pragma_table_info('todos')` and adds the nullable `due_date` column when absent,
+preserving existing tasks, tags and links. This additive upgrade is idempotent; there is no schema
+version table.
 
 ## Repository helpers
 
@@ -181,6 +228,7 @@ change is a local rebuild rather than a migration.
 | `count` | The first column of the first row as `i64` |
 | `exists` | Whether the query matches at least one row |
 | `transaction` | The value of `work`, rolled back when `work` fails |
+| `immediate_transaction` | The same, reserving the writer before reads for concurrent cycle resets / completion |
 
 Row mappers are plain `fn(&Row<'_>) -> ApiResult<T>` values (`RowMapper<T>`), so a model
 exposes its mapper as an associated function and every helper stays generic.
@@ -194,16 +242,18 @@ powershell -ExecutionPolicy Bypass -File scripts/init_db.ps1 [-DatabasePath <fil
 ```
 
 It needs `sqlite3` on `PATH`; without it the script stops with a message pointing at the app,
-which creates the schema on first run either way. Every statement uses `IF NOT EXISTS`, so
-running it repeatedly is safe.
+which creates the schema on first run either way. Table/index creation uses `IF NOT EXISTS`,
+and the script checks for `due_date` before adding it to existing databases, so repeat runs are safe.
 
-A test extracts the SQL from the script and runs it against a created database, asserting that
-both sides end up with the same tables.
+A test extracts the SQL from the script and runs it against both fresh and created databases,
+asserting that both sides end up with the same tables and todo columns.
 
 ## Adding a table or a column
 
 1. Add the DDL to `db/schema.rs`.
-2. Mirror it in `scripts/init_db.ps1`, with the same `IF NOT EXISTS` guards.
+2. Mirror it in `scripts/init_db.ps1`, with the same creation and upgrade guards.
 3. Run `cargo test` — the script check fails while the two sides disagree.
-4. Rebuild your local database: run `scripts/init_db.ps1` against a fresh file or delete the old
-   one. An existing database is not upgraded, since no version has shipped yet.
+4. For additive changes to existing tables, check for the column before adding it in both
+   `ensure` and the maintenance script; test that repeat runs preserve existing data.
+
+Date sorting is global within each task-type section: both directions put undated tasks last, with newest id first for ties, regardless of completion. Default ordering keeps active tasks first. Overdue means an unfinished deadline before the user’s current local calendar day; a task due today is not overdue.

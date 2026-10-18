@@ -98,6 +98,7 @@ cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
 
 # 前端
 pnpm lint
+pnpm test
 pnpm build
 
 # 数字输入框浏览器回归测试（首次需安装 Chromium）

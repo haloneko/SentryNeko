@@ -1,4 +1,4 @@
-/** Settings page: the appearance, language, pomodoro durations, alarm defaults and auto-start. */
+/** Settings page for persisted appearance, task, timer and system preferences. */
 
 import { useEffect } from "react";
 import type { ReactNode } from "react";
@@ -7,8 +7,11 @@ import { AlarmDefaultsSettings } from "../components/AlarmDefaultsSettings";
 import { AppearanceSettings } from "../components/AppearanceSettings";
 import { AutostartSettings } from "../components/AutostartSettings";
 import { DashboardLayoutSettings } from "../components/DashboardLayoutSettings";
+import { FontSettings } from "../components/FontSettings";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { PomodoroSettings } from "../components/PomodoroSettings";
+import { SidebarLayoutSettings } from "../components/SidebarLayoutSettings";
+import { TodoDisplaySettings } from "../components/TodoDisplaySettings";
 import { useI18n } from "../hooks/useI18n";
 import { usePomodoro } from "../hooks/usePomodoro";
 
@@ -52,28 +55,37 @@ export function SettingsPage() {
         <SettingsRow hint={t("appearance.hint")} index="01" title={t("appearance.title")}>
           <AppearanceSettings />
         </SettingsRow>
-        <SettingsRow hint={t("settings.language.hint")} index="02" title={t("language.label")}>
+        <SettingsRow hint={t("font.hint")} index="02" title={t("font.title")}>
+          <FontSettings />
+        </SettingsRow>
+        <SettingsRow hint={t("settings.language.hint")} index="03" title={t("language.label")}>
           <LanguageSwitcher />
         </SettingsRow>
         <SettingsRow
           hint={t("settings.pomodoro.hint")}
-          index="03"
+          index="04"
           title={t("pomodoro.settings.title")}
         >
           <PomodoroSettings />
         </SettingsRow>
-        <SettingsRow hint={t("settings.alarm.hint")} index="04" title={t("alarm.settings.title")}>
+        <SettingsRow hint={t("settings.alarm.hint")} index="05" title={t("alarm.settings.title")}>
           <AlarmDefaultsSettings />
         </SettingsRow>
-        <SettingsRow hint={t("settings.autostart.hint")} index="05" title={t("autostart.title")}>
+        <SettingsRow hint={t("settings.autostart.hint")} index="06" title={t("autostart.title")}>
           <AutostartSettings />
         </SettingsRow>
         <SettingsRow
           hint={t("dashboard.layout.rowHint")}
-          index="06"
+          index="07"
           title={t("dashboard.layout.title")}
         >
           <DashboardLayoutSettings />
+        </SettingsRow>
+        <SettingsRow hint={t("todo.display.hint")} index="08" title={t("todo.display.title")}>
+          <TodoDisplaySettings />
+        </SettingsRow>
+        <SettingsRow hint={t("sidebar.hint")} index="09" title={t("sidebar.title")}>
+          <SidebarLayoutSettings />
         </SettingsRow>
       </div>
     </>

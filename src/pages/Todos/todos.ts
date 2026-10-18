@@ -1,7 +1,7 @@
 /** Todo page helpers: what the search matches, how the list is ordered and grouped. */
 
 import type { Tag } from "../../types/tag";
-import type { Todo } from "../../types/todo";
+import type { Todo, TodoSort } from "../../types/todo";
 
 /** How long ago something happened, in the largest unit that still reads as "ago". */
 export type Age =
@@ -26,8 +26,16 @@ export function matchesQuery(todo: Todo, tags: readonly Tag[], query: string): b
 }
 
 /** Newest first, so a task that was just added arrives at the top of its group. */
-export function sortTodos(todos: readonly Todo[]): readonly Todo[] {
-  return [...todos].sort((a, b) => b.createdAt - a.createdAt || b.id - a.id);
+export function sortTodos(todos: readonly Todo[], sort: TodoSort = "default"): readonly Todo[] {
+  return [...todos].sort((a, b) => {
+    if (sort === "default") {
+      return Number(a.completed) - Number(b.completed) || b.id - a.id;
+    }
+    if (a.dueDate == null || b.dueDate == null) {
+      return Number(a.dueDate == null) - Number(b.dueDate == null) || b.id - a.id;
+    }
+    return (sort === "dueDateAsc" ? a.dueDate - b.dueDate : b.dueDate - a.dueDate) || b.id - a.id;
+  });
 }
 
 /** The tasks the search leaves, in the order the page shows them. */
@@ -35,8 +43,9 @@ export function searchTodos(
   todos: readonly Todo[],
   tags: readonly Tag[],
   query: string,
+  sort: TodoSort = "default",
 ): readonly Todo[] {
-  return sortTodos(todos.filter((todo) => matchesQuery(todo, tags, query)));
+  return sortTodos(todos.filter((todo) => matchesQuery(todo, tags, query)), sort);
 }
 
 /** The two groups the list is drawn in; the backend filter decides whether both can be non-empty. */

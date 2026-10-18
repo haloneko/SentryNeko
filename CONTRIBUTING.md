@@ -98,6 +98,7 @@ cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
 
 # frontend
 pnpm lint
+pnpm test
 pnpm build
 
 # numeric input browser regressions (install Chromium once)

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { isOk } from "../types";
 import type { ApiCode, ApiResponse } from "../types";
 import type { CompletionScope, TaskCompletion } from "../types/todo";
+import { BACKEND_EVENTS, useTauriEvent } from "./useTauriEvent";
 
 export interface CompletionRateState {
   /** Both counts are zero until the call answers. */
@@ -17,6 +18,8 @@ export interface CompletionRateState {
 
 /** Loads the rate of `scope` again whenever the scope changes. */
 export function useCompletionRate(scope: CompletionScope): CompletionRateState {
+  const [revision, setRevision] = useState(0);
+  useTauriEvent<null>(BACKEND_EVENTS.todosChanged, () => setRevision((value) => value + 1));
   const [state, setState] = useState<CompletionRateState>({
     completion: { completed: 0, total: 0 },
     error: null,
@@ -62,7 +65,7 @@ export function useCompletionRate(scope: CompletionScope): CompletionRateState {
     return () => {
       cancelled = true;
     };
-  }, [scope]);
+  }, [scope, revision]);
 
   return state;
 }
