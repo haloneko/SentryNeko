@@ -36,6 +36,7 @@ pub fn run() {
             let config = Config::open(&directory)?;
             let db = Db::open(config.database_path()?)?;
             schema::ensure(&db)?;
+            crate::models::todo::Todo::advance_recurring(&db, crate::utils::time::now_seconds())?;
             app.manage(config.clone());
             app.manage(db.clone());
             let bus = EventBus::new(app.handle().clone());
@@ -68,6 +69,8 @@ pub fn run() {
             settings_commands::set_language,
             settings_commands::get_color_mode,
             settings_commands::set_color_mode,
+            settings_commands::get_todo_display_mode,
+            settings_commands::set_todo_display_mode,
             event_commands::emit_test_event,
             todo_commands::list_todos,
             todo_commands::add_todo,

@@ -9,6 +9,17 @@ export interface Todo {
   updatedAt: number;
   /** Ids of the tags the task carries, see `types/tag.ts`. */
   tagIds: readonly number[];
+  recurrence: TodoRecurrence | null;
+  /** UTC epoch seconds of the next reset, or null for a one-time task. */
+  nextOccurrenceAt: number | null;
+}
+
+export type RecurrenceUnit = "day" | "week" | "month";
+
+export interface TodoRecurrence {
+  unit: RecurrenceUnit;
+  /** Integer from 1 through 365. */
+  interval: number;
 }
 
 /** Totals shown beside the list. */
@@ -25,7 +36,10 @@ export type TodoFilter = "all" | "active" | "completed";
 export type CompletionScope = "all" | "today";
 
 /** Every scope, in the order the switcher shows them. */
-export const COMPLETION_SCOPES = ["all", "today"] as const satisfies readonly CompletionScope[];
+export const COMPLETION_SCOPES = [
+  "all",
+  "today",
+] as const satisfies readonly CompletionScope[];
 
 /** Numerator and denominator, mirrored from `models::todo::TaskCompletion`. */
 export interface TaskCompletion {

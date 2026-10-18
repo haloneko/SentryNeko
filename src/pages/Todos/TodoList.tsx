@@ -5,8 +5,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { useI18n } from "../../hooks/useI18n";
 import { useTags } from "../../hooks/useTags";
+import { useTodoDisplay } from "../../hooks/useTodoDisplay";
 import { useTodos } from "../../hooks/useTodos";
 import type { Todo, TodoFilter } from "../../types/todo";
+import { isRecurringTodo } from "../../types/todoDisplay";
 import { groupTodos, searchTodos } from "./todos";
 import { TodoItem } from "./TodoItem";
 import { TodoSearch } from "./TodoSearch";
@@ -20,9 +22,7 @@ const FILTER_LABELS: Record<TodoFilter, string> = {
 };
 
 /** The two groups a task can sit in, in the order they are shown. */
-const GROUPS = ["active", "completed"] as const;
-
-type Group = (typeof GROUPS)[number];
+type Group = "oneTime" | "recurring" | "merged";
 
 /** Where a task sat in the last paint: which group, and how far from the top of the window. */
 interface Placement {
@@ -104,6 +104,7 @@ export function TodoList() {
     updateTags,
   } = useTodos();
   const { tags } = useTags();
+  const { mode } = useTodoDisplay();
   const now = useNow();
 
   const [query, setQuery] = useState("");
@@ -112,7 +113,18 @@ export function TodoList() {
   const [leaving, setLeaving] = useState<ReadonlySet<number>>(() => new Set());
 
   const visible = useMemo(() => searchTodos(todos, tags, query), [todos, tags, query]);
-  const groups = useMemo(() => groupTodos(visible), [visible]);
+  const groups = useMemo(() => {
+    const definitions: { id: Group; tasks: readonly Todo[] }[] = mode === "merged"
+      ? [{ id: "merged", tasks: visible }]
+      : [
+        { id: "oneTime", tasks: visible.filter((todo) => !isRecurringTodo(todo)) },
+        { id: "recurring", tasks: visible.filter(isRecurringTodo) },
+      ];
+    return definitions.map(({ id, tasks }) => {
+      const grouped = groupTodos(tasks);
+      return { id, rows: [...grouped.active, ...grouped.completed] };
+    });
+  }, [visible, mode]);
 
   /** The row elements by task id, so a task that moved can be measured where it landed. */
   const rowElements = useRef(new Map<number, HTMLLIElement>());
@@ -144,8 +156,8 @@ export function TodoList() {
   useLayoutEffect(() => {
     const landed = new Map<number, Placement>();
 
-    GROUPS.forEach((group) => {
-      groups[group].forEach((todo) => {
+    groups.forEach(({ id: group, rows }) => {
+      rows.forEach((todo) => {
         const element = rowElements.current.get(todo.id);
 
         if (element !== undefined) {
@@ -456,20 +468,15 @@ export function TodoList() {
           <p>{emptyMessage}</p>
         </div>
       ) : (
-        <div className="todo-groups">
-          {GROUPS.map((group) => {
-            const rows = groups[group];
-
-            if (rows.length === 0) {
-              return null;
-            }
-
+        <div className="todo-groups" data-mode={mode}>
+          {groups.map(({ id: group, rows }) => {
             return (
               <section className="todo-group" key={group}>
-                <h2 className="todo-group-head">
-                  {t(`todo.group.${group}`)}
+                {group !== "merged" ? <h2 className="todo-group-head">
+                  {t(`todo.section.${group}`)}
                   <span className="todo-group-count">{rows.length}</span>
-                </h2>
+                </h2> : null}
+                {rows.length === 0 ? <p className="muted">{t("todo.empty")}</p> : null}
                 <ul className="todo-list">
                   {rows.map((todo, index) => (
                     <TodoItem
@@ -487,6 +494,7 @@ export function TodoList() {
                       rowIndex={index}
                       selected={selected.has(todo.id)}
                       selecting={selecting}
+                      showType={mode === "merged"}
                       tags={tags}
                       todo={todo}
                     />

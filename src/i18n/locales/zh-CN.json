@@ -290,6 +290,27 @@
     }
   },
   "todo": {
+    "display": {
+      "title": "任务显示方式",
+      "hint": "选择单次任务和循环任务在列表中的排列方式，更改后自动保存。",
+      "separated": "分区显示",
+      "merged": "合并显示",
+      "twoColumns": "双栏显示",
+      "description": {
+        "separated": "单次任务和循环任务分为两个区域，上下排列。",
+        "merged": "所有任务合并为一个列表，通过标签区分任务类型。",
+        "twoColumns": "单次任务和循环任务在同一视图中左右并排显示。"
+      },
+      "error": "无法读取或保存任务显示方式，请重试。"
+    },
+    "section": {
+      "oneTime": "单次任务",
+      "recurring": "循环任务"
+    },
+    "type": {
+      "oneTime": "单次",
+      "recurring": "循环"
+    },
     "add": "添加",
     "delete": "删除任务",
     "edit": "编辑任务",
@@ -343,7 +364,33 @@
       "minutes": "{{count}} 分钟前",
       "now": "刚刚"
     },
-    "toggle": "标记为完成"
+    "toggle": "标记为完成",
+    "reopen": "重新打开任务",
+    "recurrence": {
+      "label": "重复",
+      "once": "一次性",
+      "daily": "每天",
+      "weekly": "每周",
+      "monthly": "每月",
+      "custom": "自定义",
+      "interval": "每隔",
+      "unit": "单位",
+      "units": {
+        "day": "天",
+        "week": "周",
+        "month": "月"
+      },
+      "hint": "从今天开始，在下一个计划日期的本地零点重置。较短月份取月末。",
+      "next": "下个周期：{{date}}",
+      "summary": {
+        "day_one": "每天",
+        "day_other": "每 {{count}} 天",
+        "week_one": "每周",
+        "week_other": "每 {{count}} 周",
+        "month_one": "每月",
+        "month_other": "每 {{count}} 个月"
+      }
+    }
   },
   "window": {
     "minimize": "最小化",

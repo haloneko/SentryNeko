@@ -89,6 +89,12 @@ rejects anything outside `Language::ALL` with `INVALID_INPUT`. The appearance pa
 for `dark`, `light` and `system`: `get_color_mode` reads the stored choice and `set_color_mode`
 rejects anything else with `INVALID_INPUT`. `emit_test_event` is the
 diagnostic behind the event bus probe; the push it triggers is defined in `docs/events.md`.
+`add_todo` accepts an optional `recurrence: { unit: "day" | "week" | "month", interval: 1..365 }`.
+Omitting it or passing `null` creates a one-time task. `Todo` includes `recurrence` and
+`nextOccurrenceAt` (UTC epoch seconds); both are `null` for one-time tasks. The first cycle starts
+immediately; subsequent cycles start at local midnight on the scheduled date. Reads catch up due
+cycles before applying completion filters or counting. The calendar rules are in `docs/database.md`.
+
 The todo group is the list itself: `list_todos` filters by completion, every mutation answers
 with the stored row, `todo_counts` feeds the remaining counter, and `completion_rate` answers how
 many tasks of the `all` or `today` scope are done — the counting rules live in
@@ -144,7 +150,7 @@ refuses the write is `PERMISSION_DENIED`.
 | `set_color_mode` | `settings_commands` | `mode: String` | `String` (mode in force) | — |
 | `emit_test_event` | `event_commands` | — | `TestEvent` (`{ sequence }`) | T08 |
 | `list_todos` | `todo_commands` | `completed: bool?` | `Todo[]` | T10 |
-| `add_todo` | `todo_commands` | `title: String` | `Todo` | T10 |
+| `add_todo` | `todo_commands` | `title: String`, `recurrence: Recurrence?` | `Todo` | T10, T34 |
 | `rename_todo` | `todo_commands` | `id: i64`, `title: String` | `Todo` | T10 |
 | `set_todo_completed` | `todo_commands` | `id: i64`, `completed: bool` | `Todo` | T10 |
 | `delete_todo` | `todo_commands` | `id: i64` | — | T10 |
@@ -179,3 +185,5 @@ refuses the write is `PERMISSION_DENIED`.
 | `set_autostart` | `settings_commands` | `enabled: bool` | `bool` — the state now in force | T26 |
 | `get_dashboard_layout` | `settings_commands` | — | `DashboardLayout?` (`{ widgets: { id, kind, x, y, w, h, source }[] }`; `null` until customised) | — |
 | `apply_dashboard_changes` | `settings_commands` | `changes: WidgetChange[]` (`upsert` with a widget, or `remove` with an id) | `DashboardLayout` — the layout now in force | — |
+| `get_todo_display_mode` | `settings_commands` | — | `"separated"` (default), `"merged"` or `"twoColumns"` | T35 |
+| `set_todo_display_mode` | `settings_commands` | `mode: String` | The saved display mode; other values return `INVALID_INPUT` | T35 |

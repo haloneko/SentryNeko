@@ -291,6 +291,27 @@
   },
   "todo": {
     "add": "Add",
+    "display": {
+      "title": "Task display",
+      "hint": "Choose how one-time and recurring tasks share the task list. Your choice is saved automatically.",
+      "separated": "Separated",
+      "merged": "Merged",
+      "twoColumns": "Two columns",
+      "description": {
+        "separated": "One-time and recurring tasks appear in separate sections, one below the other.",
+        "merged": "All tasks share one list, with a label identifying each task type.",
+        "twoColumns": "One-time and recurring tasks appear side by side in the same view."
+      },
+      "error": "The task display preference could not be loaded or saved. Please try again."
+    },
+    "section": {
+      "oneTime": "One-time tasks",
+      "recurring": "Recurring tasks"
+    },
+    "type": {
+      "oneTime": "One-time",
+      "recurring": "Recurring"
+    },
     "delete": "Delete task",
     "edit": "Edit task",
     "empty": "No tasks here.",
@@ -343,7 +364,33 @@
       "minutes": "{{count}}m ago",
       "now": "just now"
     },
-    "toggle": "Mark as done"
+    "toggle": "Mark as done",
+    "reopen": "Reopen task",
+    "recurrence": {
+      "label": "Repeat",
+      "once": "One-time",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "custom": "Custom",
+      "interval": "Every",
+      "unit": "Unit",
+      "units": {
+        "day": "Days",
+        "week": "Weeks",
+        "month": "Months"
+      },
+      "hint": "Starts today and resets at local midnight on the next scheduled date. Shorter months use their last day.",
+      "next": "Next cycle: {{date}}",
+      "summary": {
+        "day_one": "Daily",
+        "day_other": "Every {{count}} days",
+        "week_one": "Weekly",
+        "week_other": "Every {{count}} weeks",
+        "month_one": "Monthly",
+        "month_other": "Every {{count}} months"
+      }
+    }
   },
   "window": {
     "minimize": "Minimize",

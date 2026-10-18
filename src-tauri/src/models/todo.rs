@@ -1,15 +1,19 @@
 //! Todo task model.
 
-use rusqlite::{params, Row};
+use rusqlite::{params, Row, Transaction};
 use serde::{Deserialize, Serialize};
 
 use crate::db::connection::Db;
 use crate::db::repository;
+use crate::models::recurrence::Recurrence;
 use crate::utils::response::{ApiError, ApiResult};
 use crate::utils::{time, windows};
 
 /// Columns every query selects, in the order [`Todo::from_row`] reads them.
-const COLUMNS: &str = "id, title, completed, created_at, updated_at, tag_ids";
+const COLUMNS: &str = "todos.id, todos.title, todos.completed, todos.created_at, todos.updated_at,
+                      todos.tag_ids, recurrence.unit, recurrence.interval, recurrence.next_at";
+const SOURCE: &str =
+    "todos LEFT JOIN todo_recurrences AS recurrence ON recurrence.todo_id = todos.id";
 
 /// A task the user maintains.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -22,6 +26,10 @@ pub struct Todo {
     pub updated_at: i64,
     /// Ids of the tags the task carries, cached from the `todo_tags` link table.
     pub tag_ids: Vec<i64>,
+    /// Absent for a one-time task.
+    pub recurrence: Option<Recurrence>,
+    /// UTC epoch seconds of the next cycle boundary, absent for a one-time task.
+    pub next_occurrence_at: Option<i64>,
 }
 
 /// Totals shown beside the list.
@@ -54,6 +62,10 @@ pub struct TaskCompletion {
 impl Todo {
     /// Maps one `todos` row selected with [`COLUMNS`].
     pub fn from_row(row: &Row<'_>) -> ApiResult<Self> {
+        let recurrence = row
+            .get::<_, Option<String>>(6)?
+            .map(|unit| Recurrence::from_storage(&unit, row.get(7)?))
+            .transpose()?;
         Ok(Self {
             id: row.get(0)?,
             title: row.get(1)?,
@@ -61,6 +73,8 @@ impl Todo {
             created_at: row.get(3)?,
             updated_at: row.get(4)?,
             tag_ids: parse_tag_ids(&row.get::<_, String>(5)?)?,
+            recurrence,
+            next_occurrence_at: row.get(8)?,
         })
     }
 
@@ -71,7 +85,8 @@ impl Todo {
             Some(false) => " WHERE completed = 0",
             Some(true) => " WHERE completed = 1",
         };
-        let sql = format!("SELECT {COLUMNS} FROM todos{condition} ORDER BY completed, id DESC");
+        let sql =
+            format!("SELECT {COLUMNS} FROM {SOURCE}{condition} ORDER BY completed, todos.id DESC");
 
         repository::query_all(db, &sql, [], Self::from_row)
     }
@@ -80,7 +95,7 @@ impl Todo {
     pub fn find(db: &Db, id: i64) -> ApiResult<Self> {
         repository::query_one(
             db,
-            &format!("SELECT {COLUMNS} FROM todos WHERE id = ?1"),
+            &format!("SELECT {COLUMNS} FROM {SOURCE} WHERE todos.id = ?1"),
             [id],
             Self::from_row,
         )
@@ -88,13 +103,38 @@ impl Todo {
 
     /// Inserts a task and answers with the stored row; a blank title is `INVALID_INPUT`.
     pub fn add(db: &Db, title: &str) -> ApiResult<Self> {
+        Self::add_with_recurrence(db, title, None)
+    }
+
+    /// Creates a task and its optional repeat schedule atomically. The first cycle starts now.
+    pub fn add_with_recurrence(
+        db: &Db,
+        title: &str,
+        recurrence: Option<Recurrence>,
+    ) -> ApiResult<Self> {
+        Self::add_at(db, title, recurrence, time::now_seconds())
+    }
+
+    fn add_at(db: &Db, title: &str, recurrence: Option<Recurrence>, now: i64) -> ApiResult<Self> {
         let title = validate_title(title)?;
-        let now = time::now_seconds();
-        let id = repository::insert(
-            db,
-            "INSERT INTO todos (title, completed, created_at, updated_at) VALUES (?1, 0, ?2, ?2)",
-            params![title, now],
-        )?;
+        let next = recurrence
+            .map(|rule| rule.cycle_at(now, now).map(|cycle| cycle.1))
+            .transpose()?;
+        let id = repository::transaction(db, |transaction| {
+            transaction.execute(
+                "INSERT INTO todos (title, completed, created_at, updated_at) VALUES (?1, 0, ?2, ?2)",
+                params![title, now],
+            )?;
+            let id = transaction.last_insert_rowid();
+            if let (Some(rule), Some(next)) = (recurrence, next) {
+                transaction.execute(
+                    "INSERT INTO todo_recurrences (todo_id, unit, interval, current_at, next_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![id, rule.unit.as_str(), rule.interval, now, next],
+                )?;
+            }
+            Ok(id)
+        })?;
 
         Self::find(db, id)
     }
@@ -115,18 +155,39 @@ impl Todo {
     /// Sets the completion flag, stamping `completed_at` when the task is done and clearing it
     /// when it is reopened; a missing id is `NOT_FOUND`.
     pub fn set_completed(db: &Db, id: i64, completed: bool) -> ApiResult<Self> {
-        let changed = repository::execute(
-            db,
-            "UPDATE todos
-             SET completed = ?1,
-                 completed_at = CASE WHEN ?1 THEN ?2 ELSE NULL END,
-                 updated_at = ?2
-             WHERE id = ?3",
-            params![completed, time::now_seconds(), id],
-        )?;
+        Self::set_completed_at(db, id, completed, time::now_seconds())
+    }
 
-        require_changed(changed, id)?;
+    fn set_completed_at(db: &Db, id: i64, completed: bool, now: i64) -> ApiResult<Self> {
+        repository::immediate_transaction(db, |transaction| {
+            // A click at a cycle boundary always belongs to the new cycle, even before the next
+            // scheduler tick. Rotation and completion must commit together.
+            advance_recurring_in(transaction, now)?;
+            let changed = transaction.execute(
+                "UPDATE todos
+                 SET completed = ?1,
+                     completed_at = CASE WHEN ?1 THEN COALESCE(completed_at, ?2) ELSE NULL END,
+                     updated_at = ?2
+                 WHERE id = ?3",
+                params![completed, now, id],
+            )?;
+            require_changed(changed, id)
+        })?;
+
         Self::find(db, id)
+    }
+
+    /// Resets due recurring tasks and archives completed cycles in the same transaction.
+    /// Missing cycles are skipped, leaving one current task in the list.
+    pub fn advance_recurring(db: &Db, now: i64) -> ApiResult<usize> {
+        if !repository::exists(
+            db,
+            "SELECT 1 FROM todo_recurrences WHERE next_at <= ?1",
+            [now],
+        )? {
+            return Ok(0);
+        }
+        repository::immediate_transaction(db, |transaction| advance_recurring_in(transaction, now))
     }
 
     /// Deletes a task; a missing id is `NOT_FOUND`.
@@ -179,15 +240,55 @@ impl Todo {
         repository::query_all(
             db,
             &format!(
-                "SELECT {COLUMNS} FROM todos
+                "SELECT {COLUMNS} FROM {SOURCE}
                    INNER JOIN todo_tags ON todo_tags.todo_id = todos.id
                   WHERE todo_tags.tag_id = ?1
-                  ORDER BY completed, id DESC"
+                  ORDER BY completed, todos.id DESC"
             ),
             [tag_id],
             Self::from_row,
         )
     }
+}
+
+fn advance_recurring_in(transaction: &Transaction<'_>, now: i64) -> ApiResult<usize> {
+    let due = {
+        let mut statement = transaction.prepare(
+            "SELECT todos.id, todos.created_at, recurrence.unit, recurrence.interval
+             FROM todo_recurrences AS recurrence INNER JOIN todos ON todos.id = recurrence.todo_id
+             WHERE recurrence.next_at <= ?1",
+        )?;
+        let rows = statement.query_and_then([now], |row| -> ApiResult<_> {
+            let unit: String = row.get(2)?;
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, i64>(1)?,
+                Recurrence::from_storage(&unit, row.get(3)?)?,
+            ))
+        })?;
+        rows.collect::<ApiResult<Vec<_>>>()?
+    };
+
+    for (id, anchor, recurrence) in &due {
+        let (start, next) = recurrence.cycle_at(*anchor, now)?;
+        transaction.execute(
+            "INSERT INTO todo_completions (todo_id, occurrence_at, completed_at)
+             SELECT todos.id, recurrence.current_at, todos.completed_at FROM todos
+             INNER JOIN todo_recurrences AS recurrence ON recurrence.todo_id = todos.id
+             WHERE todos.id = ?1 AND todos.completed = 1 AND todos.completed_at IS NOT NULL",
+            [id],
+        )?;
+        transaction.execute(
+            "UPDATE todos SET completed = 0, completed_at = NULL, updated_at = ?1 WHERE id = ?2",
+            params![now, id],
+        )?;
+        transaction.execute(
+            "UPDATE todo_recurrences SET current_at = ?1, next_at = ?2 WHERE todo_id = ?3",
+            params![start, next, id],
+        )?;
+    }
+
+    Ok(due.len())
 }
 
 /// Reads the cached id list; a malformed column is reported as `INTERNAL`.
@@ -231,7 +332,9 @@ impl TaskCompletion {
 
         repository::query_one(
             db,
-            "SELECT COUNT(*), SUM(completed = 1) FROM todos WHERE ?1 IS NULL OR created_at >= ?1",
+            "SELECT COUNT(*), SUM(completed = 1) FROM todos
+             LEFT JOIN todo_recurrences AS recurrence ON recurrence.todo_id = todos.id
+             WHERE ?1 IS NULL OR COALESCE(recurrence.current_at, todos.created_at) >= ?1",
             params![from],
             |row| {
                 Ok(Self {
@@ -281,6 +384,8 @@ mod tests {
         let todo = Todo::add(&db, "  write the docs  ").expect("the task is stored");
         assert_eq!(todo.title, "write the docs");
         assert!(!todo.completed);
+        assert_eq!(todo.recurrence, None);
+        assert_eq!(todo.next_occurrence_at, None);
         assert_eq!(todo.created_at, todo.updated_at);
 
         let error = Todo::add(&db, "   ").expect_err("a blank title is refused");
@@ -514,5 +619,237 @@ mod tests {
         let error = Todo::find(&db, todo.id).expect_err("the cache cannot be read");
         assert_eq!(error.code(), ApiCode::Internal);
         assert!(error.details().is_some());
+    }
+
+    fn local(year: u16, month: u16, day: u16) -> i64 {
+        windows::calendar_midnight(year, month, day).expect("local date")
+    }
+
+    fn daily() -> Recurrence {
+        Recurrence {
+            unit: crate::models::recurrence::RecurrenceUnit::Day,
+            interval: 1,
+        }
+    }
+
+    #[test]
+    fn invalid_schedules_do_not_leave_a_partial_task() {
+        let db = migrated();
+        for interval in [0, 366] {
+            let error = Todo::add_with_recurrence(
+                &db,
+                "invalid",
+                Some(Recurrence {
+                    interval,
+                    ..daily()
+                }),
+            )
+            .expect_err("invalid interval");
+            assert_eq!(error.code(), ApiCode::InvalidInput);
+        }
+        assert!(Todo::list(&db, None).expect("list").is_empty());
+    }
+
+    #[test]
+    fn custom_day_week_and_month_schedules_roundtrip_and_advance() {
+        use crate::models::recurrence::RecurrenceUnit;
+        let start = local(2026, 1, 31) + 3_600;
+        for (unit, interval, first, second) in [
+            (RecurrenceUnit::Day, 3, local(2026, 2, 3), local(2026, 2, 6)),
+            (
+                RecurrenceUnit::Week,
+                2,
+                local(2026, 2, 14),
+                local(2026, 2, 28),
+            ),
+            (
+                RecurrenceUnit::Month,
+                2,
+                local(2026, 3, 31),
+                local(2026, 5, 31),
+            ),
+        ] {
+            let db = migrated();
+            let recurrence = Recurrence { unit, interval };
+            let todo = Todo::add_at(&db, "custom", Some(recurrence), start).expect("stored");
+            assert_eq!(todo.recurrence, Some(recurrence));
+            assert_eq!(todo.next_occurrence_at, Some(first));
+            Todo::set_completed_at(&db, todo.id, true, start + 60).expect("done");
+            assert_eq!(Todo::advance_recurring(&db, first).expect("due"), 1);
+            let reset = Todo::find(&db, todo.id).expect("found");
+            assert!(!reset.completed);
+            assert_eq!(reset.recurrence, Some(recurrence));
+            assert_eq!(reset.next_occurrence_at, Some(second));
+        }
+    }
+
+    #[test]
+    fn completed_cycles_reset_exactly_once_and_keep_heatmap_history() {
+        let db = migrated();
+        let start = local(2026, 10, 18) + 3_600;
+        let next = local(2026, 10, 19);
+        let one_time = Todo::add_at(&db, "ship once", None, start).expect("stored");
+        let repeating = Todo::add_at(&db, "daily review", Some(daily()), start).expect("stored");
+        let tag = crate::models::tag::Tag::add(&db, "work").expect("tag");
+        Todo::set_tags(&db, repeating.id, &[tag.id]).expect("tagged");
+        Todo::set_completed_at(&db, one_time.id, true, start + 60).expect("done");
+        Todo::set_completed_at(&db, repeating.id, true, start + 60).expect("done");
+
+        assert_eq!(Todo::advance_recurring(&db, next - 1).expect("not due"), 0);
+        assert!(Todo::find(&db, repeating.id).expect("found").completed);
+        assert_eq!(Todo::advance_recurring(&db, next).expect("due"), 1);
+        assert_eq!(Todo::advance_recurring(&db, next).expect("same tick"), 0);
+
+        let reset = Todo::find(&db, repeating.id).expect("found");
+        assert!(!reset.completed);
+        assert_eq!(reset.next_occurrence_at, Some(local(2026, 10, 20)));
+        assert_eq!(reset.tag_ids, [tag.id]);
+        assert_eq!(reset.title, "daily review");
+        assert_eq!(completed_at(&db, reset.id), None);
+        assert!(Todo::find(&db, one_time.id).expect("found").completed);
+        assert_eq!(
+            TodoCounts::load(&db).expect("counts"),
+            TodoCounts {
+                total: 2,
+                remaining: 1,
+                completed: 1
+            }
+        );
+        assert_eq!(Todo::list_by_tag(&db, tag.id).expect("tag lookup"), [reset]);
+
+        let buckets = crate::models::heatmap::load(
+            &db,
+            local(2026, 10, 18),
+            local(2026, 10, 20),
+            crate::models::heatmap::Granularity::Day,
+        )
+        .expect("heatmap");
+        assert_eq!(
+            buckets
+                .iter()
+                .map(|bucket| bucket.completed_tasks)
+                .collect::<Vec<_>>(),
+            [2, 0]
+        );
+        assert_eq!(
+            TaskCompletion::load(&db, CompletionScope::Today, next + 60).expect("rate"),
+            TaskCompletion {
+                total: 1,
+                completed: 0
+            }
+        );
+    }
+
+    #[test]
+    fn a_completion_at_the_boundary_belongs_to_the_new_cycle() {
+        let db = migrated();
+        let start = local(2026, 10, 18) + 3_600;
+        let next = local(2026, 10, 19);
+        let todo = Todo::add_at(&db, "review", Some(daily()), start).expect("stored");
+        Todo::set_completed_at(&db, todo.id, true, start + 60).expect("first completion");
+        Todo::set_completed_at(&db, todo.id, true, next).expect("next completion");
+        Todo::set_completed_at(&db, todo.id, true, next + 60).expect("idempotent completion");
+        assert_eq!(completed_at(&db, todo.id), Some(next));
+        assert_eq!(
+            Todo::advance_recurring(&db, local(2026, 10, 20)).expect("next day"),
+            1
+        );
+        assert_eq!(
+            repository::count(&db, "SELECT COUNT(*) FROM todo_completions", []).expect("history"),
+            2
+        );
+
+        Todo::delete(&db, todo.id).expect("delete series");
+        assert_eq!(
+            repository::count(&db, "SELECT COUNT(*) FROM todo_recurrences", []).expect("schedules"),
+            0
+        );
+        assert_eq!(
+            repository::count(&db, "SELECT COUNT(*) FROM todo_completions", []).expect("history"),
+            0
+        );
+    }
+
+    #[test]
+    fn undone_and_missed_cycles_do_not_create_completions_or_duplicate_tasks() {
+        let db = migrated();
+        let start = local(2026, 1, 1) + 3_600;
+        let todo = Todo::add_at(&db, "review", Some(daily()), start).expect("stored");
+        Todo::set_completed_at(&db, todo.id, true, start + 60).expect("done");
+        Todo::set_completed_at(&db, todo.id, false, start + 120).expect("undo");
+
+        let now = local(2026, 10, 18) + 3_600;
+        assert_eq!(Todo::advance_recurring(&db, now).expect("catch up"), 1);
+        assert_eq!(Todo::list(&db, None).expect("list").len(), 1);
+        let reset = Todo::find(&db, todo.id).expect("found");
+        assert!(!reset.completed);
+        assert_eq!(reset.next_occurrence_at, Some(local(2026, 10, 19)));
+        assert_eq!(
+            repository::count(&db, "SELECT COUNT(*) FROM todo_completions", []).expect("history"),
+            0
+        );
+    }
+
+    #[test]
+    fn schedules_and_completion_history_survive_reopening_the_database() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("tasks.db");
+        let start = local(2026, 10, 18) + 3_600;
+        let id = {
+            let db = Db::open(&path).expect("file database");
+            schema::ensure(&db).expect("schema");
+            let todo = Todo::add_at(&db, "review", Some(daily()), start).expect("stored");
+            Todo::set_completed_at(&db, todo.id, true, start + 60).expect("done");
+            todo.id
+        };
+        let db = Db::open(&path).expect("reopened");
+        schema::ensure(&db).expect("idempotent schema");
+        assert_eq!(
+            Todo::advance_recurring(&db, local(2026, 10, 25)).expect("catch up"),
+            1
+        );
+        let todo = Todo::find(&db, id).expect("same task");
+        assert_eq!(todo.recurrence, Some(daily()));
+        assert_eq!(todo.next_occurrence_at, Some(local(2026, 10, 26)));
+        assert!(!todo.completed);
+        assert_eq!(
+            repository::count(&db, "SELECT COUNT(*) FROM todo_completions", []).expect("history"),
+            1
+        );
+    }
+
+    #[test]
+    fn a_scheduler_tick_and_completion_can_write_the_same_boundary_concurrently() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let db = Db::open(directory.path().join("tasks.db")).expect("file database");
+        schema::ensure(&db).expect("schema");
+        let start = local(2026, 10, 18) + 3_600;
+        let next = local(2026, 10, 19);
+        let todo = Todo::add_at(&db, "review", Some(daily()), start).expect("stored");
+        Todo::set_completed_at(&db, todo.id, true, start + 60).expect("previous cycle done");
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let jobs: Vec<_> = (0..2)
+            .map(|job| {
+                let db = db.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    if job == 0 {
+                        Todo::advance_recurring(&db, next).map(|_| ())
+                    } else {
+                        Todo::set_completed_at(&db, todo.id, true, next + 1).map(|_| ())
+                    }
+                })
+            })
+            .collect();
+        for job in jobs {
+            job.join().expect("worker").expect("both writes succeed");
+        }
+        assert!(Todo::find(&db, todo.id).expect("task").completed);
+        assert_eq!(completed_at(&db, todo.id), Some(next + 1));
+        assert_eq!(
+            repository::count(&db, "SELECT COUNT(*) FROM todo_completions", []).expect("history"),
+            1
+        );
     }
 }

@@ -8,7 +8,7 @@ use crate::db::repository;
 use crate::utils::response::ApiResult;
 
 /// Tables owned by the schema, in creation order.
-pub const TABLES: [&str; 7] = [
+pub const TABLES: [&str; 9] = [
     "todos",
     "pomodoro_sessions",
     "app_events",
@@ -16,6 +16,8 @@ pub const TABLES: [&str; 7] = [
     "settings",
     "tags",
     "todo_tags",
+    "todo_recurrences",
+    "todo_completions",
 ];
 
 const SCHEMA: &str = r"
@@ -86,6 +88,25 @@ CREATE INDEX IF NOT EXISTS idx_app_events_started_at
 
 CREATE INDEX IF NOT EXISTS idx_todo_tags_tag_id
     ON todo_tags (tag_id);
+
+CREATE TABLE IF NOT EXISTS todo_recurrences (
+    todo_id    INTEGER PRIMARY KEY REFERENCES todos (id) ON DELETE CASCADE,
+    unit       TEXT    NOT NULL CHECK (unit IN ('day', 'week', 'month')),
+    interval   INTEGER NOT NULL CHECK (interval BETWEEN 1 AND 365),
+    current_at INTEGER NOT NULL,
+    next_at    INTEGER NOT NULL CHECK (next_at > current_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_todo_recurrences_next_at ON todo_recurrences (next_at);
+
+CREATE TABLE IF NOT EXISTS todo_completions (
+    todo_id       INTEGER NOT NULL REFERENCES todos (id) ON DELETE CASCADE,
+    occurrence_at INTEGER NOT NULL,
+    completed_at  INTEGER NOT NULL,
+    PRIMARY KEY (todo_id, occurrence_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_todo_completions_completed_at ON todo_completions (completed_at);
 ";
 
 /// Creates every missing table and index; running it again changes nothing.
@@ -128,6 +149,32 @@ mod tests {
                 .expect("sqlite_master is readable");
             assert_eq!(found, 1, "{table} is missing");
         }
+    }
+
+    #[test]
+    fn adding_recurrence_tables_preserves_existing_one_time_tasks() {
+        let db = Db::open_in_memory().expect("database");
+        db.connection()
+            .expect("connection")
+            .execute_batch(
+                "CREATE TABLE todos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 0, completed_at INTEGER,
+                created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+                tag_ids TEXT NOT NULL DEFAULT '[]'
+             );
+             INSERT INTO todos (title, completed, completed_at, created_at, updated_at)
+             VALUES ('existing task', 1, 1700000060, 1700000000, 1700000060);",
+            )
+            .expect("previous schema");
+        ensure(&db).expect("new tables");
+        ensure(&db).expect("second run");
+        let tasks = crate::models::todo::Todo::list(&db, None).expect("list");
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].title, "existing task");
+        assert!(tasks[0].completed);
+        assert_eq!(tasks[0].recurrence, None);
+        assert_eq!(tasks[0].next_occurrence_at, None);
     }
 
     #[test]

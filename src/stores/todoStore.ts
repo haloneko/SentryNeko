@@ -5,7 +5,12 @@ import { create } from "zustand";
 
 import { isOk } from "../types";
 import type { ApiCode, ApiResponse } from "../types";
-import type { Todo, TodoCounts, TodoFilter } from "../types/todo";
+import type {
+  Todo,
+  TodoCounts,
+  TodoFilter,
+  TodoRecurrence,
+} from "../types/todo";
 
 export interface TodoState {
   todos: readonly Todo[];
@@ -16,7 +21,7 @@ export interface TodoState {
   error: ApiCode | null;
   setFilter: (filter: TodoFilter) => void;
   refresh: () => Promise<void>;
-  add: (title: string) => Promise<boolean>;
+  add: (title: string, recurrence?: TodoRecurrence | null) => Promise<boolean>;
   rename: (id: number, title: string) => Promise<boolean>;
   /** Replaces the tags a task carries; an empty list leaves it untagged. */
   updateTags: (id: number, tagIds: readonly number[]) => Promise<boolean>;
@@ -40,12 +45,19 @@ function completionArgument(filter: TodoFilter): boolean | null {
 }
 
 /** Runs a command, answering `UNSUPPORTED` outside Tauri so the UI can react the same way. */
-async function request<T>(command: string, args: Record<string, unknown> = {}): Promise<ApiResponse<T>> {
+async function request<T>(
+  command: string,
+  args: Record<string, unknown> = {},
+): Promise<ApiResponse<T>> {
   if (!isTauri()) {
     return { code: "UNSUPPORTED", message: command, details: null, data: null };
   }
 
-  return invoke<ApiResponse<T>>(command, args);
+  try {
+    return await invoke<ApiResponse<T>>(command, args);
+  } catch {
+    return { code: "INTERNAL", message: command, details: null, data: null };
+  }
 }
 
 /**
@@ -76,6 +88,8 @@ function recounted(counts: TodoCounts, before: Todo | null, after: Todo | null):
 
   return { total, completed, remaining: total - completed };
 }
+// A reset event can arrive during a user refresh or filter change; only the newest read may land.
+let refreshVersion = 0;
 
 export const useTodoStore = create<TodoState>((set, get) => ({
   todos: [],
@@ -93,10 +107,12 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     // keep, gets to say it is loading. Every later one — a filter switch, a stale dashboard count —
     // swaps its result in quietly, so the rows stay put and their animations are left alone.
     set({ loading: get().todos.length === 0, error: null });
+    const version = ++refreshVersion;
 
     const list = await request<Todo[]>("list_todos", {
       completed: completionArgument(get().filter),
     });
+    if (version !== refreshVersion) return;
 
     if (!isOk(list)) {
       set({ loading: false, error: list.code });
@@ -104,6 +120,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     }
 
     const counts = await request<TodoCounts>("todo_counts");
+    if (version !== refreshVersion) return;
 
     if (!isOk(counts)) {
       set({ loading: false, error: counts.code });
@@ -113,10 +130,10 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     set({ todos: list.data, counts: counts.data, loading: false });
   },
 
-  add: async (title) => {
+  add: async (title, recurrence = null) => {
     set({ error: null });
 
-    const response = await request<Todo>("add_todo", { title });
+    const response = await request<Todo>("add_todo", { title, recurrence });
 
     if (!isOk(response)) {
       set({ error: response.code });
@@ -130,6 +147,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       counts: recounted(state.counts, null, added),
     }));
 
+    await get().refresh();
     return true;
   },
 
@@ -151,6 +169,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       todos: state.todos.map((todo) => (todo.id === renamed.id ? renamed : todo)),
     }));
 
+    await get().refresh();
     return true;
   },
 
@@ -170,6 +189,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       todos: state.todos.map((todo) => (todo.id === tagged.id ? tagged : todo)),
     }));
 
+    await get().refresh();
     return true;
   },
 
@@ -197,6 +217,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       counts: recounted(state.counts, todo, moved),
     }));
 
+    await get().refresh();
     return true;
   },
 
@@ -216,6 +237,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       counts: recounted(state.counts, state.todos.find((todo) => todo.id === id) ?? null, null),
     }));
 
+    await get().refresh();
     return true;
   },
 }));

@@ -65,6 +65,8 @@ Status legend: `[ ]` not started　`[~]` in progress　`[x]` done　`[!]` blocke
 | [x] | T25 | System tray: stay resident when minimized + context menu + single instance | T02, T11 | Menu offers start Pomodoro, today's stats, show/hide window; closing the main window does not quit the app; launching again focuses or restores the existing window without another resident process or tray icon |
 | [x] | T26 | Auto-start with Windows (registry / Task Scheduler) | T25 | A settings switch writes `HKCU\...\Run` for the running executable; switching it on twice leaves one entry, switching it off removes it, and a login start waits in the tray |
 | [x] | T34 | Reusable numeric input with wheel adjustment (#36) | T16, T18 | Validated typing, wheel / keyboard / arrow stepping, configurable min / max / step, and both themes; reused for Pomodoro and alarm durations |
+| [x] | T35 | Task list display modes (#26) | T10, T16 | Settings switch between separate sections (default), one merged list with task type indicators and two columns; the preference survives a restart without changing tasks; recurring metadata comes from #25 |
+| [x] | T37 | One-time and recurring tasks (#25) | T10, T17 | Daily, weekly, monthly and custom calendar intervals; distinct list badges; automatic cycle resets and restart catch-up; completed cycles retained in the heatmap |
 
 ## P3 Reserved (stubs only, not implemented)
 

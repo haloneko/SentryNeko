@@ -7,6 +7,7 @@ import { isOk } from "../types";
 import type { ApiCode, ApiResponse } from "../types";
 import type { HeatmapBucket, HeatmapGranularity } from "../types/heatmap";
 import { heatmapWindow } from "../types/heatmap";
+import { BACKEND_EVENTS, useTauriEvent } from "./useTauriEvent";
 
 export interface HeatmapState {
   /** Buckets oldest first, empty ones included; empty while loading or after a failure. */
@@ -18,6 +19,8 @@ export interface HeatmapState {
 
 /** Loads the window again whenever the granularity changes. */
 export function useHeatmap(granularity: HeatmapGranularity): HeatmapState {
+  const [revision, setRevision] = useState(0);
+  useTauriEvent<null>(BACKEND_EVENTS.todosChanged, () => setRevision((value) => value + 1));
   const [state, setState] = useState<HeatmapState>({ buckets: [], error: null, loading: true });
 
   useEffect(() => {
@@ -52,7 +55,7 @@ export function useHeatmap(granularity: HeatmapGranularity): HeatmapState {
     return () => {
       cancelled = true;
     };
-  }, [granularity]);
+  }, [granularity, revision]);
 
   return state;
 }

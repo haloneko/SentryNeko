@@ -90,6 +90,25 @@ CREATE INDEX IF NOT EXISTS idx_app_events_started_at
 
 CREATE INDEX IF NOT EXISTS idx_todo_tags_tag_id
     ON todo_tags (tag_id);
+
+CREATE TABLE IF NOT EXISTS todo_recurrences (
+    todo_id    INTEGER PRIMARY KEY REFERENCES todos (id) ON DELETE CASCADE,
+    unit       TEXT    NOT NULL CHECK (unit IN ('day', 'week', 'month')),
+    interval   INTEGER NOT NULL CHECK (interval BETWEEN 1 AND 365),
+    current_at INTEGER NOT NULL,
+    next_at    INTEGER NOT NULL CHECK (next_at > current_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_todo_recurrences_next_at ON todo_recurrences (next_at);
+
+CREATE TABLE IF NOT EXISTS todo_completions (
+    todo_id       INTEGER NOT NULL REFERENCES todos (id) ON DELETE CASCADE,
+    occurrence_at INTEGER NOT NULL,
+    completed_at  INTEGER NOT NULL,
+    PRIMARY KEY (todo_id, occurrence_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_todo_completions_completed_at ON todo_completions (completed_at);
 '@
 
 $schema | & $sqlite.Source $DatabasePath

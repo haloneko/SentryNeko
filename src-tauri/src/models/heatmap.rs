@@ -133,7 +133,9 @@ fn add_completed(db: &Db, first: i64, to: i64, days: &mut [Day]) -> ApiResult<()
         db,
         "SELECT completed_at FROM todos
          WHERE completed = 1 AND completed_at IS NOT NULL
-           AND completed_at >= ?1 AND completed_at < ?2",
+           AND completed_at >= ?1 AND completed_at < ?2
+         UNION ALL
+         SELECT completed_at FROM todo_completions WHERE completed_at >= ?1 AND completed_at < ?2",
         params![first, to],
         |row| Ok(row.get::<_, i64>(0)?),
     )?;

@@ -24,6 +24,8 @@ pub mod names {
     pub const POMODORO_FINISHED: &str = "pomodoro-finished";
     /// Pushed when an alarm goes off, carrying the row it belongs to.
     pub const ALARM_TRIGGERED: &str = "alarm-triggered";
+    /// Pushed after a task mutation or cycle reset; the list and counts should reload.
+    pub const TODOS_CHANGED: &str = "todos-changed";
     /// Pushed when the tray's "start Pomodoro" entry is clicked, with no payload.
     pub const TRAY_START_POMODORO: &str = "tray-start-pomodoro";
 }
@@ -111,6 +113,12 @@ pub struct EventBus {
 }
 
 impl EventBus {
+    /// Pushes [`names::TODOS_CHANGED`] after the task changes are committed.
+    pub fn emit_todos_changed(&self) -> ApiResult<()> {
+        self.sink
+            .emit(names::TODOS_CHANGED, serde_json::Value::Null)
+    }
+
     /// Builds a bus that pushes through `sink`.
     #[must_use]
     pub fn new(sink: impl EventSink) -> Self {

@@ -28,6 +28,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { TodosPage } from "./pages/Todos";
 import { useAppEventStore } from "./stores/appEventStore";
 import { usePomodoroStore } from "./stores/pomodoroStore";
+import { useTodoStore } from "./stores/todoStore";
 import type { AppEvent } from "./types/appEvent";
 
 /**
@@ -97,6 +98,9 @@ function Shell() {
 
   // The shell owns the push, so the live tail keeps growing while another page is mounted.
   useTauriEvent<AppEvent>(BACKEND_EVENTS.appSwitch, recordAppSwitch);
+  useTauriEvent<null>(BACKEND_EVENTS.todosChanged, () => {
+    void useTodoStore.getState().refresh();
+  });
 
   // The tray only asks; the timer belongs to the store, which outlives the page. The durations are
   // reloaded first so a focus phase honours the settings without visiting the page.

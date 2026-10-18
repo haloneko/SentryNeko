@@ -79,6 +79,11 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 `config.json` 中的标签，`set_language` 对 `Language::ALL` 之外的标签返回 `INVALID_INPUT`。
 外观这一对同理：`get_color_mode` 读回已存的 `dark` / `light` / `system`，`set_color_mode`
 拒绝其余取值并返回 `INVALID_INPUT`。
+`add_todo` 可接收 `recurrence: { unit: "day" | "week" | "month", interval: 1..365 }`。
+省略或传 `null` 即创建一次性任务。`Todo` 包含 `recurrence` 和 `nextOccurrenceAt`（UTC 秒）；
+一次性任务的这两个字段均为 `null`。首个周期立即开始，后续周期在计划日期的本地零点开始。
+读取清单或计数时先补上到期周期，再筛选完成状态或统计。日历规则见 `docs/database.md`。
+
 `emit_test_event` 是事件探针背后的诊断命令，它推送的事件定义在 `docs/events.md`。待办这一组
 就是清单本身：`list_todos` 按完成状态筛选，写操作都返回落库后的整行，`todo_counts` 供剩余
 计数使用，`completion_rate` 回答 `all` 或 `today` 口径下任务已完成的比例——统计规则写在
@@ -121,7 +126,7 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 | `set_color_mode` | `settings_commands` | `mode: String` | `String`（生效后的模式） | — |
 | `emit_test_event` | `event_commands` | — | `TestEvent`（`{ sequence }`） | T08 |
 | `list_todos` | `todo_commands` | `completed: bool?` | `Todo[]` | T10 |
-| `add_todo` | `todo_commands` | `title: String` | `Todo` | T10 |
+| `add_todo` | `todo_commands` | `title: String`、`recurrence: Recurrence?` | `Todo` | T10、T34 |
 | `rename_todo` | `todo_commands` | `id: i64`、`title: String` | `Todo` | T10 |
 | `set_todo_completed` | `todo_commands` | `id: i64`、`completed: bool` | `Todo` | T10 |
 | `delete_todo` | `todo_commands` | `id: i64` | — | T10 |
@@ -156,3 +161,5 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 | `set_autostart` | `settings_commands` | `enabled: bool` | `bool` —— 此刻生效的状态 | T26 |
 | `get_dashboard_layout` | `settings_commands` | — | `DashboardLayout?`（`{ widgets: { id, kind, x, y, w, h, source }[] }`；未自定义时为 `null`） | — |
 | `apply_dashboard_changes` | `settings_commands` | `changes: WidgetChange[]`（`upsert` 带组件，或 `remove` 带 id） | `DashboardLayout` —— 应用后生效的布局 | — |
+| `get_todo_display_mode` | `settings_commands` | — | `"separated"`（默认）、`"merged"` 或 `"twoColumns"` | T35 |
+| `set_todo_display_mode` | `settings_commands` | `mode: String` | 保存后的显示方式；其他值返回 `INVALID_INPUT` | T35 |
