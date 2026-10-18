@@ -83,17 +83,35 @@ Rules (also enforced by `CONTRIBUTING.md`):
 
 ## Command index
 
+Typography uses `FontSettings` (`{ family: string | null, size: number }`): `null` follows the
+system UI font, `JetBrains Mono` selects the bundled font, and other names select installed
+Windows families. `get_font_settings` reads `config.json`; `set_font_settings` validates an
+integer size from 10 through 32 and a nonempty family name of at most 128 characters without
+control characters or surrounding whitespace. `get_system_fonts` enumerates Windows fonts on
+a worker thread, returning sorted unique family names without vertical-writing (`@`) aliases.
+Missing installed fonts fall back to the system UI stack without discarding the saved choice.
+
 Every command the frontend may call is listed here. The language pair is the interface behind
 `src/i18n/`: `get_language` answers with the tag stored in `config.json`, and `set_language`
 rejects anything outside `Language::ALL` with `INVALID_INPUT`. The appearance pair does the same
 for `dark`, `light` and `system`: `get_color_mode` reads the stored choice and `set_color_mode`
 rejects anything else with `INVALID_INPUT`. `emit_test_event` is the
 diagnostic behind the event bus probe; the push it triggers is defined in `docs/events.md`.
+`add_todo` accepts an optional `recurrence: { unit: "day" | "week" | "month", interval: 1..365 }`.
+Omitting it or passing `null` creates a one-time task. `Todo` includes `recurrence` and
+`nextOccurrenceAt` (UTC epoch seconds); both are `null` for one-time tasks. The first cycle starts
+immediately; subsequent cycles start at local midnight on the scheduled date. Reads catch up due
+cycles before applying completion filters or counting. The calendar rules are in `docs/database.md`.
+
 The todo group is the list itself: `list_todos` filters by completion, every mutation answers
-with the stored row, `todo_counts` feeds the remaining counter, and `completion_rate` answers how
-many tasks of the `all` or `today` scope are done — the counting rules live in
-`docs/database.md`. The tag group is reserved —
-no page calls it yet: it maintains the name index, links tags to a task through `set_todo_tags`,
+with the stored row (including nullable `dueDate`), `todo_counts` feeds the remaining counter,
+and `completion_rate` answers how many tasks of the `all` or `today` scope are done — the counting rules live in
+`docs/database.md`. `add_todo` accepts an optional due date and `update_todo` saves the title and
+due date together; `null` removes the date. `dueDate` is UTC epoch seconds at midnight from
+1970-01-01 through 9999-12-31, encoding a calendar date rather than a local instant. The picker
+and list use UTC components to preserve the selected date in any timezone; today/tomorrow use
+the user's local calendar. Values outside the range or between midnights are `INVALID_INPUT`.
+The tag group supplies the task page and the AI assistant: it maintains the name index, links tags to a task through `set_todo_tags`,
 and reads the relation from either side (`todo_tags` for one task, `todos_with_tag` for one tag).
 The pomodoro group persists the timer: `start_pomodoro_session` opens a row when a phase starts,
 and `finish_pomodoro_session` closes it with the seconds actually spent — the countdown itself
@@ -142,9 +160,14 @@ refuses the write is `PERMISSION_DENIED`.
 | `set_language` | `settings_commands` | `language: String` | `String` (tag in force) | T07 |
 | `get_color_mode` | `settings_commands` | — | `String` (`dark`, `light` or `system`) | — |
 | `set_color_mode` | `settings_commands` | `mode: String` | `String` (mode in force) | — |
+| `get_font_settings` | `settings_commands` | — | `FontSettings` (`{ family, size }`) | T34 |
+| `set_font_settings` | `settings_commands` | `settings: FontSettings` | `FontSettings` (settings in force) | T34 |
+| `get_system_fonts` | `settings_commands` | — | `String[]` (installed Windows font families) | T34 |
 | `emit_test_event` | `event_commands` | — | `TestEvent` (`{ sequence }`) | T08 |
-| `list_todos` | `todo_commands` | `completed: bool?` | `Todo[]` | T10 |
-| `add_todo` | `todo_commands` | `title: String` | `Todo` | T10 |
+| `list_todos` | `todo_commands` | `completed: bool?`, `sort: TodoSort?` (`default`, `dueDateAsc`, `dueDateDesc`) | `Todo[]` | T10 |
+| `add_todo` | `todo_commands` | `title: String`, `recurrence: Recurrence?`, `dueDate: i64?` | `Todo` | T10, T37 |
+| `update_todo` | `todo_commands` | `id: i64`, `title: String`, `dueDate: i64?` | `Todo` | T10 |
+| `set_todo_due_date` | `todo_commands` | `id: i64`, `dueDate: i64?` | `Todo` | T10 |
 | `rename_todo` | `todo_commands` | `id: i64`, `title: String` | `Todo` | T10 |
 | `set_todo_completed` | `todo_commands` | `id: i64`, `completed: bool` | `Todo` | T10 |
 | `delete_todo` | `todo_commands` | `id: i64` | — | T10 |
@@ -179,3 +202,18 @@ refuses the write is `PERMISSION_DENIED`.
 | `set_autostart` | `settings_commands` | `enabled: bool` | `bool` — the state now in force | T26 |
 | `get_dashboard_layout` | `settings_commands` | — | `DashboardLayout?` (`{ widgets: { id, kind, x, y, w, h, source }[] }`; `null` until customised) | — |
 | `apply_dashboard_changes` | `settings_commands` | `changes: WidgetChange[]` (`upsert` with a widget, or `remove` with an id) | `DashboardLayout` — the layout now in force | — |
+| `get_todo_display_mode` | `settings_commands` | — | `"separated"` (default), `"merged"` or `"twoColumns"` | T35 |
+| `set_todo_display_mode` | `settings_commands` | `mode: String` | The saved display mode; other values return `INVALID_INPUT` | T35 |
+| `get_ai_settings` | `assistance_commands` | — | `AiSettings` | T36 |
+| `set_ai_settings` | `assistance_commands` | `settings: AiSettings` | `AiSettings` | T36 |
+| `generate_ai_suggestions` | `assistance_commands` | `prompt: String` | `Suggestion[]` | T36 |
+| `list_ai_suggestions` | `assistance_commands` | — | `Suggestion[]` | T36 |
+| `edit_ai_suggestion` | `assistance_commands` | `id: i64`, `revision: i64`, `action: AiAction` | — | T36 |
+| `confirm_ai_suggestion` | `assistance_commands` | `id: i64`, `revision: i64`, `confirmed: bool` | — | T36 |
+| `reject_ai_suggestion` | `assistance_commands` | `id: i64`, `revision: i64` | — | T36 |
+| `list_ai_operation_log` | `assistance_commands` | `before: i64?` | `OperationLog[]` | T36 |
+| `clear_ai_operation_log` | `assistance_commands` | — | — | T36 |
+
+Date sorting is global within each task-type section: both directions put undated tasks last, with newest id first for ties, regardless of completion. Default ordering keeps active tasks first. Overdue means an unfinished deadline before the user’s current local calendar day; a task due today is not overdue.
+
+AI commands use `AiSettings { model, port }` and persistent, revisioned suggestions. Only `confirm_ai_suggestion` with `confirmed: true` executes an operation; editing a preview never executes it. Confirmation checks task deadlines, recurrence and completion together. See [AI assistance](assistance.md).

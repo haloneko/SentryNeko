@@ -2,6 +2,8 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
+<img src="src-tauri/app-icon.svg" alt="SentryNeko cat-and-clock logo" width="96" height="96" />
+
 > A Windows desktop productivity tool that combines a todo list, a Pomodoro timer, foreground-app tracking and focus analytics — all data stored locally, no cloud required.
 
 ## Overview
@@ -40,7 +42,7 @@ Status legend: ✅ Planned (implemented in the current scope); 🚧 Reserved (fu
 
 | Feature | Description | Status |
 | --- | --- | --- |
-| Todo list | Create, read, update, delete; toggle completion; filter (all / active / completed); remaining count | ✅ Planned |
+| Todo list | Create, read, update, delete; daily, weekly, monthly or custom recurring tasks with automatic cycle resets; optional due dates with a year/month/day picker, local-day overdue indicators and date sorting; toggle completion; filter (all / active / completed); remaining count; separate sections (default), merged list or two columns for one-time and recurring tasks, selected in Settings and saved locally | ✅ Planned |
 | Pomodoro timer | 25-minute focus countdown, break countdown, custom durations, start / pause / reset | ✅ Planned |
 | Heatmap | Aggregate focus time and completed tasks by day / week / month, GitHub-style rendering | ✅ Planned |
 | Alarms | One-off or repeating alarms, custom time, Windows Toast notification plus in-app ringtone | ✅ Planned |
@@ -97,15 +99,30 @@ Status legend: ✅ Planned (implemented in the current scope); 🚧 Reserved (fu
 | Pomodoro settings | Focus duration, break duration, long-break interval, daily goal | ✅ Planned |
 | Alarm defaults | Default ring duration and notification method | ✅ Planned |
 | Language settings | Switch the interface language | ✅ Planned |
+| Sidebar panels | Show/hide and reorder panels from Settings; changes apply immediately and persist across launches | ✅ Planned |
+| Font settings | Bundled JetBrains Mono or installed Windows fonts; 10–32 px base size with direct input, wheel and arrows; applied immediately and saved locally | ✅ Planned |
 | Data management | Export / import data, clear history | 🚧 Reserved |
+
+The default sidebar shows Dashboard, Todos, Pomodoro, Heatmap, Alarms, Events and Analytics, followed
+by the always-visible Settings entry. Use the the drag editor or keyboard controls to reorder panels, or restore the
+default layout. Preferences are stored locally under `sentryneko.sidebarLayout` in WebView storage,
+alongside the collapsed flag. Missing panels are appended on upgrade; invalid saved data falls
+back to the default layout. Hiding an entry leaves its page accessible through other links.
+### 9. AI assistance
+
+| Feature | Description | Status |
+| --- | --- | --- |
+| Semi-automatic AI assistant | Optional local Ollama suggestions; edit, reject or explicitly confirm each action; persistent operation log | ✅ Planned |
+
+See [AI assistance](docs/assistance.md) for local model setup, supported actions and review behavior.
 
 ### Summary
 
 | Category | Count |
 | --- | --- |
-| ✅ Planned | 17 |
+| ✅ Planned | 18 |
 | 🚧 Reserved | 5 |
-| Total | 22 |
+| Total | 23 |
 
 ## Project structure
 
@@ -307,4 +324,8 @@ pnpm tauri build
 
 [Apache License 2.0](LICENSE) © 2026 haloneko
 
-The application icon (`src-tauri/app-icon.svg`) adapts the "list" glyph from [Phosphor Icons](https://phosphoricons.com), which is distributed under the MIT License.
+The original application icon (`src-tauri/app-icon.svg`) combines a violet cat silhouette with a clock, using the same slate, violet and off-white palette as the interface. It is covered by the project's Apache License 2.0. Run `pnpm icons` after editing the SVG to regenerate the window, tray and installer icons; generated files under `src-tauri/icons/` are not tracked.
+
+The sidebar settings entry opens a modal drag editor. Pointer and keyboard reordering animate smoothly, visibility changes apply immediately, and closing the editor restores focus to its Edit button.
+
+JetBrains Mono is provided by the locked `@fontsource-variable/jetbrains-mono` dependency under the SIL Open Font License 1.1. The package supplies the font assets at build time; no font binaries are tracked in this repository. Vite includes those assets in the application bundle, so the installed app loads the font offline. System fonts supply missing glyphs, including Chinese.

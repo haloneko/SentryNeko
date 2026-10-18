@@ -6,8 +6,11 @@ import type { CSSProperties } from "react";
 import { useI18n } from "../../hooks/useI18n";
 import type { Tag } from "../../types/tag";
 import type { Todo } from "../../types/todo";
+import { isRecurringTodo } from "../../types/todoDisplay";
+import { isOverdue, localDate } from "../../types/dueDate";
 import { ageOf, tagNamesOf } from "./todos";
 import { TodoTagEditor } from "./TodoTagEditor";
+import { TodoDateEditor } from "./TodoDateEditor";
 
 export interface TodoItemProps {
   /** True for a task the page has not shown before, which is the only one that fades in. */
@@ -27,6 +30,7 @@ export interface TodoItemProps {
   rowIndex: number;
   selected: boolean;
   selecting: boolean;
+  showType?: boolean;
   tags: readonly Tag[];
   todo: Todo;
 }
@@ -44,12 +48,14 @@ export function TodoItem({
   rowIndex,
   selected,
   selecting,
+  showType = false,
   tags,
   todo,
 }: TodoItemProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [draft, setDraft] = useState<string | null>(null);
   const [tagging, setTagging] = useState(false);
+  const [editingDate, setEditingDate] = useState(false);
 
   const age = ageOf(todo.createdAt, now);
   const names = tagNamesOf(todo, tags);
@@ -75,7 +81,8 @@ export function TodoItem({
       }}
       style={{ "--row": rowIndex } as CSSProperties}
     >
-      <div className="todo-card" data-completed={todo.completed} data-enter={entering}>
+      <div className="todo-card" data-completed={todo.completed} data-enter={entering}
+        data-recurring={isRecurringTodo(todo)}>
         {selecting ? (
           <input
             aria-label={t("todo.select.item", { title: todo.title })}
@@ -88,7 +95,7 @@ export function TodoItem({
           />
         ) : null}
         <input
-          aria-label={t("todo.toggle")}
+          aria-label={t(todo.completed ? "todo.reopen" : "todo.toggle")}
           checked={todo.completed}
           className="todo-check"
           onChange={() => {
@@ -129,6 +136,24 @@ export function TodoItem({
             />
           )}
           <span className="todo-meta">
+            {todo.recurrence != null ? (
+              <span className="todo-kind">
+                {t(`todo.recurrence.summary.${todo.recurrence.unit}`, { count: todo.recurrence.interval })}
+              </span>
+            ) : null}
+            {todo.nextOccurrenceAt != null ? (
+              <span className="todo-time">
+                {t("todo.recurrence.next", {
+                  date: new Intl.DateTimeFormat(language, { dateStyle: "medium" })
+                    .format(todo.nextOccurrenceAt * 1000),
+                })}
+              </span>
+            ) : null}
+            {showType ? (
+              <span className="todo-type" data-type={isRecurringTodo(todo) ? "recurring" : "oneTime"}>
+                {t(isRecurringTodo(todo) ? "todo.type.recurring" : "todo.type.oneTime")}
+              </span>
+            ) : null}
             <span className="todo-time">
               {age.unit === "now"
                 ? t("todo.time.now")
@@ -140,6 +165,20 @@ export function TodoItem({
               </span>
             ))}
           </span>
+          <button className="todo-due" data-overdue={isOverdue(todo.dueDate, todo.completed, localDate(new Date(now * 1000)))}
+            onClick={() => setEditingDate((value) => !value)} type="button">
+            {todo.dueDate == null ? t("todo.setDueDate") : (
+              <time dateTime={new Date(todo.dueDate * 1000).toISOString().slice(0, 10)}>
+                {t("todo.dueOn", { date: new Intl.DateTimeFormat(language, {
+                  dateStyle: "medium", timeZone: "UTC",
+                }).format(todo.dueDate * 1000) })}
+              </time>
+            )}
+          </button>
+          {isOverdue(todo.dueDate, todo.completed, localDate(new Date(now * 1000))) ? (
+            <span className="todo-overdue">{t("todo.overdue")}</span>
+          ) : null}
+          {editingDate ? <TodoDateEditor todo={todo} onClose={() => setEditingDate(false)} /> : null}
           {tagging ? (
             <TodoTagEditor
               onClose={() => {

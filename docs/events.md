@@ -37,6 +37,7 @@ a new event: add the new name, migrate the listeners, then drop the old one.
 | `pomodoro-finished` | `PomodoroSession` — `{ id, phase, plannedSeconds, actualSeconds, startedAt, endedAt, todoId }` | `finish_pomodoro_session` closed a session, so a history view can refresh without polling; the window that closed it already knows | T15 |
 | `tray-start-pomodoro` | — (payload is `null`) | The tray's `Start Pomodoro` entry: the window has already been shown, and the shell reloads the durations and starts the phase from the store, so it runs exactly like one started on the page | T25 |
 | `alarm-triggered` | `Alarm` — `{ id, label, hour, minute, repeatDays, enabled, createdAt }` | `services/scheduler.rs` reached the alarm's local time: the tone started and, unless the stored defaults say `inApp`, the toast (or its `notification-fallback`) was handed over first. A one-off is already switched off, so the payload carries `enabled: false` | T17, T18 |
+| `todos-changed` | — (payload is `null`) | A successful task mutation or a committed recurring-cycle reset. The shell reloads the current list/filter and counts; mounted completion-rate and heatmap views reload too. The scheduler checks every second, including while the window stays in the tray | T34 |
 
 The shell (`App.tsx`) subscribes to `app-switch` once and hands every push to
 `stores/appEventStore.ts`, which keeps the newest rows. `EventsPage` pages through the database and

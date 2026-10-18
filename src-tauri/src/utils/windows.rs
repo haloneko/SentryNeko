@@ -6,6 +6,28 @@
 use std::ffi::c_void;
 use std::ptr;
 
+use crate::utils::response::{ApiError, ApiResult};
+
+/// `LOGFONTW`, with a 32-code-unit family name. Layout must match `wingdi.h`.
+#[repr(C)]
+#[derive(Default)]
+struct LogFont {
+    height: i32,
+    width: i32,
+    escapement: i32,
+    orientation: i32,
+    weight: i32,
+    italic: u8,
+    underline: u8,
+    strike_out: u8,
+    char_set: u8,
+    out_precision: u8,
+    clip_precision: u8,
+    quality: u8,
+    pitch_and_family: u8,
+    face_name: [u16; 32],
+}
+
 /// Opaque handle type: `HWND` for windows, `HANDLE` for kernel objects.
 type Handle = *mut c_void;
 
@@ -74,12 +96,89 @@ const ERROR_FILE_NOT_FOUND: i32 = 2;
 
 #[link(name = "user32")]
 extern "system" {
+    fn GetDC(window: WindowHandle) -> Handle;
+    fn ReleaseDC(window: WindowHandle, context: Handle) -> i32;
     fn GetForegroundWindow() -> WindowHandle;
     fn MessageBeep(sound: u32) -> i32;
     fn IsWindowVisible(window: WindowHandle) -> i32;
     fn GetWindowTextLengthW(window: WindowHandle) -> i32;
     fn GetWindowTextW(window: WindowHandle, buffer: *mut u16, capacity: i32) -> i32;
     fn GetWindowThreadProcessId(window: WindowHandle, process_id: *mut u32) -> u32;
+}
+
+#[link(name = "gdi32")]
+extern "system" {
+    fn EnumFontFamiliesExW(
+        context: Handle,
+        filter: *const LogFont,
+        callback: unsafe extern "system" fn(*const LogFont, *const c_void, u32, isize) -> i32,
+        parameter: isize,
+        flags: u32,
+    ) -> i32;
+}
+
+/// Sorted, unique family names available to the current Windows user.
+pub fn system_font_families() -> ApiResult<Vec<String>> {
+    let context = unsafe { GetDC(ptr::null_mut()) };
+
+    if context.is_null() {
+        return Err(
+            ApiError::internal("cannot create a font enumeration context")
+                .with_details(std::io::Error::last_os_error().to_string()),
+        );
+    }
+
+    // DEFAULT_CHARSET (1) and an empty name enumerate every family, across writing systems.
+    let filter = LogFont {
+        char_set: 1,
+        ..LogFont::default()
+    };
+    let mut families = Vec::<String>::new();
+
+    unsafe {
+        // Enumeration is synchronous: the vector stays alive and exclusively borrowed here.
+        EnumFontFamiliesExW(
+            context,
+            &filter,
+            collect_font_family,
+            &mut families as *mut Vec<String> as isize,
+            0,
+        );
+        ReleaseDC(ptr::null_mut(), context);
+    }
+
+    families.sort_by_cached_key(|family| family.to_lowercase());
+    families.dedup_by(|left, right| left.to_lowercase() == right.to_lowercase());
+
+    if families.is_empty() {
+        return Err(ApiError::internal(
+            "Windows did not report any installed font families",
+        ));
+    }
+
+    Ok(families)
+}
+
+unsafe extern "system" fn collect_font_family(
+    font: *const LogFont,
+    _metrics: *const c_void,
+    _font_type: u32,
+    parameter: isize,
+) -> i32 {
+    // Windows supplies a LOGFONTW at the start of its extended font structure.
+    let name = unsafe { &(*font).face_name };
+    let end = name
+        .iter()
+        .position(|unit| *unit == 0)
+        .unwrap_or(name.len());
+    let family = String::from_utf16_lossy(&name[..end]);
+
+    // `@` families are vertical-writing aliases of the same font, unsuitable for the UI.
+    if !family.is_empty() && !family.starts_with('@') {
+        unsafe { &mut *(parameter as *mut Vec<String>) }.push(family);
+    }
+
+    1
 }
 
 #[link(name = "kernel32")]
@@ -291,6 +390,73 @@ pub fn local_date(utc_seconds: i64) -> Option<LocalDate> {
         day: local.day,
         weekday: local.day_of_week,
     })
+}
+
+/// UTC instant at the start of a local calendar date. If a clock change skips midnight, use the
+/// first valid hour of that date instead of moving the task to a different day.
+#[must_use]
+pub fn calendar_midnight(year: u16, month: u16, day: u16) -> Option<i64> {
+    for hour in 0..24 {
+        let local = SystemTime {
+            year,
+            month,
+            day,
+            hour,
+            ..SystemTime::default()
+        };
+        let mut universal = SystemTime::default();
+        if unsafe { TzSpecificLocalTimeToSystemTime(ptr::null(), &local, &mut universal) } == 0 {
+            continue;
+        }
+        let instant = seconds_since_epoch(file_time_of(&universal)?)?;
+        let roundtrip = local_time_of(instant)?;
+        if (
+            roundtrip.year,
+            roundtrip.month,
+            roundtrip.day,
+            roundtrip.hour,
+        ) == (year, month, day, hour)
+        {
+            return Some(instant);
+        }
+    }
+
+    None
+}
+
+/// Shifts an instant's local date by calendar months and days, then resolves its local midnight.
+/// Month arithmetic clamps the original day to the last day of the target month.
+#[must_use]
+pub fn shift_local_midnight(anchor: i64, days: i64, months: i64) -> Option<i64> {
+    let local = local_time_of(anchor)?;
+    let month_index = i64::from(local.year)
+        .checked_mul(12)?
+        .checked_add(i64::from(local.month) - 1)?
+        .checked_add(months)?;
+    let year = u16::try_from(month_index.div_euclid(12)).ok()?;
+    let month = u16::try_from(month_index.rem_euclid(12) + 1).ok()?;
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let last_day = match month {
+        2 => {
+            if leap {
+                29
+            } else {
+                28
+            }
+        }
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    // Treat this date as UTC only for date arithmetic; applying the zone comes afterwards.
+    let date = SystemTime {
+        year,
+        month,
+        day: local.day.min(last_day),
+        ..SystemTime::default()
+    };
+    let naive = seconds_since_epoch(file_time_of(&date)?)?;
+    let shifted = system_time_of(naive.checked_add(days.checked_mul(86_400)?)?)?;
+    calendar_midnight(shifted.year, shifted.month, shifted.day)
 }
 
 /// Minutes the local clock reads on `utc_seconds`, counted from its midnight.
@@ -552,6 +718,19 @@ fn text_of(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn installed_font_families_are_sorted_unique_and_horizontal() {
+        let families = super::system_font_families().expect("Windows enumerates installed fonts");
+        assert!(!families.is_empty());
+        assert!(families
+            .iter()
+            .all(|name| !name.is_empty() && !name.starts_with('@')));
+        assert!(families
+            .windows(2)
+            .all(|pair| pair[0].to_lowercase() < pair[1].to_lowercase()));
+        assert_eq!(std::mem::size_of::<super::LogFont>(), 92);
+    }
 
     fn now() -> i64 {
         std::time::SystemTime::now()

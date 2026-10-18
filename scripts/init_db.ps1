@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS todos (
     completed_at INTEGER,
     created_at   INTEGER NOT NULL,
     updated_at   INTEGER NOT NULL,
-    tag_ids      TEXT    NOT NULL DEFAULT '[]'
+    tag_ids      TEXT    NOT NULL DEFAULT '[]',
+    due_date     INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS pomodoro_sessions (
@@ -79,6 +80,29 @@ CREATE TABLE IF NOT EXISTS todo_tags (
     PRIMARY KEY (todo_id, tag_id)
 );
 
+CREATE TABLE IF NOT EXISTS ai_suggestions (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    reason         TEXT NOT NULL,
+    action         TEXT NOT NULL,
+    expected_state TEXT NOT NULL,
+    revision       INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+    status         TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+    created_at     INTEGER NOT NULL,
+    updated_at     INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ai_operation_log (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    suggestion_id INTEGER NOT NULL,
+    event         TEXT NOT NULL CHECK (event IN ('proposed', 'edited', 'confirmed', 'rejected')),
+    reason        TEXT NOT NULL,
+    action        TEXT NOT NULL,
+    result_id     INTEGER,
+    created_at    INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_suggestions_status ON ai_suggestions (status, id);
+
 CREATE INDEX IF NOT EXISTS idx_todos_completed
     ON todos (completed, created_at);
 
@@ -90,9 +114,42 @@ CREATE INDEX IF NOT EXISTS idx_app_events_started_at
 
 CREATE INDEX IF NOT EXISTS idx_todo_tags_tag_id
     ON todo_tags (tag_id);
+
+CREATE TABLE IF NOT EXISTS todo_recurrences (
+    todo_id    INTEGER PRIMARY KEY REFERENCES todos (id) ON DELETE CASCADE,
+    unit       TEXT    NOT NULL CHECK (unit IN ('day', 'week', 'month')),
+    interval   INTEGER NOT NULL CHECK (interval BETWEEN 1 AND 365),
+    current_at INTEGER NOT NULL,
+    next_at    INTEGER NOT NULL CHECK (next_at > current_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_todo_recurrences_next_at ON todo_recurrences (next_at);
+
+CREATE TABLE IF NOT EXISTS todo_completions (
+    todo_id       INTEGER NOT NULL REFERENCES todos (id) ON DELETE CASCADE,
+    occurrence_at INTEGER NOT NULL,
+    completed_at  INTEGER NOT NULL,
+    PRIMARY KEY (todo_id, occurrence_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_todo_completions_completed_at ON todo_completions (completed_at);
 '@
 
 $schema | & $sqlite.Source $DatabasePath
+if ($LASTEXITCODE -ne 0) {
+    throw 'Could not create the database schema.'
+}
+
+$hasDueDate = & $sqlite.Source $DatabasePath "SELECT COUNT(*) FROM pragma_table_info('todos') WHERE name = 'due_date';"
+if ($LASTEXITCODE -ne 0) {
+    throw 'Could not inspect the todo schema.'
+}
+if ($hasDueDate -eq '0') {
+    & $sqlite.Source $DatabasePath 'ALTER TABLE todos ADD COLUMN due_date INTEGER;'
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Could not add the todo due-date column.'
+    }
+}
 
 Write-Host "Database ready: $DatabasePath"
 & $sqlite.Source $DatabasePath "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name;"

@@ -6,6 +6,7 @@ use std::sync::{Arc, RwLock};
 use serde::{Deserialize, Serialize};
 
 use crate::db::connection::DATABASE_FILE_NAME;
+use crate::models::font::FontSettings;
 use crate::services::i18n::Language;
 use crate::services::theme::ColorMode;
 use crate::utils::response::{ApiCode, ApiError, ApiResult};
@@ -23,6 +24,8 @@ struct StoredConfig {
     language: Option<String>,
     #[serde(default)]
     color_mode: String,
+    #[serde(default)]
+    font_settings: FontSettings,
 }
 
 /// Configuration as the application runs it, with every default resolved.
@@ -31,6 +34,7 @@ struct AppConfig {
     database_path: PathBuf,
     language: Language,
     color_mode: ColorMode,
+    font_settings: FontSettings,
 }
 
 /// Loads, holds and rewrites `config.json`; share it through Tauri managed state.
@@ -151,6 +155,28 @@ impl Config {
         Ok(previous)
     }
 
+    /// Typography in force, resolved before the frontend renders.
+    pub fn font_settings(&self) -> ApiResult<FontSettings> {
+        Ok(self.snapshot()?.font_settings)
+    }
+
+    /// Validates and persists the family and size together, preserving other preferences.
+    pub fn set_font_settings(&self, settings: FontSettings) -> ApiResult<FontSettings> {
+        settings.validate()?;
+        let mut current = self.current.write().map_err(|_| lock_error("write"))?;
+
+        if current.font_settings != settings {
+            let updated = AppConfig {
+                font_settings: settings.clone(),
+                ..current.clone()
+            };
+            self.persist(&updated)?;
+            *current = updated;
+        }
+
+        Ok(settings)
+    }
+
     fn snapshot(&self) -> ApiResult<AppConfig> {
         self.current
             .read()
@@ -206,6 +232,11 @@ impl StoredConfig {
                 .and_then(Language::from_code)
                 .unwrap_or(Language::DEFAULT),
             color_mode: ColorMode::from_code(&self.color_mode).unwrap_or(ColorMode::DEFAULT),
+            font_settings: if self.font_settings.validate().is_ok() {
+                self.font_settings
+            } else {
+                FontSettings::default()
+            },
         }
     }
 }
@@ -216,6 +247,7 @@ impl From<&AppConfig> for StoredConfig {
             database_path: Some(config.database_path.clone()),
             language: Some(config.language.code().to_owned()),
             color_mode: config.color_mode.code().to_owned(),
+            font_settings: config.font_settings.clone(),
         }
     }
 }
@@ -468,6 +500,60 @@ mod tests {
 
         let reopened = Config::open(directory.path()).expect("the configuration is read back");
         assert_eq!(reopened.color_mode().expect("mode"), ColorMode::Dark);
+    }
+
+    #[test]
+    fn font_settings_survive_a_restart_and_preserve_other_preferences() {
+        let directory = temporary_directory();
+        let chosen = FontSettings {
+            family: Some("JetBrains Mono".to_owned()),
+            size: 24,
+        };
+
+        {
+            let config = Config::open(directory.path()).expect("the configuration is created");
+            config.set_language(Language::ZhCn).expect("language saved");
+            config.set_color_mode(ColorMode::Light).expect("mode saved");
+            config
+                .set_font_settings(chosen.clone())
+                .expect("font saved");
+        }
+
+        let config = Config::open(directory.path()).expect("configuration reopened");
+        assert_eq!(config.font_settings().expect("font"), chosen);
+        assert_eq!(config.language().expect("language"), Language::ZhCn);
+        assert_eq!(config.color_mode().expect("mode"), ColorMode::Light);
+
+        let before = std::fs::read(config.path()).expect("configuration readable");
+        assert!(config
+            .set_font_settings(FontSettings {
+                size: 33,
+                ..chosen.clone()
+            })
+            .is_err());
+        assert_eq!(config.font_settings().expect("font"), chosen);
+        assert_eq!(
+            std::fs::read(config.path()).expect("configuration readable"),
+            before
+        );
+    }
+
+    #[test]
+    fn missing_or_invalid_font_preferences_use_the_defaults() {
+        let directory = temporary_directory();
+
+        for contents in [
+            r#"{ "language": "zh-CN" }"#,
+            r#"{ "fontSettings": { "family": "Arial", "size": 9 } }"#,
+            r#"{ "fontSettings": { "family": "", "size": 14 } }"#,
+        ] {
+            write_config(directory.path(), contents);
+            let config = Config::open(directory.path()).expect("configuration opened");
+            assert_eq!(
+                config.font_settings().expect("font"),
+                FontSettings::default()
+            );
+        }
     }
 
     #[test]

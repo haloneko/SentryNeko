@@ -17,13 +17,13 @@ const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 /** Renders the page head with the progress ring, the composer and the tasks. */
 export function TodosPage() {
   const { t } = useI18n();
-  const { counts, filter, refresh } = useTodos();
+  const { counts, filter, sort, refresh } = useTodos();
   const { refresh: refreshTags } = useTags();
 
   // One load per filter change; the components below only read the result.
   useEffect(() => {
     void refresh();
-  }, [filter, refresh]);
+  }, [filter, sort, refresh]);
 
   // Tags are loaded once: they are the catalog the search and the rows read, and they change only
   // when a row changes them.

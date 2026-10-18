@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 /** Every drawing the sidebar can ask for; the keys mirror the `icon` field of each page. */
 export type NavIconName =
   | "analytics"
+  | "assistance"
   | "alarms"
   | "dashboard"
   | "events"
@@ -18,6 +19,12 @@ export type NavIconName =
 
 /** Exported so a dashboard panel that means the same thing can reuse the drawing verbatim. */
 export const NAV_DRAWINGS: Record<NavIconName, ReactNode> = {
+  assistance: (
+    <>
+      <path d="m12 3 2.3 6.7L21 12l-6.7 2.3L12 21l-2.3-6.7L3 12l6.7-2.3Z" />
+      <path d="M20 2v4M18 4h4" />
+    </>
+  ),
   // Four tiles: the landing page that summarises everything else.
   dashboard: (
     <>
