@@ -2,6 +2,8 @@
 
 [English](README.md) | **简体中文**
 
+<img src="src-tauri/app-icon.svg" alt="SentryNeko 猫咪时钟标志" width="96" height="96" />
+
 > Windows 桌面生产力工具：待办清单、番茄钟、前台应用采集与专注统计，全部数据本地存储，不依赖云端。
 
 ## 简介
@@ -307,4 +309,4 @@ pnpm tauri build
 
 [Apache License 2.0](LICENSE) © 2026 haloneko
 
-应用图标（`src-tauri/app-icon.svg`）改编自 [Phosphor Icons](https://phosphoricons.com) 的 "list" 图标，该图标库以 MIT 许可证发布。
+原创应用图标（`src-tauri/app-icon.svg`）将紫色猫咪轮廓与时钟结合，沿用界面的深灰、紫色与灰白配色，并遵循项目的 Apache License 2.0 许可证。编辑 SVG 后运行 `pnpm icons`，即可重新生成窗口、托盘与安装包图标；`src-tauri/icons/` 下的生成文件不纳入版本控制。
