@@ -9,6 +9,7 @@ import { AutostartSettings } from "../components/AutostartSettings";
 import { DashboardLayoutSettings } from "../components/DashboardLayoutSettings";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { PomodoroSettings } from "../components/PomodoroSettings";
+import { SidebarLayoutSettings } from "../components/SidebarLayoutSettings";
 import { useI18n } from "../hooks/useI18n";
 import { usePomodoro } from "../hooks/usePomodoro";
 
@@ -74,6 +75,9 @@ export function SettingsPage() {
           title={t("dashboard.layout.title")}
         >
           <DashboardLayoutSettings />
+        </SettingsRow>
+        <SettingsRow hint={t("sidebar.hint")} index="07" title={t("sidebar.title")}>
+          <SidebarLayoutSettings />
         </SettingsRow>
       </div>
     </>

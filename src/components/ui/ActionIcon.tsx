@@ -5,9 +5,20 @@
 
 import type { ReactNode } from "react";
 
-export type ActionIconName = "cancel" | "check" | "edit" | "plus" | "remove" | "reset" | "undo";
+export type ActionIconName =
+  | "cancel"
+  | "check"
+  | "down"
+  | "edit"
+  | "plus"
+  | "remove"
+  | "reset"
+  | "undo"
+  | "up";
 
 const DRAWINGS: Record<ActionIconName, ReactNode> = {
+  up: <path d="m6 15 6-6 6 6" />,
+  down: <path d="m6 9 6 6 6-6" />,
   // Pencil over a corner: the button opens an editor.
   edit: (
     <>

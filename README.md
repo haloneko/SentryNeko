@@ -97,15 +97,22 @@ Status legend: ✅ Planned (implemented in the current scope); 🚧 Reserved (fu
 | Pomodoro settings | Focus duration, break duration, long-break interval, daily goal | ✅ Planned |
 | Alarm defaults | Default ring duration and notification method | ✅ Planned |
 | Language settings | Switch the interface language | ✅ Planned |
+| Sidebar panels | Show/hide and reorder panels from Settings; changes apply immediately and persist across launches | ✅ Planned |
 | Data management | Export / import data, clear history | 🚧 Reserved |
+
+The default sidebar shows Dashboard, Todos, Pomodoro, Heatmap, Alarms, Events and Analytics, followed
+by the always-visible Settings entry. Use the the drag editor or keyboard controls to reorder panels, or restore the
+default layout. Preferences are stored locally under `sentryneko.sidebarLayout` in WebView storage,
+alongside the collapsed flag. Missing panels are appended on upgrade; invalid saved data falls
+back to the default layout. Hiding an entry leaves its page accessible through other links.
 
 ### Summary
 
 | Category | Count |
 | --- | --- |
-| ✅ Planned | 17 |
+| ✅ Planned | 18 |
 | 🚧 Reserved | 5 |
-| Total | 22 |
+| Total | 23 |
 
 ## Project structure
 
@@ -308,3 +315,5 @@ pnpm tauri build
 [Apache License 2.0](LICENSE) © 2026 haloneko
 
 The application icon (`src-tauri/app-icon.svg`) adapts the "list" glyph from [Phosphor Icons](https://phosphoricons.com), which is distributed under the MIT License.
+
+The sidebar settings entry opens a modal drag editor. Pointer and keyboard reordering animate smoothly, visibility changes apply immediately, and closing the editor restores focus to its Edit button.

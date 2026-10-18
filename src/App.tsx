@@ -28,21 +28,29 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { TodosPage } from "./pages/Todos";
 import { useAppEventStore } from "./stores/appEventStore";
 import { usePomodoroStore } from "./stores/pomodoroStore";
+import { useSidebarLayoutStore } from "./stores/sidebarLayoutStore";
 import type { AppEvent } from "./types/appEvent";
+import { SIDEBAR_PANELS, SIDEBAR_PANEL_IDS } from "./types/sidebar";
 
 /**
- * Every page of the shell, in navigation order; each label doubles as the page heading, and the
- * icon keeps the entry recognisable once the sidebar collapses to its icon-only width.
+ * All routes stay registered even when their navigation entries are hidden. This keeps links
+ * from widgets and tray actions working independently of the sidebar layout.
  */
+const PANEL_PAGES = {
+  dashboard: Dashboard,
+  todos: TodosPage,
+  pomodoro: PomodoroPage,
+  heatmap: HeatmapPage,
+  alarms: AlarmsPage,
+  events: EventsPage,
+  analytics: AnalyticsPage,
+};
+
+const SETTINGS_ENTRY = { path: "/settings", label: "nav.settings", icon: "settings" } as const;
+
 const PAGES = [
-  { path: "/", label: "nav.dashboard", icon: "dashboard", Page: Dashboard },
-  { path: "/todos", label: "nav.todos", icon: "todos", Page: TodosPage },
-  { path: "/pomodoro", label: "nav.pomodoro", icon: "pomodoro", Page: PomodoroPage },
-  { path: "/heatmap", label: "nav.heatmap", icon: "heatmap", Page: HeatmapPage },
-  { path: "/alarms", label: "nav.alarms", icon: "alarms", Page: AlarmsPage },
-  { path: "/events", label: "nav.events", icon: "events", Page: EventsPage },
-  { path: "/analytics", label: "nav.analytics", icon: "analytics", Page: AnalyticsPage },
-  { path: "/settings", label: "nav.settings", icon: "settings", Page: SettingsPage },
+  ...SIDEBAR_PANEL_IDS.map((id) => ({ ...SIDEBAR_PANELS[id], Page: PANEL_PAGES[id] })),
+  { ...SETTINGS_ENTRY, Page: SettingsPage },
 ] as const;
 
 /** Where the collapsed flag lives; it is chrome, so it never travels to `config.json`. */
@@ -78,6 +86,13 @@ function Shell() {
   const recordAppSwitch = useAppEventStore((state) => state.record);
   const loadPomodoro = usePomodoroStore((state) => state.load);
   const startPomodoro = usePomodoroStore((state) => state.start);
+  const sidebarLayout = useSidebarLayoutStore((state) => state.layout);
+  const visiblePages = [
+    ...sidebarLayout
+      .filter(({ visible }) => visible)
+      .map(({ id }) => ({ ...SIDEBAR_PANELS[id], icon: id })),
+    SETTINGS_ENTRY,
+  ];
   const navigate = useNavigate();
   const contentRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -128,6 +143,7 @@ function Shell() {
     const active = navRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
 
     if (!active) {
+      setIndicator(null);
       return;
     }
 
@@ -136,7 +152,11 @@ function Shell() {
     setIndicator((current) =>
       current && current.top === next.top && current.height === next.height ? current : next,
     );
-  }, [pathname, language, collapsed]);
+  }, [pathname, language, collapsed, sidebarLayout]);
+
+  useEffect(() => {
+    setTooltip(null);
+  }, [sidebarLayout]);
 
   // Collapsing only changes the shell's own chrome, so the flag stays out of `config.json`. A
   // narrow window owns the rail outright: there is no toggle to reach and no room to give.
@@ -202,7 +222,7 @@ function Shell() {
               style={{ height: indicator.height, transform: `translateY(${indicator.top}px)` }}
             />
           ) : null}
-          {PAGES.map(({ path, label, icon }) => (
+          {visiblePages.map(({ path, label, icon }) => (
             <NavLink
               aria-label={t(label)}
               className="nav-link"
