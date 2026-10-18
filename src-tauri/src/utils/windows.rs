@@ -293,6 +293,73 @@ pub fn local_date(utc_seconds: i64) -> Option<LocalDate> {
     })
 }
 
+/// UTC instant at the start of a local calendar date. If a clock change skips midnight, use the
+/// first valid hour of that date instead of moving the task to a different day.
+#[must_use]
+pub fn calendar_midnight(year: u16, month: u16, day: u16) -> Option<i64> {
+    for hour in 0..24 {
+        let local = SystemTime {
+            year,
+            month,
+            day,
+            hour,
+            ..SystemTime::default()
+        };
+        let mut universal = SystemTime::default();
+        if unsafe { TzSpecificLocalTimeToSystemTime(ptr::null(), &local, &mut universal) } == 0 {
+            continue;
+        }
+        let instant = seconds_since_epoch(file_time_of(&universal)?)?;
+        let roundtrip = local_time_of(instant)?;
+        if (
+            roundtrip.year,
+            roundtrip.month,
+            roundtrip.day,
+            roundtrip.hour,
+        ) == (year, month, day, hour)
+        {
+            return Some(instant);
+        }
+    }
+
+    None
+}
+
+/// Shifts an instant's local date by calendar months and days, then resolves its local midnight.
+/// Month arithmetic clamps the original day to the last day of the target month.
+#[must_use]
+pub fn shift_local_midnight(anchor: i64, days: i64, months: i64) -> Option<i64> {
+    let local = local_time_of(anchor)?;
+    let month_index = i64::from(local.year)
+        .checked_mul(12)?
+        .checked_add(i64::from(local.month) - 1)?
+        .checked_add(months)?;
+    let year = u16::try_from(month_index.div_euclid(12)).ok()?;
+    let month = u16::try_from(month_index.rem_euclid(12) + 1).ok()?;
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let last_day = match month {
+        2 => {
+            if leap {
+                29
+            } else {
+                28
+            }
+        }
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    // Treat this date as UTC only for date arithmetic; applying the zone comes afterwards.
+    let date = SystemTime {
+        year,
+        month,
+        day: local.day.min(last_day),
+        ..SystemTime::default()
+    };
+    let naive = seconds_since_epoch(file_time_of(&date)?)?;
+    let shifted = system_time_of(naive.checked_add(days.checked_mul(86_400)?)?)?;
+    calendar_midnight(shifted.year, shifted.month, shifted.day)
+}
+
 /// Minutes the local clock reads on `utc_seconds`, counted from its midnight.
 ///
 /// `None` when Windows cannot break the instant down. The value runs `0..1440` on a normal day and

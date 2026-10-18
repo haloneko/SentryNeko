@@ -13,6 +13,7 @@ export const BACKEND_EVENTS = {
   notificationFallback: "notification-fallback",
   pomodoroFinished: "pomodoro-finished",
   testEvent: "test-event",
+  todosChanged: "todos-changed",
   trayStartPomodoro: "tray-start-pomodoro",
 } as const;
 

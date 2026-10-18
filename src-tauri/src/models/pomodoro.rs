@@ -325,7 +325,7 @@ mod tests {
     #[test]
     fn sessions_reject_unknown_ids_and_link_to_a_task() {
         let db = created();
-        let todo = Todo::add(&db, "write the report").expect("stored");
+        let todo = Todo::add_with_due_date(&db, "write the report", None).expect("stored");
 
         let linked = PomodoroSession::start(&db, Phase::ShortBreak, 300, Some(todo.id))
             .expect("started against the task");

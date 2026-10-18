@@ -1,4 +1,4 @@
-//! Timed task scheduler responsible for firing alarms.
+//! Timed task scheduler responsible for firing alarms and advancing recurring todo cycles.
 //!
 //! The loop runs on its own thread and compares the clock with the stored alarms once a second.
 //! Each alarm keeps the instant it is next due at, so a week of idle ticking costs one comparison
@@ -16,6 +16,7 @@ use tauri::AppHandle;
 use crate::config::Config;
 use crate::db::connection::Db;
 use crate::models::alarm::{Alarm, AlarmDefaults, Method};
+use crate::models::todo::Todo;
 use crate::services::event_bus::EventBus;
 use crate::services::i18n::Language;
 use crate::services::notification::{Chime, Notification, Notifier, ToastSink};
@@ -27,6 +28,16 @@ use crate::utils::time;
 /// A second is the resolution the alarms are stored at, so a slower loop would ring late and a
 /// faster one would only read the same second twice.
 pub const TICK: Duration = Duration::from_secs(1);
+
+/// Catches up recurring tasks at startup, on a read, or on a background tick. A push follows the
+/// commit so a mounted list does not need to poll; a failed push cannot undo persisted cycles.
+pub fn refresh_todos(db: &Db, bus: &EventBus, now: i64) -> ApiResult<usize> {
+    let changed = Todo::advance_recurring(db, now)?;
+    if changed > 0 {
+        let _ = bus.emit_todos_changed();
+    }
+    Ok(changed)
+}
 
 /// How late an alarm may still ring when the loop first sees it, in seconds.
 ///
@@ -209,19 +220,26 @@ pub struct RunningScheduler {
 }
 
 impl RunningScheduler {
-    /// Starts the alarm loop on a background thread.
+    /// Starts the alarm and recurring-task loop on a background thread.
     pub fn spawn(db: Db, bus: EventBus, config: Config, app: AppHandle) -> ApiResult<Self> {
         let stopped = Arc::new(AtomicBool::new(false));
         let flag = Arc::clone(&stopped);
-        let mut scheduler =
-            AlarmScheduler::new(db, bus, config, Notifier::new(app.clone()), app.clone());
+        let mut scheduler = AlarmScheduler::new(
+            db.clone(),
+            bus.clone(),
+            config,
+            Notifier::new(app.clone()),
+            app.clone(),
+        );
 
         let thread = thread::Builder::new()
             .name("alarm-scheduler".to_owned())
             .spawn(move || {
                 while !flag.load(Ordering::Relaxed) {
                     // A failed read must not kill the loop: the next tick retries.
-                    let _ = scheduler.tick(time::now_seconds());
+                    let now = time::now_seconds();
+                    let _ = refresh_todos(&db, &bus, now);
+                    let _ = scheduler.tick(now);
                     thread::park_timeout(TICK);
                 }
             })
@@ -338,6 +356,9 @@ mod tests {
             let recorder = Recorder::default();
             let directory = tempfile::tempdir().expect("a temporary directory is created");
             let config = Config::open(directory.path()).expect("the configuration is created");
+            config
+                .set_language(crate::services::i18n::Language::EnUs)
+                .expect("the fixture uses a deterministic notification language");
 
             Self {
                 bus: EventBus::new(recorder.clone()),
@@ -365,6 +386,47 @@ mod tests {
 
     fn now() -> i64 {
         time::now_seconds()
+    }
+
+    #[test]
+    fn recurring_tasks_push_one_reset_after_a_committed_cycle() {
+        use crate::models::recurrence::{Recurrence, RecurrenceUnit};
+        let fixture = Fixture::new();
+        let todo = Todo::add_with_recurrence(
+            &fixture.db,
+            "daily",
+            Some(Recurrence {
+                unit: RecurrenceUnit::Day,
+                interval: 1,
+            }),
+        )
+        .expect("recurring task");
+        let next = todo.next_occurrence_at.expect("boundary");
+        Todo::set_completed(&fixture.db, todo.id, true).expect("done");
+        assert_eq!(
+            refresh_todos(&fixture.db, &fixture.bus, next - 1).expect("before"),
+            0
+        );
+        assert!(fixture.recorder.pushed().is_empty());
+        assert_eq!(
+            refresh_todos(&fixture.db, &fixture.bus, next).expect("at boundary"),
+            1
+        );
+        assert_eq!(
+            refresh_todos(&fixture.db, &fixture.bus, next).expect("same boundary"),
+            0
+        );
+        let pushed = fixture.recorder.pushed();
+        assert_eq!(pushed.len(), 1);
+        assert_eq!(
+            pushed[0],
+            (names::TODOS_CHANGED.to_owned(), serde_json::Value::Null)
+        );
+        assert!(
+            !Todo::find(&fixture.db, todo.id)
+                .expect("committed row")
+                .completed
+        );
     }
 
     /// Hour and minute the local clock reads `seconds` from now.

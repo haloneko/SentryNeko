@@ -1,6 +1,6 @@
 //! Generic data access layer (CRUD helpers shared by all models).
 
-use rusqlite::{Params, Row, Transaction};
+use rusqlite::{Params, Row, Transaction, TransactionBehavior};
 
 use crate::db::connection::Db;
 use crate::utils::response::{ApiCode, ApiError, ApiResult};
@@ -83,8 +83,25 @@ pub fn transaction<T>(
     db: &Db,
     work: impl FnOnce(&Transaction<'_>) -> ApiResult<T>,
 ) -> ApiResult<T> {
+    with_transaction(db, TransactionBehavior::Deferred, work)
+}
+
+/// Reserves the writer before reading, so concurrent read/modify/write operations wait rather
+/// than failing to upgrade an outdated SQLite snapshot.
+pub fn immediate_transaction<T>(
+    db: &Db,
+    work: impl FnOnce(&Transaction<'_>) -> ApiResult<T>,
+) -> ApiResult<T> {
+    with_transaction(db, TransactionBehavior::Immediate, work)
+}
+
+fn with_transaction<T>(
+    db: &Db,
+    behavior: TransactionBehavior,
+    work: impl FnOnce(&Transaction<'_>) -> ApiResult<T>,
+) -> ApiResult<T> {
     let mut connection = db.connection()?;
-    let transaction = connection.transaction()?;
+    let transaction = connection.transaction_with_behavior(behavior)?;
     let value = work(&transaction)?;
     transaction.commit()?;
 

@@ -42,7 +42,7 @@ Status legend: `[ ]` not started　`[~]` in progress　`[x]` done　`[!]` blocke
 
 | Status | ID | Task | Depends on | Acceptance criteria |
 | --- | --- | --- | --- | --- |
-| [x] | T10 | Todo list: CRUD + toggle completion + filters + remaining count | T04, T09 | All `todo_commands.rs` commands usable; filtering (all / active / completed) and counting correct |
+| [x] | T10 | Todo list: CRUD + toggle completion + filters + remaining count | T04, T09 | All `todo_commands.rs` commands usable; filtering (all / active / completed) and counting correct; optional due dates selectable on create/edit via year/month/day dropdowns, clear and today/tomorrow shortcuts, displayed in the list (#34) |
 | [x] | T11 | Pomodoro timer: focus/break countdown + custom durations + start/pause/reset | T04, T09 | Countdown driven by timestamps (unaffected by render throttling); phase transitions correct; sessions persisted |
 | [x] | T12 | Foreground app collector (Win32 FFI) | T04, T05 | `collectors/foreground_app.rs` + `utils/windows.rs` capture app name and window title, filter out our own process, and avoid duplicate rows for the same switch |
 | [x] | T13 | Boot time collection and today's uptime | T12 | Reads system boot time; correct across midnight and sleep/resume |
@@ -65,6 +65,8 @@ Status legend: `[ ]` not started　`[~]` in progress　`[x]` done　`[!]` blocke
 | [x] | T25 | System tray: stay resident when minimized + context menu + single instance | T02, T11 | Menu offers start Pomodoro, today's stats, show/hide window; closing the main window does not quit the app; launching again focuses or restores the existing window without another resident process or tray icon |
 | [x] | T26 | Auto-start with Windows (registry / Task Scheduler) | T25 | A settings switch writes `HKCU\...\Run` for the running executable; switching it on twice leaves one entry, switching it off removes it, and a login start waits in the tray |
 | [x] | T34 | Reusable numeric input with wheel adjustment (#36) | T16, T18 | Validated typing, wheel / keyboard / arrow stepping, configurable min / max / step, and both themes; reused for Pomodoro and alarm durations |
+| [x] | T35 | Task list display modes (#26) | T10, T16 | Settings switch between separate sections (default), one merged list with task type indicators and two columns; the preference survives a restart without changing tasks; recurring metadata comes from #25 |
+| [x] | T37 | One-time and recurring tasks (#25) | T10, T17 | Daily, weekly, monthly and custom calendar intervals; distinct list badges; automatic cycle resets and restart catch-up; completed cycles retained in the heatmap |
 
 ## P3 Reserved (stubs only, not implemented)
 

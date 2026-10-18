@@ -2,6 +2,8 @@
 
 [English](README.md) | **简体中文**
 
+<img src="src-tauri/app-icon.svg" alt="SentryNeko 猫咪时钟标志" width="96" height="96" />
+
 > Windows 桌面生产力工具：待办清单、番茄钟、前台应用采集与专注统计，全部数据本地存储，不依赖云端。
 
 ## 简介
@@ -40,7 +42,7 @@ SentryNeko 是一款面向 Windows 的个人效率与时间追踪应用。它把
 
 | 功能 | 说明 | 状态 |
 | --- | --- | --- |
-| 待办清单（TodoList） | 增删改查、完成状态切换、筛选（全部/进行中/已完成）、剩余计数 | ✅ 规划 |
+| 待办清单（TodoList） | 增删改查；日、周、月或自定义重复任务与自动周期重置；年月日下拉选择截止日期、本地日历日逾期提示及日期排序；完成状态切换、筛选（全部/进行中/已完成）、剩余计数；设置页可选择单次与循环任务上下分区（默认）、合并列表或左右双栏，并在本地保存偏好 | ✅ 规划 |
 | 番茄钟 | 25 分钟专注倒计时、休息倒计时、自定义时长、开始/暂停/重置 | ✅ 规划 |
 | 热力图 | 按日/周/月聚合专注时长和完成任务数，GitHub 风格展示 | ✅ 规划 |
 | 闹钟提醒 | 单次/重复闹钟、自定义时间、Windows Toast 通知 + 应用内响铃 | ✅ 规划 |
@@ -307,4 +309,4 @@ pnpm tauri build
 
 [Apache License 2.0](LICENSE) © 2026 haloneko
 
-应用图标（`src-tauri/app-icon.svg`）改编自 [Phosphor Icons](https://phosphoricons.com) 的 "list" 图标，该图标库以 MIT 许可证发布。
+原创应用图标（`src-tauri/app-icon.svg`）将紫色猫咪轮廓与时钟结合，沿用界面的深灰、紫色与灰白配色，并遵循项目的 Apache License 2.0 许可证。编辑 SVG 后运行 `pnpm icons`，即可重新生成窗口、托盘与安装包图标；`src-tauri/icons/` 下的生成文件不纳入版本控制。

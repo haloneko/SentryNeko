@@ -434,7 +434,7 @@ mod tests {
         PomodoroSession::finish(&db, finished.id, 600).expect("finished");
         let open = PomodoroSession::start(&db, Phase::Focus, 300, None).expect("started");
 
-        let todo = Todo::add(&db, "ship the tray").expect("added");
+        let todo = Todo::add_with_due_date(&db, "ship the tray", None).expect("added");
         Todo::set_completed(&db, todo.id, true).expect("completed");
 
         let (focus_seconds, completed_tasks) =

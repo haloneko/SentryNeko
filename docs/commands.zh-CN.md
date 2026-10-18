@@ -79,10 +79,19 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 `config.json` 中的标签，`set_language` 对 `Language::ALL` 之外的标签返回 `INVALID_INPUT`。
 外观这一对同理：`get_color_mode` 读回已存的 `dark` / `light` / `system`，`set_color_mode`
 拒绝其余取值并返回 `INVALID_INPUT`。
+`add_todo` 可接收 `recurrence: { unit: "day" | "week" | "month", interval: 1..365 }`。
+省略或传 `null` 即创建一次性任务。`Todo` 包含 `recurrence` 和 `nextOccurrenceAt`（UTC 秒）；
+一次性任务的这两个字段均为 `null`。首个周期立即开始，后续周期在计划日期的本地零点开始。
+读取清单或计数时先补上到期周期，再筛选完成状态或统计。日历规则见 `docs/database.md`。
+
 `emit_test_event` 是事件探针背后的诊断命令，它推送的事件定义在 `docs/events.md`。待办这一组
-就是清单本身：`list_todos` 按完成状态筛选，写操作都返回落库后的整行，`todo_counts` 供剩余
+就是清单本身：`list_todos` 按完成状态筛选，写操作都返回落库后的整行（含可为空的 `dueDate`），`todo_counts` 供剩余
 计数使用，`completion_rate` 回答 `all` 或 `today` 口径下任务已完成的比例——统计规则写在
-`docs/database.md`。标签这一组属于预留，目前没有页面调用：它维护名称索引，`set_todo_tags` 建立任务与
+`docs/database.md`。`add_todo` 接受可选截止日期，`update_todo` 一起保存标题和日期；传 `null` 清除日期。
+`dueDate` 使用 1970-01-01 至 9999-12-31 的 UTC 零点 epoch 秒编码日历日期，不表示本地瞬间。
+选择器和列表按 UTC 年月日读写，避免时区改变所选日期；今天/明天按用户本地日历计算。
+超出范围或不在 UTC 零点的值返回 `INVALID_INPUT`。
+标签这一组属于预留，目前没有页面调用：它维护名称索引，`set_todo_tags` 建立任务与
 标签的关联，并从两个方向读取关系（`todo_tags` 查某任务的标签，`todos_with_tag` 查某标签下的任务）。
 番茄钟这一组负责持久化：`start_pomodoro_session` 在阶段开始时插入一行，`finish_pomodoro_session`
 用实际秒数收尾——倒计时本身由前端按时间戳推进，不依赖 tick 计数，且由 store 驱动而非页面，
@@ -120,8 +129,10 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 | `get_color_mode` | `settings_commands` | — | `String`（`dark`、`light` 或 `system`） | — |
 | `set_color_mode` | `settings_commands` | `mode: String` | `String`（生效后的模式） | — |
 | `emit_test_event` | `event_commands` | — | `TestEvent`（`{ sequence }`） | T08 |
-| `list_todos` | `todo_commands` | `completed: bool?` | `Todo[]` | T10 |
-| `add_todo` | `todo_commands` | `title: String` | `Todo` | T10 |
+| `list_todos` | `todo_commands` | `completed: bool?`, `sort: TodoSort?` (`default`, `dueDateAsc`, `dueDateDesc`) | `Todo[]` | T10 |
+| `add_todo` | `todo_commands` | `title: String`, `recurrence: Recurrence?`, `dueDate: i64?` | `Todo` | T10, T37 |
+| `update_todo` | `todo_commands` | `id: i64`, `title: String`, `dueDate: i64?` | `Todo` | T10 |
+| `set_todo_due_date` | `todo_commands` | `id: i64`, `dueDate: i64?` | `Todo` | T10 |
 | `rename_todo` | `todo_commands` | `id: i64`、`title: String` | `Todo` | T10 |
 | `set_todo_completed` | `todo_commands` | `id: i64`、`completed: bool` | `Todo` | T10 |
 | `delete_todo` | `todo_commands` | `id: i64` | — | T10 |
@@ -156,3 +167,7 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 | `set_autostart` | `settings_commands` | `enabled: bool` | `bool` —— 此刻生效的状态 | T26 |
 | `get_dashboard_layout` | `settings_commands` | — | `DashboardLayout?`（`{ widgets: { id, kind, x, y, w, h, source }[] }`；未自定义时为 `null`） | — |
 | `apply_dashboard_changes` | `settings_commands` | `changes: WidgetChange[]`（`upsert` 带组件，或 `remove` 带 id） | `DashboardLayout` —— 应用后生效的布局 | — |
+| `get_todo_display_mode` | `settings_commands` | — | `"separated"`（默认）、`"merged"` 或 `"twoColumns"` | T35 |
+| `set_todo_display_mode` | `settings_commands` | `mode: String` | 保存后的显示方式；其他值返回 `INVALID_INPUT` | T35 |
+
+截止日期排序在每个任务类型分区内统一应用：升序和降序都把无日期任务放在最后，相同日期按 id 从新到旧排列，不按完成状态打断顺序。默认排序仍把进行中任务放在前面。仅未完成且截止日期早于当前本地日历日的任务显示逾期；今天到期不算逾期。

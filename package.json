@@ -10,7 +10,8 @@
     "lint": "tsc --noEmit && node scripts/check_locales.mjs",
     "test:numeric-input": "playwright test",
     "icons": "tauri icon src-tauri/app-icon.svg",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test": "node --test scripts/*.test.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",
