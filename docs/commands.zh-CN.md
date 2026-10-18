@@ -156,3 +156,5 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 | `set_autostart` | `settings_commands` | `enabled: bool` | `bool` —— 此刻生效的状态 | T26 |
 | `get_dashboard_layout` | `settings_commands` | — | `DashboardLayout?`（`{ widgets: { id, kind, x, y, w, h, source }[] }`；未自定义时为 `null`） | — |
 | `apply_dashboard_changes` | `settings_commands` | `changes: WidgetChange[]`（`upsert` 带组件，或 `remove` 带 id） | `DashboardLayout` —— 应用后生效的布局 | — |
+| `get_todo_display_mode` | `settings_commands` | — | `"separated"`（默认）、`"merged"` 或 `"twoColumns"` | T35 |
+| `set_todo_display_mode` | `settings_commands` | `mode: String` | 保存后的显示方式；其他值返回 `INVALID_INPUT` | T35 |

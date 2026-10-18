@@ -9,11 +9,24 @@ use crate::db::connection::Db;
 use crate::models::alarm::AlarmDefaults;
 use crate::models::dashboard::{DashboardLayout, WidgetChange};
 use crate::models::pomodoro::PomodoroDurations;
+use crate::models::todo_display::TodoDisplayMode;
 use crate::services::autostart::{Autostart, WindowsRunKey};
 use crate::services::i18n::Language;
 use crate::services::theme::ColorMode;
 use crate::services::tray::Tray;
 use crate::utils::response::{ApiError, ApiResponse, ApiResult};
+
+/// Reads the task list layout; a missing preference means separate sections.
+#[tauri::command]
+pub fn get_todo_display_mode(db: State<'_, Db>) -> ApiResponse<TodoDisplayMode> {
+    TodoDisplayMode::load(&db).into()
+}
+
+/// Saves the task list layout without modifying the tasks.
+#[tauri::command]
+pub fn set_todo_display_mode(db: State<'_, Db>, mode: String) -> ApiResponse<TodoDisplayMode> {
+    TodoDisplayMode::save(&db, &mode).into()
+}
 
 /// Reads the pomodoro phase durations.
 #[tauri::command]

@@ -1,4 +1,4 @@
-/** Settings page: the appearance, language, pomodoro durations, alarm defaults and auto-start. */
+/** Settings page for persisted appearance, task, timer and system preferences. */
 
 import { useEffect } from "react";
 import type { ReactNode } from "react";
@@ -9,6 +9,7 @@ import { AutostartSettings } from "../components/AutostartSettings";
 import { DashboardLayoutSettings } from "../components/DashboardLayoutSettings";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { PomodoroSettings } from "../components/PomodoroSettings";
+import { TodoDisplaySettings } from "../components/TodoDisplaySettings";
 import { useI18n } from "../hooks/useI18n";
 import { usePomodoro } from "../hooks/usePomodoro";
 
@@ -74,6 +75,9 @@ export function SettingsPage() {
           title={t("dashboard.layout.title")}
         >
           <DashboardLayoutSettings />
+        </SettingsRow>
+        <SettingsRow hint={t("todo.display.hint")} index="07" title={t("todo.display.title")}>
+          <TodoDisplaySettings />
         </SettingsRow>
       </div>
     </>

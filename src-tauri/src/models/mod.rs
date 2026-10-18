@@ -7,4 +7,5 @@ pub mod heatmap;
 pub mod pomodoro;
 pub mod tag;
 pub mod todo;
+pub mod todo_display;
 pub mod user;

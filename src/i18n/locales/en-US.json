@@ -291,6 +291,27 @@
   },
   "todo": {
     "add": "Add",
+    "display": {
+      "title": "Task display",
+      "hint": "Choose how one-time and recurring tasks share the task list. Your choice is saved automatically.",
+      "separated": "Separated",
+      "merged": "Merged",
+      "twoColumns": "Two columns",
+      "description": {
+        "separated": "One-time and recurring tasks appear in separate sections, one below the other.",
+        "merged": "All tasks share one list, with a label identifying each task type.",
+        "twoColumns": "One-time and recurring tasks appear side by side in the same view."
+      },
+      "error": "The task display preference could not be loaded or saved. Please try again."
+    },
+    "section": {
+      "oneTime": "One-time tasks",
+      "recurring": "Recurring tasks"
+    },
+    "type": {
+      "oneTime": "One-time",
+      "recurring": "Recurring"
+    },
     "delete": "Delete task",
     "edit": "Edit task",
     "empty": "No tasks here.",

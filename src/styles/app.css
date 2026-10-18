@@ -528,6 +528,11 @@ p {
   color: var(--text);
 }
 
+.segmented-option:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 /* Todo */
 
 /* The page sits in a reading column of its own: tasks read best without stretching wall to wall. */
@@ -729,6 +734,55 @@ p {
 .todo-panel {
   display: grid;
   gap: var(--space-4);
+  container-type: inline-size;
+}
+
+.todo-groups {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.todo-groups[data-mode="twoColumns"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.todo-group {
+  min-width: 0;
+}
+
+.todo-group .empty {
+  min-height: 120px;
+}
+
+.todo-type {
+  flex: none;
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.todo-type[data-type="recurring"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.todo-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@container (max-width: 560px) {
+  .todo-groups[data-mode="twoColumns"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Search, the status filter, the selection switch and the count. */

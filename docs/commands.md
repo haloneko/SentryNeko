@@ -179,3 +179,5 @@ refuses the write is `PERMISSION_DENIED`.
 | `set_autostart` | `settings_commands` | `enabled: bool` | `bool` — the state now in force | T26 |
 | `get_dashboard_layout` | `settings_commands` | — | `DashboardLayout?` (`{ widgets: { id, kind, x, y, w, h, source }[] }`; `null` until customised) | — |
 | `apply_dashboard_changes` | `settings_commands` | `changes: WidgetChange[]` (`upsert` with a widget, or `remove` with an id) | `DashboardLayout` — the layout now in force | — |
+| `get_todo_display_mode` | `settings_commands` | — | `"separated"` (default), `"merged"` or `"twoColumns"` | T35 |
+| `set_todo_display_mode` | `settings_commands` | `mode: String` | The saved display mode; other values return `INVALID_INPUT` | T35 |

@@ -2,6 +2,8 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
+<img src="src-tauri/app-icon.svg" alt="SentryNeko cat-and-clock logo" width="96" height="96" />
+
 > A Windows desktop productivity tool that combines a todo list, a Pomodoro timer, foreground-app tracking and focus analytics — all data stored locally, no cloud required.
 
 ## Overview
@@ -40,7 +42,7 @@ Status legend: ✅ Planned (implemented in the current scope); 🚧 Reserved (fu
 
 | Feature | Description | Status |
 | --- | --- | --- |
-| Todo list | Create, read, update, delete; toggle completion; filter (all / active / completed); remaining count | ✅ Planned |
+| Todo list | Create, read, update, delete; toggle completion; filter (all / active / completed); remaining count; separate sections (default), merged list or two columns for one-time and recurring tasks, selected in Settings and saved locally | ✅ Planned |
 | Pomodoro timer | 25-minute focus countdown, break countdown, custom durations, start / pause / reset | ✅ Planned |
 | Heatmap | Aggregate focus time and completed tasks by day / week / month, GitHub-style rendering | ✅ Planned |
 | Alarms | One-off or repeating alarms, custom time, Windows Toast notification plus in-app ringtone | ✅ Planned |
@@ -307,4 +309,4 @@ pnpm tauri build
 
 [Apache License 2.0](LICENSE) © 2026 haloneko
 
-The application icon (`src-tauri/app-icon.svg`) adapts the "list" glyph from [Phosphor Icons](https://phosphoricons.com), which is distributed under the MIT License.
+The original application icon (`src-tauri/app-icon.svg`) combines a violet cat silhouette with a clock, using the same slate, violet and off-white palette as the interface. It is covered by the project's Apache License 2.0. Run `pnpm icons` after editing the SVG to regenerate the window, tray and installer icons; generated files under `src-tauri/icons/` are not tracked.

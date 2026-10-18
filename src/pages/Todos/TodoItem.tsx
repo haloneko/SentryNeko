@@ -6,6 +6,7 @@ import type { CSSProperties } from "react";
 import { useI18n } from "../../hooks/useI18n";
 import type { Tag } from "../../types/tag";
 import type { Todo } from "../../types/todo";
+import { isRecurringTodo } from "../../types/todoDisplay";
 import { ageOf, tagNamesOf } from "./todos";
 import { TodoTagEditor } from "./TodoTagEditor";
 
@@ -27,6 +28,7 @@ export interface TodoItemProps {
   rowIndex: number;
   selected: boolean;
   selecting: boolean;
+  showType?: boolean;
   tags: readonly Tag[];
   todo: Todo;
 }
@@ -44,6 +46,7 @@ export function TodoItem({
   rowIndex,
   selected,
   selecting,
+  showType = false,
   tags,
   todo,
 }: TodoItemProps) {
@@ -129,6 +132,11 @@ export function TodoItem({
             />
           )}
           <span className="todo-meta">
+            {showType ? (
+              <span className="todo-type" data-type={isRecurringTodo(todo) ? "recurring" : "oneTime"}>
+                {t(isRecurringTodo(todo) ? "todo.type.recurring" : "todo.type.oneTime")}
+              </span>
+            ) : null}
             <span className="todo-time">
               {age.unit === "now"
                 ? t("todo.time.now")

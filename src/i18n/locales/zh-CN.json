@@ -290,6 +290,27 @@
     }
   },
   "todo": {
+    "display": {
+      "title": "任务显示方式",
+      "hint": "选择单次任务和循环任务在列表中的排列方式，更改后自动保存。",
+      "separated": "分区显示",
+      "merged": "合并显示",
+      "twoColumns": "双栏显示",
+      "description": {
+        "separated": "单次任务和循环任务分为两个区域，上下排列。",
+        "merged": "所有任务合并为一个列表，通过标签区分任务类型。",
+        "twoColumns": "单次任务和循环任务在同一视图中左右并排显示。"
+      },
+      "error": "无法读取或保存任务显示方式，请重试。"
+    },
+    "section": {
+      "oneTime": "单次任务",
+      "recurring": "循环任务"
+    },
+    "type": {
+      "oneTime": "单次",
+      "recurring": "循环"
+    },
     "add": "添加",
     "delete": "删除任务",
     "edit": "编辑任务",

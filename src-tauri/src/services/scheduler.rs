@@ -338,6 +338,9 @@ mod tests {
             let recorder = Recorder::default();
             let directory = tempfile::tempdir().expect("a temporary directory is created");
             let config = Config::open(directory.path()).expect("the configuration is created");
+            config
+                .set_language(crate::services::i18n::Language::EnUs)
+                .expect("the fixture uses a deterministic notification language");
 
             Self {
                 bus: EventBus::new(recorder.clone()),

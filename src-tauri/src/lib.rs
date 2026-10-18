@@ -68,6 +68,8 @@ pub fn run() {
             settings_commands::set_language,
             settings_commands::get_color_mode,
             settings_commands::set_color_mode,
+            settings_commands::get_todo_display_mode,
+            settings_commands::set_todo_display_mode,
             event_commands::emit_test_event,
             todo_commands::list_todos,
             todo_commands::add_todo,
