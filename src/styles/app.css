@@ -204,8 +204,7 @@ p {
  */
 .brand-name,
 .brand-tagline,
-.nav-label,
-.sidebar-toggle-label {
+.nav-label {
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -214,8 +213,7 @@ p {
 
 .app-shell[data-collapsed="true"] .brand-name,
 .app-shell[data-collapsed="true"] .brand-tagline,
-.app-shell[data-collapsed="true"] .nav-label,
-.app-shell[data-collapsed="true"] .sidebar-toggle-label {
+.app-shell[data-collapsed="true"] .nav-label {
   opacity: 0;
   transition: opacity 90ms ease;
 }
@@ -281,20 +279,21 @@ p {
   padding-top: var(--space-2);
 }
 
+/*
+ * Icon-only: the label lives in `title`/`aria-label`. Sizing it to its own content keeps the icon on
+ * the same column as the navigation glyphs (12px inset + 9px half glyph), in both rail widths.
+ */
 .sidebar-toggle {
   display: flex;
   align-items: center;
-  gap: 10px;
-  overflow: hidden;
-  width: 100%;
-  padding: 8px var(--space-3);
+  justify-content: center;
+  width: 42px;
+  height: 34px;
+  padding: 0;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
-  font: inherit;
-  font-size: 12.5px;
-  text-align: left;
   cursor: pointer;
   transition: background-color 120ms ease, color 120ms ease;
 }
@@ -3196,3 +3195,104 @@ p {
     animation: none;
   }
 }
+
+/* Sidebar layout editor: a modal that reorders panels, with a live region for screen readers. */
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.sidebar-editor {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 64px);
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 28px 100px rgb(0 0 0 / 40%);
+  animation: sidebar-editor-in 180ms ease-out both;
+}
+.sidebar-editor::backdrop { background: rgb(9 12 22 / 58%); backdrop-filter: blur(4px); }
+.sidebar-editor[data-closing="true"] { animation: sidebar-editor-out 160ms ease-in both; }
+/* Title, hint and the two icon actions share one row; the list starts right below it. */
+.sidebar-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px 16px;
+}
+.sidebar-editor-lead { display: grid; gap: 6px; min-width: 0; }
+.sidebar-editor-header h2 { margin: 0; font-size: 19px; letter-spacing: -0.01em; }
+.sidebar-editor-actions { display: flex; flex: none; gap: 8px; }
+.sidebar-editor .settings-hint { max-width: none; }
+.sidebar-editor-list { position: relative; display: grid; gap: 6px; margin: 0; padding: 0 24px; list-style: none; }
+.sidebar-editor-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 14px 6px 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.sidebar-editor-row:hover { border-color: var(--border-strong); }
+.sidebar-editor-row[data-dragging="true"] { z-index: 2; border-color: var(--accent); box-shadow: 0 10px 26px rgb(0 0 0 / 22%); }
+.sidebar-editor-panel { display: flex; align-items: center; gap: 11px; min-width: 0; font-size: 13.5px; }
+.sidebar-editor-row[data-visible="false"] .sidebar-editor-panel { color: var(--text-muted); }
+.sidebar-editor-row[data-visible="false"] .sidebar-editor-panel .nav-icon { opacity: 0.45; }
+
+/* The grip stays readable at rest and steps forward under the pointer or keyboard focus. */
+.sidebar-drag-handle {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0.7;
+  cursor: grab;
+  touch-action: none;
+  transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+.sidebar-editor-row:hover .sidebar-drag-handle,
+.sidebar-drag-handle:focus-visible { opacity: 1; }
+.sidebar-drag-handle:hover,
+.sidebar-drag-handle:focus-visible { background: var(--surface-hover); color: var(--text); }
+.sidebar-editor-row[data-dragging="true"] .sidebar-drag-handle { opacity: 1; cursor: grabbing; }
+.sidebar-drag-handle svg { width: 17px; height: 17px; }
+.sidebar-editor-row input[role="switch"] {
+  appearance: none;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  background: var(--surface-hover);
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+.sidebar-editor-row input[role="switch"]::before {
+  content: "";
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin: 3px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+.sidebar-editor-row input[role="switch"]:checked { border-color: var(--accent); background: var(--accent); }
+.sidebar-editor-row input[role="switch"]:checked::before { transform: translateX(14px); background: #fff; }
+.sidebar-editor-row input[role="switch"]:focus-visible { outline-offset: 3px; }
+.sidebar-editor-footer { display: grid; gap: 8px; padding: 12px 24px 20px; }
+@keyframes sidebar-editor-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes sidebar-editor-out { to { opacity: 0; transform: translateY(8px) scale(0.98); } }
+@media (prefers-reduced-motion: reduce) { .sidebar-editor { animation: none; } .sidebar-editor-row { transition: none; } }

@@ -289,6 +289,22 @@
       "hint": "Changes save as you type; the fields lock while the timer runs."
     }
   },
+  "sidebar": {
+    "hint": "Open the editor to show, hide or reorder panels; the arrangement lands when you apply it.",
+    "reset": "Restore default sidebar",
+    "saveError": "The layout applies now, but could not be saved for the next launch. Try changing it again.",
+    "settingsAlwaysVisible": "Settings always stays visible at the end.",
+    "show": "Show {{panel}} in sidebar",
+    "title": "Sidebar panels",
+    "edit": "Edit sidebar",
+    "close": "Close",
+    "done": "Done",
+    "editorHint": "Drag the handles to reorder panels and use the switches to show or hide them. The rail changes only when you apply the arrangement; closing the window keeps it as it was.",
+    "summary": "{{visible}} of {{total}} panels visible",
+    "drag": "Reorder {{panel}}",
+    "keyboardHint": "Use Up and Down to move this panel, or Home and End to move it to either end.",
+    "reordered": "{{panel}} moved to position {{position}} of {{total}}"
+  },
   "todo": {
     "add": "Add",
     "delete": "Delete task",
