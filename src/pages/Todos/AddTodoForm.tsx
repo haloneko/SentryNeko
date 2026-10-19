@@ -21,7 +21,7 @@ export function AddTodoForm() {
       return;
     }
 
-    void add(trimmed).then((stored) => {
+    void add(trimmed, null, null).then((stored) => {
       if (stored) {
         setTitle("");
       }

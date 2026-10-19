@@ -13,16 +13,33 @@ pub fn list_todos(db: State<'_, Db>, completed: Option<bool>) -> ApiResponse<Vec
     Todo::list(&db, completed).into()
 }
 
-/// Creates a task from a title.
+/// Creates a task from a title and optional planning moments.
 #[tauri::command]
-pub fn add_todo(db: State<'_, Db>, title: String) -> ApiResponse<Todo> {
-    Todo::add(&db, &title).into()
+pub fn add_todo(
+    db: State<'_, Db>,
+    title: String,
+    start_at: Option<i64>,
+    end_at: Option<i64>,
+) -> ApiResponse<Todo> {
+    Todo::add(&db, &title, start_at, end_at).into()
 }
 
 /// Renames a task.
 #[tauri::command]
 pub fn rename_todo(db: State<'_, Db>, id: i64, title: String) -> ApiResponse<Todo> {
     Todo::rename(&db, id, &title).into()
+}
+
+/// Sets or clears when a task is planned to start.
+#[tauri::command]
+pub fn set_todo_start_at(db: State<'_, Db>, id: i64, start_at: Option<i64>) -> ApiResponse<Todo> {
+    Todo::set_start_at(&db, id, start_at).into()
+}
+
+/// Sets or clears when a task is planned to end.
+#[tauri::command]
+pub fn set_todo_end_at(db: State<'_, Db>, id: i64, end_at: Option<i64>) -> ApiResponse<Todo> {
+    Todo::set_end_at(&db, id, end_at).into()
 }
 
 /// Sets the completion flag of a task.

@@ -16,8 +16,12 @@ export interface TodoState {
   error: ApiCode | null;
   setFilter: (filter: TodoFilter) => void;
   refresh: () => Promise<void>;
-  add: (title: string) => Promise<boolean>;
+  add: (title: string, startAt: number | null, endAt: number | null) => Promise<boolean>;
   rename: (id: number, title: string) => Promise<boolean>;
+  /** Sets or clears when a task starts; the stored row replaces the one on the page. */
+  setStartAt: (id: number, startAt: number | null) => Promise<boolean>;
+  /** Sets or clears when a task ends; the stored row replaces the one on the page. */
+  setEndAt: (id: number, endAt: number | null) => Promise<boolean>;
   /** Replaces the tags a task carries; an empty list leaves it untagged. */
   updateTags: (id: number, tagIds: readonly number[]) => Promise<boolean>;
   toggle: (todo: Todo) => Promise<boolean>;
@@ -113,10 +117,10 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     set({ todos: list.data, counts: counts.data, loading: false });
   },
 
-  add: async (title) => {
+  add: async (title, startAt, endAt) => {
     set({ error: null });
 
-    const response = await request<Todo>("add_todo", { title });
+    const response = await request<Todo>("add_todo", { endAt, startAt, title });
 
     if (!isOk(response)) {
       set({ error: response.code });
@@ -149,6 +153,45 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     // has a reason to move.
     set((state) => ({
       todos: state.todos.map((todo) => (todo.id === renamed.id ? renamed : todo)),
+    }));
+
+    return true;
+  },
+
+  setStartAt: async (id, startAt) => {
+    set({ error: null });
+
+    const response = await request<Todo>("set_todo_start_at", { id, startAt });
+
+    if (!isOk(response)) {
+      set({ error: response.code });
+      return false;
+    }
+
+    const started = response.data;
+
+    // Only the row's own time changed, so it is patched in place and keeps its position.
+    set((state) => ({
+      todos: state.todos.map((todo) => (todo.id === started.id ? started : todo)),
+    }));
+
+    return true;
+  },
+
+  setEndAt: async (id, endAt) => {
+    set({ error: null });
+
+    const response = await request<Todo>("set_todo_end_at", { endAt, id });
+
+    if (!isOk(response)) {
+      set({ error: response.code });
+      return false;
+    }
+
+    const ended = response.data;
+
+    set((state) => ({
+      todos: state.todos.map((todo) => (todo.id === ended.id ? ended : todo)),
     }));
 
     return true;
