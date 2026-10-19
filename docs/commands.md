@@ -89,7 +89,11 @@ rejects anything outside `Language::ALL` with `INVALID_INPUT`. The appearance pa
 for `dark`, `light` and `system`: `get_color_mode` reads the stored choice and `set_color_mode`
 rejects anything else with `INVALID_INPUT`. `get_version` answers the binary's own version,
 compiled in from `Cargo.toml`, and reads nothing else to produce it; the frontend only displays
-it. `emit_test_event` is the
+it. The migration pair belongs to a start that found no database: `get_stranded` answers what
+stopped this build from opening one — `null` when it opened one, since the usual case needs no
+answer — and `roll_back` ends the process, which is the whole of going back to the previous build,
+whose file the configuration still names. Both are described in `docs/database.md`.
+`emit_test_event` is the
 diagnostic behind the event bus probe; the push it triggers is defined in `docs/events.md`.
 The todo group is the list itself: `list_todos` filters by completion, every mutation answers
 with the stored row, `todo_counts` feeds the remaining counter, and `completion_rate` answers how
@@ -153,6 +157,8 @@ answering with what is now in force. A registry that refuses the write is `PERMI
 | `get_color_mode` | `settings_commands` | — | `String` (`dark`, `light` or `system`) | — |
 | `set_color_mode` | `settings_commands` | `mode: String` | `String` (mode in force) | — |
 | `get_version` | `settings_commands` | — | `String` (the build's own version) | — |
+| `get_stranded` | `migration_commands` | — | `Stranded` (`{ path, reason }`) or `null` | — |
+| `roll_back` | `migration_commands` | — | — | — |
 | `emit_test_event` | `event_commands` | — | `TestEvent` (`{ sequence }`) | T08 |
 | `list_todos` | `todo_commands` | `completed: bool?` | `Todo[]` | T10 |
 | `add_todo` | `todo_commands` | `title: String`, `start_at: i64?`, `end_at: i64?` | `Todo` | T10 |

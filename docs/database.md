@@ -29,16 +29,17 @@ Clearing, exporting or importing data covers `config.json` and the database alik
 
 | File | Responsibility |
 | --- | --- |
-| `db/connection.rs` | `Db` handle, pool settings, connection pragmas, `ApiError` mapping |
+| `db/connection.rs` | `Db` handle, pool settings, connection pragmas, `ApiError` mapping, the database file name |
 | `db/schema.rs` | The whole DDL, applied idempotently on every start |
+| `db/upgrade.rs` | Opens this build's database, carrying an older file forward when the name disagrees |
 | `db/repository.rs` | Generic CRUD helpers every model builds on |
 
 `Db` is cloned into Tauri managed state at startup, so commands receive it through `State<Db>`:
 
 ```rust
 let directory = app.path().app_data_dir()?;
-let db = Db::open(directory.join(DATABASE_FILE_NAME))?;
-schema::ensure(&db)?;
+let config = Config::open(&directory)?;
+let db = upgrade::open(&config)?;
 app.manage(db);
 ```
 
@@ -46,7 +47,7 @@ app.manage(db);
 
 | Setting | Value |
 | --- | --- |
-| File | `<app data dir>/sentryneko.db` (i.e. `%APPDATA%\com.sentryneko.desktop\sentryneko.db`) unless `config.json` points elsewhere |
+| File | `<app data dir>/sentryneko-<version>.db` (i.e. `%APPDATA%\com.sentryneko.desktop\sentryneko-0.0.1.db`) unless `config.json` points elsewhere |
 | Pool | 4 connections, 5 s checkout timeout |
 | Per connection | `foreign_keys = ON`, `journal_mode = WAL`, `synchronous = NORMAL`, `busy_timeout = 5000 ms` |
 | Timestamps | UTC epoch seconds |
@@ -58,7 +59,7 @@ app.manage(db);
 
 ```json
 {
-  "databasePath": "C:\\Users\\you\\AppData\\Roaming\\com.sentryneko.desktop\\sentryneko.db",
+  "databasePath": "C:\\Users\\you\\AppData\\Roaming\\com.sentryneko.desktop\\sentryneko-0.0.1.db",
   "language": "en-US",
   "colorMode": "system"
 }
@@ -66,7 +67,7 @@ app.manage(db);
 
 | Field | Meaning | Default |
 | --- | --- | --- |
-| `databasePath` | SQLite file the application opens | `<app data dir>/sentryneko.db` |
+| `databasePath` | SQLite file the application opens | `<app data dir>/sentryneko-<version>.db` |
 | `language` | Language tag, listed in `docs/i18n.md` | Detected system language, falling back to `en-US` |
 | `colorMode` | `dark`, `light` or `system`; `system` follows the operating system | `system` |
 
@@ -210,8 +211,49 @@ leaves both sides — the rate follows the list the user sees.
 ## Schema creation
 
 `ensure` runs the script in a transaction on every start: a missing table or index is created, an
-existing one is left alone, and running it again changes nothing. Nothing is versioned, because the
-app has not shipped — a schema change is a local rebuild rather than a migration.
+existing one is left alone, and running it again changes nothing. It is the only thing that ever
+creates a schema, whether the file is brand new or was just carried forward.
+
+## One database file per version
+
+The version a database belongs to is written into its file name — `sentryneko-0.0.1.db` — and
+`config.json` records the path. Every start, `db/upgrade.rs` reads that name and compares it with
+the version compiled into the binary:
+
+| The recorded name says | What happens |
+| --- | --- |
+| This build's version | The file is opened as it stands; nothing is written but the schema check |
+| Any other version, or none at all | A fresh file named for this build is created beside it, the data is carried across, and only then is `config.json` rewritten to the new path |
+
+Carrying across is deliberately mechanical. Every table both files know is copied column by column:
+the columns are the intersection of what the old file has and what this build's table declares, so
+rows keep their ids — and therefore their references to each other — while a column this build added
+is simply left out of the insert and takes the schema's own default. `sqlite_sequence` is moved above
+the highest copied id afterwards, so the next new row never reuses one.
+
+What that means in practice:
+
+- A **new table** this build added starts empty, exactly as it would on a fresh install.
+- A **new column** this build added takes its `DEFAULT`; without one it stays `NULL`.
+- The **old file is never written to and never deleted**. It stays where it was.
+
+### When the copy fails
+
+The copy is all or nothing: one transaction, and anything that goes wrong in it — a shape too far
+from this build's, a row the new constraints refuse — rolls the whole thing back. Then:
+
+- `config.json` is **not** touched. It still names the previous build's file, so rolling back is
+  nothing more than starting that build again.
+- The half-made file is **removed**. A file named for this build would otherwise be opened as it
+  stands by the next start, and an empty database is worse than none.
+- Nothing that reads a database is started — no collector, no scheduler, no tray. The window opens
+  on a rollback dialog instead of the application, and closing it ends the process.
+
+The next start tries the same road again from the same old file, so a repair by hand, or a roll
+back followed by another attempt later, both work from where things were left.
+
+Downgrades travel the same road: a file from a newer build is read as "not this build's" and carried
+into this one's file the same way.
 
 ## Repository helpers
 
@@ -239,7 +281,8 @@ powershell -ExecutionPolicy Bypass -File scripts/init_db.ps1 [-DatabasePath <fil
 
 It needs `sqlite3` on `PATH`; without it the script stops with a message pointing at the app,
 which creates the schema on first run either way. Every statement uses `IF NOT EXISTS`, so
-running it repeatedly is safe.
+running it repeatedly is safe. The default file name carries the version read out of `Cargo.toml`,
+matching what a start would create.
 
 A test extracts the SQL from the script and runs it against a created database, asserting that
 both sides end up with the same tables.
@@ -249,5 +292,7 @@ both sides end up with the same tables.
 1. Add the DDL to `db/schema.rs`.
 2. Mirror it in `scripts/init_db.ps1`, with the same `IF NOT EXISTS` guards.
 3. Run `cargo test` — the script check fails while the two sides disagree.
-4. Rebuild your local database: run `scripts/init_db.ps1` against a fresh file or delete the old
-   one. An existing database is not upgraded, since no version has shipped yet.
+4. Give every column a `DEFAULT` (or make it nullable) unless the row can never be written without
+   it: an existing database is carried forward on the next start, and a `NOT NULL` column with no
+   default fails the copy outright — the user is asked to roll back instead. Nothing else is needed:
+   the old file stays on disk as the record of what it held.
