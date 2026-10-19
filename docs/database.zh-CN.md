@@ -87,30 +87,33 @@ app.manage(db);
 当前使用的类别有 `pomodoro`、`alarm`、`dashboard` 与 `sidebar`；未来新界面自报的类别会照原样存下，
 无需改表。
 
-所有行都经 `Setting` 写入：它会拒绝空白或过长的键、空白类别、超大值，以及不是 JSON 的值——负载本身
-保持不透明，所以 `get_setting`、`set_setting`、`list_settings` 与 `delete_setting` 能服务任意类别。
-下面这些具体模型都建立在同一组辅助函数上，各自解析自己的值。
+所有行都经 `Setting` 写入：它会拒绝空白或过长的键、空白类别、超大值，以及不是 JSON 的值。校验就到此
+为止：负载本身保持不透明，本库没有任何一处持有某个负载的模型，所以 `get_setting`、`set_setting`、
+`list_settings` 与 `delete_setting` 能服务任意偏好，新增一个偏好不需要任何 Rust 改动——前端自己起键、
+声明类别、发 JSON，表就能收下。
 
-有模型承载的键在 `SPECS`（`models/setting.rs`）里登记一次：此后通用写入会先按该模型校验负载，并把行
-归入模型声明的类别，校验与归档不会各说各话。没有登记的键按原样存下，只需调用方给出类别——这正是下一个
-偏好不需要任何 Rust 改动的原因：前端自己起键、发 JSON，表就能收下。只有负载值得校验时才需要加进
-`SPECS`，代价是一行。
+形状属于拥有它的界面，也就在那里校验：store 写入前校验、读回时归一化，于是旧版本写下的行或被手改过的行
+会退化成一个可用的默认值，而不会传到界面上。
 
-番茄钟时长是 `pomodoro.durations` 这一行（类别 `pomodoro`），值是 `PomodoroDurations` 的 JSON；
-这一行不存在时按默认值处理。闹钟默认设置是 `alarm.defaults`（类别 `alarm`），值形如
+后端在真正需要值本身的地方，会把这一行解析成自己的模型并在那里校验，而不是相信表里的内容：调度器在闹钟
+响的那一刻读 `alarm.defaults`，响铃时长不在 `1..=60` 内就不采用，读不出可用值的行则回落到内置默认值。
+因此存进去的垃圾不会变成响出来的垃圾。
+
+番茄钟时长是 `pomodoro.durations` 这一行（类别 `pomodoro`），值形如
+`{ "focusSeconds": 1500, "shortBreakSeconds": 300, "longBreakSeconds": 900 }`；这一行不存在时
+按默认值处理。闹钟默认设置是 `alarm.defaults`（类别 `alarm`），值形如
 `{ "ringSeconds": 10, "method": "toast" }`——提示音重复多久，以及消息怎么走（`toast`，或
 `inApp` 只交给窗口）。
 
 仪表盘布局是 `dashboard.grid`（类别 `dashboard`），值形如
-`{ "widgets": [{ "id": "focus-1", "kind": "focus", "x": 0, "y": 0, "w": 1, "h": 2, "source": "today" }] }`
-——首页显示哪些组件，每项有自己的标识、左上角所在的格子与在两列网格上横跨的格数。`id` 让每个放置项
-可以被单独寻址，所以同一种 `kind` 可以出现多次。这一行不存在时表示从未自定义过，页面回落到内置布局。
+`{ "columns": 4, "placements": { "focus": { "x": 0, "y": 0, "w": 2, "h": 2 } }, "hidden": ["todos"] }`
+——网格的列数、按面板 id 存放的每个面板矩形，以及收进组件库的面板；收起的面板保留自己的矩形，所以
+放回原处不花任何代价。这一行不存在时表示从未自定义过，页面回落到内置布局。
 
 侧栏布局是 `sidebar.panels`（类别 `sidebar`），值形如
 `{ "panels": [{ "id": "todos", "visible": true }] }`——侧栏能显示的全部面板，按绘制顺序排列，
 每项带一个决定是否绘制的标记。这一行不存在时表示从未自定义过，按内置顺序显示；写成 `visible` 缺省
-的面板视为显示，这也是隐藏功能出现之前的行为。面板 id 的目录属于前端，所以本表只校验形状：
-id 不空且不重复、至少一个面板、最多 32 个。
+的面板视为显示，这也是隐藏功能出现之前的行为。
 
 `app_events` 由前台采集器（`collectors/foreground_app.rs`）写入，它每秒采样一次前台窗口：
 

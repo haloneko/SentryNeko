@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 
 import { useAlarmDefaults } from "../hooks/useAlarmDefaults";
 import { useI18n } from "../hooks/useI18n";
-import { METHOD_LABELS, NOTIFICATION_METHODS } from "../types/alarm";
+import {
+  MAX_RING_SECONDS,
+  METHOD_LABELS,
+  MIN_RING_SECONDS,
+  NOTIFICATION_METHODS,
+} from "../types/alarm";
 import type { NotificationMethod } from "../types/alarm";
 import { NumericInput } from "./ui/NumericInput";
 import { SegmentedControl } from "./ui/SegmentedControl";
@@ -77,8 +82,8 @@ export function AlarmDefaultsSettings() {
             disabled={loading}
             id="alarm-ring-seconds"
             increaseLabel={t("numericInput.increase", { label: t("alarm.settings.ring") })}
-            max={60}
-            min={1}
+            max={MAX_RING_SECONDS}
+            min={MIN_RING_SECONDS}
             onBlur={write}
             onChange={(value) => {
               setSaved(false);

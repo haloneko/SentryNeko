@@ -139,6 +139,7 @@
       "reset": "重置",
       "rowHint": "调整列数，从组件库拖入或移除组件，再摆好位置。",
       "save": "保存",
+      "saveError": "布局已生效，但未能保存供下次启动使用。请再次尝试调整。",
       "shortcuts": "Ctrl+S 保存 · Ctrl+Z 撤销 · Esc 取消",
       "summary": "当前 {{columns}} 列",
       "title": "仪表盘布局",

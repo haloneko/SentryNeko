@@ -98,35 +98,37 @@ use are `pomodoro`, `alarm`, `dashboard` and `sidebar`; a category nobody knows 
 given, so a future screen needs no schema change.
 
 Every row is written through `Setting`, which rejects a blank or over-long key, a blank category, an
-oversized value and a value that is not JSON — the payload itself stays opaque, which is what lets
-`get_setting`, `set_setting`, `list_settings` and `delete_setting` serve any category. The typed
-models below sit on the same helpers and parse their own value.
+oversized value and a value that is not JSON. That is the whole of the checking: the payload stays
+opaque, and no model here describes one, so `get_setting`, `set_setting`, `list_settings` and
+`delete_setting` serve any preference and a new one costs no Rust at all — the frontend invents a
+key, names a category, sends JSON, and the table takes it.
 
-A key whose payload has a model is listed once in `SPECS` (`models/setting.rs`): a generic write then
-checks the payload against that model and files the row under the model's category, so the check and
-the filing cannot drift apart. A key that is not listed is stored as sent and needs the caller to
-name its category — which is why the next preference costs no Rust at all: the frontend invents a
-key, sends JSON, and the table takes it. Add the key to `SPECS` only when the payload deserves
-checking, and the cost is one line.
+The shape belongs to the screen that owns it, which is also where it is checked: a store validates
+what it writes and normalizes what it reads back, so a row written by an older build or edited by
+hand degrades to a usable default instead of reaching a screen.
 
-The pomodoro durations are the row `pomodoro.durations` (category `pomodoro`), whose value is the
-JSON form of `PomodoroDurations`. A missing row means the defaults apply. The alarm defaults are
-`alarm.defaults` (category `alarm`), `{ "ringSeconds": 10, "method": "toast" }` — how long the tone
-repeats and how the message travels (`toast`, or `inApp` for the window alone).
+Where backend code needs the value itself, it parses the row into its own model and checks it there
+rather than trusting the table: the scheduler reads `alarm.defaults` when an alarm rings, rejects a
+ring duration outside `1..=60`, and rings the built-in default for a row it cannot use. Storing junk
+therefore never becomes ringing with junk.
+
+The pomodoro durations are the row `pomodoro.durations` (category `pomodoro`), whose value is
+`{ "focusSeconds": 1500, "shortBreakSeconds": 300, "longBreakSeconds": 900 }`. A missing row means
+the defaults apply. The alarm defaults are `alarm.defaults` (category `alarm`),
+`{ "ringSeconds": 10, "method": "toast" }` — how long the tone repeats and how the message travels
+(`toast`, or `inApp` for the window alone).
 
 The dashboard layout is `dashboard.grid` (category `dashboard`), whose value is
-`{ "widgets": [{ "id": "focus-1", "kind": "focus", "x": 0, "y": 0, "w": 1, "h": 2, "source": "today" }] }`
-— the widgets the home page shows, each with an identity of its own, the cell its top-left corner
-sits in and how many cells it spans on a two-column grid. The `id` is what makes a placement
-addressable, so the same `kind` may appear more than once. A missing row means the dashboard was
-never customised and the page falls back to its built-in layout.
+`{ "columns": 4, "placements": { "focus": { "x": 0, "y": 0, "w": 2, "h": 2 } }, "hidden": ["todos"] }`
+— the columns the grid has, one rectangle per panel keyed by the panel id, and the panels parked in
+the library, which keep their rectangles so putting one back where it was costs nothing. A missing
+row means the dashboard was never customised and the page falls back to its built-in layout.
 
 The sidebar layout is `sidebar.panels` (category `sidebar`), whose value is
 `{ "panels": [{ "id": "todos", "visible": true }] }` — every panel the rail can show, in draw order,
 each with the flag that decides whether it is drawn. A missing row means the rail was never
 customised and the built-in order applies; a panel written without `visible` counts as shown, which
-is what the rail did before hiding existed. The catalogue of panel ids belongs to the frontend, so
-the table only enforces the shape: no blank or repeated id, at least one panel, at most 32.
+is what the rail did before hiding existed.
 
 `app_events` is written by the foreground collector (`collectors/foreground_app.rs`), which samples
 the foreground window once a second:

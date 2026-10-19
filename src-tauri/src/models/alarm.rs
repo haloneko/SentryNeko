@@ -77,23 +77,22 @@ impl Default for AlarmDefaults {
 }
 
 impl AlarmDefaults {
-    /// Reads the stored defaults, falling back on a fresh database.
+    /// Reads the defaults the scheduler rings with.
     ///
-    /// Kept on the model because the scheduler reads it when an alarm rings.
+    /// The settings table stores whatever the frontend sends, so a value only becomes something to
+    /// ring with here: a duration outside `1..=MAX_RING_SECONDS` rings the built-in default rather
+    /// than a tone nobody asked for. A row that is not even this shape stays an error, which the
+    /// scheduler answers with the same default.
     pub fn load(db: &Db) -> ApiResult<Self> {
-        Ok(Setting::read_json(db, DEFAULTS_KEY)?.unwrap_or_default())
+        let stored: Option<Self> = Setting::read_json(db, DEFAULTS_KEY)?;
+
+        Ok(stored
+            .filter(|defaults| defaults.validate().is_ok())
+            .unwrap_or_default())
     }
 
-    /// Validates and stores the defaults; a duration outside `1..=MAX_RING_SECONDS` is
-    /// `INVALID_INPUT`.
-    pub fn save(db: &Db, defaults: Self) -> ApiResult<Self> {
-        defaults.validate()?;
-        Setting::write_json(db, DEFAULTS_KEY, &defaults)?;
-
-        Ok(defaults)
-    }
-
-    pub(crate) fn validate(&self) -> ApiResult<()> {
+    /// Rejects a ring duration outside `1..=MAX_RING_SECONDS`.
+    fn validate(&self) -> ApiResult<()> {
         if !(1..=MAX_RING_SECONDS).contains(&self.ring_seconds) {
             return Err(ApiError::invalid_input(format!(
                 "ringSeconds must be between 1 and {MAX_RING_SECONDS}"
@@ -585,44 +584,40 @@ mod tests {
     }
 
     #[test]
-    fn the_defaults_survive_a_save() {
+    fn the_defaults_are_read_back_from_the_settings_row() {
         let db = created();
+
+        assert_eq!(
+            AlarmDefaults::load(&db).expect("a fresh database answers"),
+            AlarmDefaults::default(),
+            "no row means the built-in defaults"
+        );
+
         let chosen = AlarmDefaults {
             ring_seconds: 30,
             method: Method::InApp,
         };
+        Setting::write_json(&db, DEFAULTS_KEY, "alarm", &chosen).expect("the row is stored");
 
-        Setting::write_json(&db, DEFAULTS_KEY, &chosen).expect("stored");
-
-        assert_eq!(
-            Setting::read_json::<AlarmDefaults>(&db, DEFAULTS_KEY).expect("read back"),
-            Some(chosen)
-        );
+        assert_eq!(AlarmDefaults::load(&db).expect("read back"), chosen);
     }
 
     #[test]
-    fn a_ring_duration_outside_the_accepted_range_is_refused() {
+    fn a_duration_the_model_cannot_ring_with_falls_back_to_the_default() {
         let db = created();
 
+        // The settings table takes what it is handed; refusing it is this model's job, at the
+        // moment the scheduler asks for a tone to ring with.
         for ring_seconds in [0, -1, MAX_RING_SECONDS + 1] {
-            let error = Setting::write_json(
-                &db,
-                DEFAULTS_KEY,
-                &AlarmDefaults {
-                    ring_seconds,
-                    method: Method::Toast,
-                },
-            )
-            .expect_err("the duration is refused");
+            let row = format!(r#"{{"ringSeconds":{ring_seconds},"method":"inApp"}}"#);
+            Setting::set(&db, DEFAULTS_KEY, &row, "alarm").expect("the row is stored as sent");
 
-            assert_eq!(error.code(), ApiCode::InvalidInput, "{ring_seconds}");
+            assert_eq!(
+                AlarmDefaults::load(&db).expect("the read succeeds"),
+                AlarmDefaults::default(),
+                "{ring_seconds}"
+            );
         }
-
-        assert_eq!(
-            Setting::read_json::<AlarmDefaults>(&db, DEFAULTS_KEY).expect("read"),
-            None,
-            "a refused write leaves no row behind"
-        );
     }
 
     #[test]

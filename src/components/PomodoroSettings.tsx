@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useI18n } from "../hooks/useI18n";
 import { usePomodoro } from "../hooks/usePomodoro";
+import { MAX_PHASE_SECONDS, MIN_PHASE_SECONDS } from "../types/pomodoro";
 import type { PomodoroDurations } from "../types/pomodoro";
 import { NumericInput } from "./ui/NumericInput";
 
@@ -104,8 +105,8 @@ export function PomodoroSettings() {
                 disabled={!idle}
                 id={id}
                 increaseLabel={t("numericInput.increase", { label })}
-                max={240}
-                min={1}
+                max={MAX_PHASE_SECONDS / 60}
+                min={MIN_PHASE_SECONDS / 60}
                 onBlur={save}
                 onChange={update(phase.key)}
                 value={phase.value}

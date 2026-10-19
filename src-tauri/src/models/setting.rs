@@ -1,7 +1,14 @@
 //! Application settings: one row per key, grouped under a category.
 //!
-//! A row is a unique key, a JSON value and a category. `get_setting` / `set_setting` serve every
-//! key, so a new preference needs no code here; [`SPECS`] is only for payloads worth checking.
+//! The table is a plain key/value store. `get_setting` / `set_setting` serve every key and the
+//! backend never looks inside a value, so a new preference needs no code here at all.
+//!
+//! A payload's shape belongs to the screen that owns the data: the frontend checks a layout or a
+//! duration before it writes one and normalizes what it reads back. What is checked here is only
+//! what the table itself needs — a key, a category and a value that is JSON and not a document.
+//!
+//! Backend code that consumes a preference does parse it into its own model and check it there,
+//! so storing junk never turns into ringing with junk: see [`crate::models::alarm::AlarmDefaults`].
 
 use rusqlite::{params, Row};
 use serde::de::DeserializeOwned;
@@ -9,10 +16,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::connection::Db;
 use crate::db::repository;
-use crate::models::alarm::{AlarmDefaults, DEFAULTS_KEY};
-use crate::models::dashboard::{DashboardLayout, LAYOUT_KEY as DASHBOARD_KEY};
-use crate::models::pomodoro::{PomodoroDurations, DURATIONS_KEY};
-use crate::models::sidebar::{SidebarLayout, LAYOUT_KEY as SIDEBAR_KEY};
 use crate::utils::response::{ApiError, ApiResult};
 use crate::utils::time;
 
@@ -25,46 +28,8 @@ const MAX_CATEGORY_LENGTH: usize = 32;
 /// Largest accepted value, in bytes: a preference is not a place to park documents.
 const MAX_VALUE_LENGTH: usize = 64 * 1024;
 
-/// Categories the application writes today; the column takes any tag a future screen invents.
-pub const CATEGORY_ALARM: &str = "alarm";
-pub const CATEGORY_DASHBOARD: &str = "dashboard";
-pub const CATEGORY_POMODORO: &str = "pomodoro";
-pub const CATEGORY_SIDEBAR: &str = "sidebar";
-
 /// Columns every query selects, in the order [`Setting::from_row`] reads them.
 const COLUMNS: &str = "key, value, category, updated_at";
-
-/// A key the backend knows the shape of.
-struct Spec {
-    key: &'static str,
-    category: &'static str,
-    /// Rejects a payload the matching model could not read back.
-    check: fn(&str) -> ApiResult<()>,
-}
-
-/// Keys whose payload is checked; anything else is stored as sent.
-static SPECS: [Spec; 4] = [
-    Spec {
-        key: DURATIONS_KEY,
-        category: CATEGORY_POMODORO,
-        check: check_pomodoro,
-    },
-    Spec {
-        key: DEFAULTS_KEY,
-        category: CATEGORY_ALARM,
-        check: check_alarm,
-    },
-    Spec {
-        key: DASHBOARD_KEY,
-        category: CATEGORY_DASHBOARD,
-        check: check_dashboard,
-    },
-    Spec {
-        key: SIDEBAR_KEY,
-        category: CATEGORY_SIDEBAR,
-        check: check_sidebar,
-    },
-];
 
 /// One stored preference.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -111,25 +76,8 @@ impl Setting {
 
     /// Creates or replaces the row and answers with what is now stored.
     ///
-    /// A listed key is checked and filed under its own category; an unlisted one is filed under
-    /// `category`, so it cannot omit it.
-    pub fn set(db: &Db, key: &str, value: &str, category: Option<&str>) -> ApiResult<Self> {
-        let spec = spec_for(key);
-
-        if let Some(spec) = spec {
-            (spec.check)(value)?;
-        }
-
-        let category = match (spec, category) {
-            (Some(spec), _) => spec.category,
-            (None, Some(category)) => category,
-            (None, None) => {
-                return Err(ApiError::invalid_input(format!(
-                    "{key} is a setting the backend does not know, so it needs a category"
-                )))
-            }
-        };
-
+    /// `category` is the caller's: the store does not know which subject a screen files under.
+    pub fn set(db: &Db, key: &str, value: &str, category: &str) -> ApiResult<Self> {
         check(key, value, category)?;
         let updated_at = time::now_seconds();
 
@@ -156,7 +104,7 @@ impl Setting {
         Ok(repository::execute(db, "DELETE FROM settings WHERE key = ?1", [key])? > 0)
     }
 
-    /// Reads a typed setting.
+    /// Reads a typed setting, for the code that consumes one.
     pub fn read_json<T: DeserializeOwned>(db: &Db, key: &str) -> ApiResult<Option<T>> {
         match Self::load(db, key)? {
             Some(setting) => Ok(Some(serde_json::from_str(&setting.value)?)),
@@ -164,9 +112,14 @@ impl Setting {
         }
     }
 
-    /// Stores a typed setting; category and check come from [`SPECS`].
-    pub fn write_json<T: Serialize>(db: &Db, key: &str, value: &T) -> ApiResult<()> {
-        Self::set(db, key, &serde_json::to_string(value)?, None).map(|_| ())
+    /// Stores a typed setting under `key`, filed under `category`.
+    pub fn write_json<T: Serialize>(
+        db: &Db,
+        key: &str,
+        category: &str,
+        value: &T,
+    ) -> ApiResult<()> {
+        Self::set(db, key, &serde_json::to_string(value)?, category).map(|_| ())
     }
 
     fn from_row(row: &Row<'_>) -> ApiResult<Self> {
@@ -177,34 +130,6 @@ impl Setting {
             updated_at: row.get(3)?,
         })
     }
-}
-
-/// The entry for a key, when there is one.
-fn spec_for(key: &str) -> Option<&'static Spec> {
-    SPECS.iter().find(|spec| spec.key == key)
-}
-
-fn check_pomodoro(raw: &str) -> ApiResult<()> {
-    parse::<PomodoroDurations>(raw, "the pomodoro durations")?.validate()
-}
-
-fn check_alarm(raw: &str) -> ApiResult<()> {
-    parse::<AlarmDefaults>(raw, "the alarm defaults")?.validate()
-}
-
-fn check_dashboard(raw: &str) -> ApiResult<()> {
-    parse::<DashboardLayout>(raw, "the dashboard layout")?.validate()
-}
-
-fn check_sidebar(raw: &str) -> ApiResult<()> {
-    parse::<SidebarLayout>(raw, "the sidebar layout")?.validate()
-}
-
-/// Reads a payload into its model; a shape mismatch is the caller's mistake, not ours.
-fn parse<T: DeserializeOwned>(raw: &str, what: &str) -> ApiResult<T> {
-    serde_json::from_str(raw).map_err(|error| {
-        ApiError::invalid_input(format!("the value is not {what}")).with_details(error.to_string())
-    })
 }
 
 /// Rejects a key or category the table cannot identify, and a value that is not JSON.
@@ -273,18 +198,18 @@ mod tests {
     fn a_setting_is_created_and_then_replaced_in_place() {
         let db = created();
 
-        let first = Setting::set(&db, "dashboard.columns", "2", Some(CATEGORY_DASHBOARD))
-            .expect("the row is created");
-        assert_eq!(first.category, CATEGORY_DASHBOARD);
+        let first =
+            Setting::set(&db, "dashboard.columns", "2", "dashboard").expect("the row is created");
+        assert_eq!(first.category, "dashboard");
 
-        let second = Setting::set(&db, "dashboard.columns", "4", Some(CATEGORY_POMODORO))
-            .expect("the row is replaced");
+        let second =
+            Setting::set(&db, "dashboard.columns", "4", "pomodoro").expect("the row is replaced");
 
         assert_eq!(
             Setting::load(&db, "dashboard.columns").expect("the row is read"),
             Some(second.clone())
         );
-        assert_eq!(second.category, CATEGORY_POMODORO, "the category moves too");
+        assert_eq!(second.category, "pomodoro", "the category is the caller's");
         assert_eq!(
             repository::count(&db, "SELECT COUNT(*) FROM settings", []).expect("count"),
             1,
@@ -296,13 +221,11 @@ mod tests {
     fn listing_narrows_to_a_category_in_key_order() {
         let db = created();
 
-        Setting::set(&db, "dashboard.rows", "[]", Some(CATEGORY_DASHBOARD)).expect("dashboard row");
-        Setting::set(&db, "pomodoro.sound", "true", Some(CATEGORY_POMODORO)).expect("pomodoro row");
-        Setting::set(&db, "dashboard.columns", "4", Some(CATEGORY_DASHBOARD))
-            .expect("second dashboard row");
+        Setting::set(&db, "dashboard.rows", "[]", "dashboard").expect("dashboard row");
+        Setting::set(&db, "pomodoro.sound", "true", "pomodoro").expect("pomodoro row");
+        Setting::set(&db, "dashboard.columns", "4", "dashboard").expect("second dashboard row");
 
-        let dashboard =
-            Setting::list(&db, Some(CATEGORY_DASHBOARD)).expect("the category is listed");
+        let dashboard = Setting::list(&db, Some("dashboard")).expect("the category is listed");
         assert_eq!(
             dashboard
                 .iter()
@@ -318,77 +241,10 @@ mod tests {
     }
 
     #[test]
-    fn a_known_key_is_filed_under_its_own_category() {
-        let db = created();
-
-        let stored = Setting::set(
-            &db,
-            SIDEBAR_KEY,
-            r#"{"panels":[{"id":"todos","visible":true}]}"#,
-            Some(CATEGORY_POMODORO),
-        )
-        .expect("the layout is stored");
-
-        assert_eq!(stored.category, CATEGORY_SIDEBAR, "the registry wins");
-    }
-
-    #[test]
-    fn a_known_key_is_checked_before_it_is_stored() {
-        let db = created();
-
-        let error = Setting::set(&db, SIDEBAR_KEY, r#"{"panels":[]}"#, None)
-            .expect_err("an empty layout is rejected");
-        assert_eq!(error.code(), ApiCode::InvalidInput);
-        assert_eq!(
-            Setting::load(&db, SIDEBAR_KEY).expect("the read succeeds"),
-            None,
-            "nothing reached the table"
-        );
-
-        assert_eq!(
-            Setting::set(
-                &db,
-                DURATIONS_KEY,
-                r#"{"focusSeconds":0,"shortBreakSeconds":1,"longBreakSeconds":1}"#,
-                None
-            )
-            .expect_err("a zero duration is rejected")
-            .code(),
-            ApiCode::InvalidInput
-        );
-
-        assert_eq!(
-            Setting::set(&db, DURATIONS_KEY, r#"{"focus":25}"#, None)
-                .expect_err("a foreign shape is rejected")
-                .code(),
-            ApiCode::InvalidInput
-        );
-    }
-
-    #[test]
-    fn a_new_key_needs_a_category() {
-        let db = created();
-
-        assert_eq!(
-            Setting::set(&db, "thermal.unit", r#""celsius""#, None)
-                .expect_err("the category is missing")
-                .code(),
-            ApiCode::InvalidInput
-        );
-        assert_eq!(
-            Setting::set(&db, "thermal.unit", r#""celsius""#, Some("panel"))
-                .expect("the row is stored")
-                .category,
-            "panel"
-        );
-    }
-
-    #[test]
     fn deleting_reports_whether_a_row_was_there() {
         let db = created();
 
-        Setting::set(&db, "thermal.unit", r#""celsius""#, Some("panel"))
-            .expect("the row is created");
+        Setting::set(&db, "thermal.unit", r#""celsius""#, "panel").expect("the row is created");
         assert!(Setting::delete(&db, "thermal.unit").expect("the row is removed"));
         assert!(!Setting::delete(&db, "thermal.unit").expect("the second delete is a no-op"));
         assert_eq!(
@@ -398,8 +254,36 @@ mod tests {
     }
 
     #[test]
+    fn any_payload_is_stored_verbatim() {
+        let db = created();
+
+        // The backend holds no model of these rows, so it hands back exactly what it was given —
+        // including a payload whose shape it could not read and one it simply does not know.
+        let layout = r#"{"columns":6,"placements":{"alarm":{"x":0,"y":0,"w":3,"h":9}}}"#;
+        Setting::set(&db, "dashboard.grid", layout, "dashboard").expect("the layout is stored");
+
+        assert_eq!(
+            Setting::load(&db, "dashboard.grid")
+                .expect("the row is read")
+                .expect("the row exists")
+                .value,
+            layout
+        );
+
+        let unknown = r#"{"focus":25}"#;
+        Setting::set(&db, "pomodoro.durations", unknown, "pomodoro").expect("stored as sent");
+        assert_eq!(
+            Setting::load(&db, "pomodoro.durations")
+                .expect("the row is read")
+                .expect("the row exists")
+                .value,
+            unknown
+        );
+    }
+
+    #[test]
     fn a_value_that_is_not_json_is_rejected() {
-        let error = Setting::set(&created(), "thermal.unit", "celsius", Some("panel"))
+        let error = Setting::set(&created(), "thermal.unit", "celsius", "panel")
             .expect_err("the value is rejected");
 
         assert_eq!(error.code(), ApiCode::InvalidInput);
@@ -411,13 +295,13 @@ mod tests {
         let db = created();
 
         assert_eq!(
-            Setting::set(&db, "  ", "[]", Some("panel"))
+            Setting::set(&db, "  ", "[]", "panel")
                 .expect_err("the key is rejected")
                 .code(),
             ApiCode::InvalidInput
         );
         assert_eq!(
-            Setting::set(&db, "thermal.unit", "[]", Some(" "))
+            Setting::set(&db, "thermal.unit", "[]", " ")
                 .expect_err("the category is rejected")
                 .code(),
             ApiCode::InvalidInput
@@ -429,7 +313,7 @@ mod tests {
         let db = created();
 
         assert_eq!(
-            Setting::set(&db, &"k".repeat(MAX_KEY_LENGTH + 1), "[]", Some("panel"))
+            Setting::set(&db, &"k".repeat(MAX_KEY_LENGTH + 1), "[]", "panel")
                 .expect_err("the key is rejected")
                 .code(),
             ApiCode::InvalidInput
@@ -437,7 +321,7 @@ mod tests {
 
         let value = format!(r#""{}""#, "v".repeat(MAX_VALUE_LENGTH));
         assert_eq!(
-            Setting::set(&db, "thermal.unit", &value, Some("panel"))
+            Setting::set(&db, "thermal.unit", &value, "panel")
                 .expect_err("the value is rejected")
                 .code(),
             ApiCode::InvalidInput
@@ -453,17 +337,18 @@ mod tests {
             "shortBreakSeconds": 300,
             "longBreakSeconds": 900,
         });
-        Setting::write_json(&db, DURATIONS_KEY, &durations).expect("the value is written");
+        Setting::write_json(&db, "pomodoro.durations", "pomodoro", &durations)
+            .expect("the value is written");
 
         let stored: Option<serde_json::Value> =
-            Setting::read_json(&db, DURATIONS_KEY).expect("the value is read");
+            Setting::read_json(&db, "pomodoro.durations").expect("the value is read");
         assert_eq!(stored, Some(durations));
         assert_eq!(
-            Setting::load(&db, DURATIONS_KEY)
+            Setting::load(&db, "pomodoro.durations")
                 .expect("the row is read")
                 .expect("the row exists")
                 .category,
-            CATEGORY_POMODORO
+            "pomodoro"
         );
     }
 }

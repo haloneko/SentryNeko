@@ -8,9 +8,26 @@ export interface Setting {
   updatedAt: number;
 }
 
-/** Keys the app stores today; the backend knows their shape and their category. */
-export const POMODORO_DURATIONS_KEY = "pomodoro.durations";
-export const ALARM_DEFAULTS_KEY = "alarm.defaults";
+/** One preference: the row it lives in and the subject that row is filed under. */
+export interface SettingEntry {
+  /** Subject the row is listed under. */
+  readonly category: string;
+  readonly key: string;
+}
+
+/**
+ * Keys the app stores today.
+ *
+ * The backend is a plain key/value store and never looks inside a value, so a store names the
+ * category of what it writes and owns the shape within: it checks a payload before writing one and
+ * normalizes what it reads back.
+ */
+export const SETTINGS = {
+  alarmDefaults: { category: "alarm", key: "alarm.defaults" },
+  dashboardGrid: { category: "dashboard", key: "dashboard.grid" },
+  pomodoroDurations: { category: "pomodoro", key: "pomodoro.durations" },
+  sidebarPanels: { category: "sidebar", key: "sidebar.panels" },
+} as const satisfies Record<string, SettingEntry>;
 
 /**
  * Parses a row's payload, answering `fallback` when the row is missing or unreadable.
@@ -29,3 +46,4 @@ export function parseSetting<T>(row: Setting | null, fallback: T): T {
     return fallback;
   }
 }
+

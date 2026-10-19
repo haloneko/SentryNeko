@@ -1,4 +1,4 @@
-//! Pomodoro phases, their durations and the sessions they leave behind.
+//! Pomodoro phases and the sessions they leave behind.
 
 use rusqlite::{params, Row};
 use serde::{Deserialize, Serialize};
@@ -10,9 +10,6 @@ use crate::utils::time;
 
 /// Columns every query selects, in the order [`PomodoroSession::from_row`] reads them.
 const COLUMNS: &str = "id, phase, planned_seconds, actual_seconds, started_at, ended_at, todo_id";
-
-/// Key of the duration row in the `settings` table.
-pub(crate) const DURATIONS_KEY: &str = "pomodoro.durations";
 
 /// Longest accepted phase length: four hours.
 const MAX_SECONDS: i64 = 4 * 60 * 60;
@@ -49,54 +46,6 @@ impl Phase {
             .ok_or_else(|| {
                 ApiError::internal("the stored pomodoro phase is unknown").with_details(value)
             })
-    }
-}
-
-/// How long each phase lasts, in seconds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PomodoroDurations {
-    pub focus_seconds: i64,
-    pub short_break_seconds: i64,
-    pub long_break_seconds: i64,
-}
-
-impl Default for PomodoroDurations {
-    fn default() -> Self {
-        Self {
-            focus_seconds: 25 * 60,
-            short_break_seconds: 5 * 60,
-            long_break_seconds: 15 * 60,
-        }
-    }
-}
-
-impl PomodoroDurations {
-    /// The length of one phase.
-    #[must_use]
-    pub const fn seconds_of(&self, phase: Phase) -> i64 {
-        match phase {
-            Phase::Focus => self.focus_seconds,
-            Phase::ShortBreak => self.short_break_seconds,
-            Phase::LongBreak => self.long_break_seconds,
-        }
-    }
-
-    pub(crate) fn validate(&self) -> ApiResult<()> {
-        for (name, seconds) in [
-            ("focusSeconds", self.focus_seconds),
-            ("shortBreakSeconds", self.short_break_seconds),
-            ("longBreakSeconds", self.long_break_seconds),
-        ] {
-            if !(1..=MAX_SECONDS).contains(&seconds) {
-                return Err(ApiError::invalid_input(format!(
-                    "{name} must be between 1 and {MAX_SECONDS}"
-                ))
-                .with_details(format!("received {seconds}")));
-            }
-        }
-
-        Ok(())
     }
 }
 
@@ -205,7 +154,6 @@ impl PomodoroSession {
 mod tests {
     use super::*;
     use crate::db::schema;
-    use crate::models::setting::Setting;
     use crate::models::todo::Todo;
     use crate::utils::response::ApiCode;
 
@@ -226,55 +174,6 @@ mod tests {
 
         let error = Phase::from_stored("siesta").expect_err("an unknown phase is refused");
         assert_eq!(error.code(), ApiCode::Internal);
-    }
-
-    #[test]
-    fn durations_round_trip_through_the_settings_row() {
-        let db = created();
-
-        assert_eq!(
-            Setting::read_json::<PomodoroDurations>(&db, DURATIONS_KEY).expect("read"),
-            None,
-            "a fresh database has no row, so the caller falls back to its defaults"
-        );
-
-        let custom = PomodoroDurations {
-            focus_seconds: 50 * 60,
-            short_break_seconds: 10 * 60,
-            long_break_seconds: 20 * 60,
-        };
-        Setting::write_json(&db, DURATIONS_KEY, &custom).expect("stored");
-
-        assert_eq!(
-            Setting::read_json::<PomodoroDurations>(&db, DURATIONS_KEY).expect("read back"),
-            Some(custom)
-        );
-        assert_eq!(custom.seconds_of(Phase::Focus), 3000);
-    }
-
-    #[test]
-    fn durations_outside_the_accepted_range_are_refused() {
-        let db = created();
-
-        for broken in [
-            PomodoroDurations {
-                focus_seconds: 0,
-                ..PomodoroDurations::default()
-            },
-            PomodoroDurations {
-                short_break_seconds: MAX_SECONDS + 1,
-                ..PomodoroDurations::default()
-            },
-        ] {
-            let error = Setting::write_json(&db, DURATIONS_KEY, &broken).expect_err("refused");
-            assert_eq!(error.code(), ApiCode::InvalidInput);
-        }
-
-        assert_eq!(
-            Setting::read_json::<PomodoroDurations>(&db, DURATIONS_KEY).expect("read"),
-            None,
-            "a refused write leaves no row behind"
-        );
     }
 
     #[test]

@@ -139,6 +139,7 @@
       "reset": "Reset",
       "rowHint": "Pick the grid, drag panels in and out of the library, then place each where you want it.",
       "save": "Save",
+      "saveError": "The layout applies now, but could not be saved for the next launch. Try changing it again.",
       "shortcuts": "Ctrl+S saves · Ctrl+Z undoes · Esc cancels",
       "summary": "{{columns}} columns",
       "title": "Dashboard layout",

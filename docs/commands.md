@@ -124,20 +124,21 @@ maintains the reminders the scheduler watches: `list_alarms`, `add_alarm`, `upda
 does, on the thread that owns the clock, so an alarm fires whether or not the page is open. How an
 alarm rings is a setting rather than a column: the row `alarm.defaults` carries the ring length and
 the notification method, and the scheduler reads it when an alarm fires — editing one therefore
-moves every alarm, not only the next. The dashboard is a setting too (`dashboard.grid`): the placed
-widgets as one list, each with an `id` of its own — so one kind can appear several times — the cell
-its top-left corner sits in and the cells it spans (`x`, `y`, `w`, `h` on a two-column grid) plus
-the data source it reads. A profile that has never been customised has no row, and the page keeps
-its built-in arrangement.
+moves every alarm, not only the next. The dashboard is a setting too (`dashboard.grid`): how many
+columns the grid has, one rectangle per panel (`x`, `y`, `w`, `h`) and the panels parked in the
+library, which keep their rectangles. A profile that has never been customised has no row, and the
+page keeps its built-in arrangement.
 
 All four of those rows — and the sidebar, which is `sidebar.panels`, the panels in draw order each
 with a `visible` flag — are reached through the same four commands: `get_setting`, `set_setting`,
 `list_settings` and `delete_setting` address one row of the `settings` table by its unique key,
 carry a JSON `value` verbatim and file it under a `category`. That is the interface a new preference
-uses: the frontend picks a key, sends JSON, names a category, and no command is added. A key whose
-payload deserves checking is listed once in `SPECS` (`models/setting.rs`): the generic write then
-checks the payload against that model and files the row under the model's category, so one line buys
-validation without a command, a registration or a table.
+uses: the frontend picks a key, sends JSON, names a category, and no command is added.
+
+`set_setting` checks the row, not the payload: a key, a category and a value that is JSON are all it
+asks for. Whatever lies inside is the caller's — the store that owns the preference checks what it
+writes and normalizes what it reads, and backend code that needs a value parses it into its model
+and checks it there (see `docs/database.md`).
 
 The two auto-start commands own the other piece of machine state: `get_autostart` reports whether
 the per-user run key starts this executable, and `set_autostart` writes or removes that entry,

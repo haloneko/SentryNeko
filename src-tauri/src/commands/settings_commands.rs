@@ -21,18 +21,19 @@ pub fn get_setting(db: State<'_, Db>, key: String) -> ApiResponse<Option<Setting
     Setting::load(&db, &key).into()
 }
 
-/// Creates or replaces one setting; `value` is JSON text.
+/// Creates or replaces one setting; `value` is JSON text and `category` is the subject it belongs
+/// to.
 ///
-/// `category` is only needed for a key the backend does not know: a known key is filed under the
-/// category its model declared, and its payload is checked against that model first.
+/// The backend stores both as given — it holds no model of any payload — so the caller owns the
+/// shape of what it writes.
 #[tauri::command]
 pub fn set_setting(
     db: State<'_, Db>,
     key: String,
     value: String,
-    category: Option<String>,
+    category: String,
 ) -> ApiResponse<Setting> {
-    Setting::set(&db, &key, &value, category.as_deref()).into()
+    Setting::set(&db, &key, &value, &category).into()
 }
 
 /// Lists settings in key order, narrowed to one category when it is given.

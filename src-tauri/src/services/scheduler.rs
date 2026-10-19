@@ -256,11 +256,24 @@ impl RunningScheduler {
 mod tests {
     use super::*;
     use crate::db::schema;
+    use crate::models::alarm::DEFAULTS_KEY;
+    use crate::models::setting::Setting;
     use crate::services::event_bus::names;
     use crate::services::event_bus::testing::Recorder;
     use crate::utils::windows;
     use std::sync::Mutex as StdMutex;
     use tempfile::TempDir;
+
+    /// Stores the alarm defaults the way the app does: one row through the settings table.
+    fn store_defaults(db: &Db, defaults: AlarmDefaults) {
+        Setting::set(
+            db,
+            DEFAULTS_KEY,
+            &serde_json::to_string(&defaults).expect("the defaults serialize"),
+            "alarm",
+        )
+        .expect("stored");
+    }
 
     /// A toast sink that records what it was asked to show; `Err` refuses the toast.
     #[derive(Clone)]
@@ -543,14 +556,13 @@ mod tests {
         let fixture = Fixture::new();
         let chime = FakeChime::default();
         let mut scheduler = fixture.scheduler(FakeToast::accepting(), chime.clone());
-        AlarmDefaults::save(
+        store_defaults(
             &fixture.db,
             AlarmDefaults {
                 ring_seconds: 4,
                 method: Method::Toast,
             },
-        )
-        .expect("stored");
+        );
         let (hour, minute) = clock_in(120);
         let alarm = Alarm::add(&fixture.db, "ring", hour, minute, 0).expect("stored");
         let fire = alarm.next_fire(now()).expect("it has a next occurrence");
@@ -581,14 +593,13 @@ mod tests {
         let fire = alarm.next_fire(now()).expect("it has a next occurrence");
 
         // Saved after the alarm exists: the defaults are read when it rings, not when it is added.
-        AlarmDefaults::save(
+        store_defaults(
             &fixture.db,
             AlarmDefaults {
                 ring_seconds: 2,
                 method: Method::InApp,
             },
-        )
-        .expect("stored");
+        );
 
         let rung = scheduler.tick(fire).expect("tick");
 

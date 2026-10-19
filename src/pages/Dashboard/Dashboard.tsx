@@ -64,13 +64,13 @@ export function Dashboard() {
 
       return [
         removeWidgetItem(id, t, () => {
-          save(hideWidget(layout, id));
+          void save(hideWidget(layout, id));
         }),
       ];
     }
 
     return addWidgetItems(hiddenWidgets(layout), layout.columns, t, (id) => {
-      save(showWidget(layout, id));
+      void save(showWidget(layout, id));
     });
   };
 
