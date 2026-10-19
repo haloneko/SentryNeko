@@ -1,5 +1,8 @@
 /** Todo page helpers: what the search matches, how the list is ordered and grouped. */
 
+import type { TFunction } from "i18next";
+
+import type { LanguageCode } from "../../types/i18n";
 import type { Tag } from "../../types/tag";
 import type { Todo } from "../../types/todo";
 
@@ -55,6 +58,96 @@ export function tagNamesOf(todo: Todo, tags: readonly Tag[]): readonly string[] 
   const names = new Map(tags.map((tag) => [tag.id, tag.name]));
 
   return todo.tagIds.map((id) => names.get(id)).filter((name): name is string => name !== undefined);
+}
+
+/** A task's planned window, as its row shows it. */
+export interface PlanSummary {
+  /** True once the planned end has passed and the task is still open. */
+  late: boolean;
+  /** The window in the reader's own words: arranged as one span, or one end on its own. */
+  text: string;
+}
+
+/** `09:00` in the reader's locale. */
+function clockText(date: Date, language: LanguageCode): string {
+  return date.toLocaleTimeString(language, { hour: "2-digit", minute: "2-digit" });
+}
+
+/** `19 Oct`, with the year once it is not the current one, which the row has no reason to repeat. */
+function dayText(date: Date, language: LanguageCode): string {
+  return date.toLocaleDateString(language, {
+    day: "numeric",
+    month: "short",
+    ...(date.getFullYear() === new Date().getFullYear() ? {} : { year: "numeric" }),
+  });
+}
+
+/** `19 Oct 09:00` in the reader's locale. */
+function momentText(epoch: number, language: LanguageCode): string {
+  const date = new Date(epoch * 1000);
+
+  return `${dayText(date, language)} ${clockText(date, language)}`;
+}
+
+/**
+ * Whether an open task's planned end has been reached, which is what the row calls overdue.
+ *
+ * The clock is read once a minute, so `<=` is what makes the flag turn over on the due minute
+ * itself: with `<`, a task due at 09:00 would only be flagged at 09:01, and a deadline would be
+ * reported as missed a whole minute after the list had already stopped saying it was ahead.
+ */
+export function isLate(todo: Todo, now: number): boolean {
+  return todo.endAt !== null && todo.endAt <= now && !todo.completed;
+}
+
+/** How many of `todos` are overdue at `now`; the badge over the list and the row flags share this. */
+export function overdueCount(todos: readonly Todo[], now: number): number {
+  return todos.filter((todo) => isLate(todo, now)).length;
+}
+
+/**
+ * The planned window of a task, or `null` when it has none.
+ *
+ * A window on one day is spelled once, because a second date beside the first only repeats what
+ * the eye already has; a window that spans days names both, because the second clock time alone
+ * would look like it belonged to the same day. A lone end is the deadline most tasks carry, so it
+ * is worded as one rather than drawn as a range with an empty side.
+ */
+export function planSummary(
+  todo: Todo,
+  now: number,
+  language: LanguageCode,
+  t: TFunction,
+): PlanSummary | null {
+  const { endAt, startAt } = todo;
+
+  if (startAt === null && endAt === null) {
+    return null;
+  }
+
+  const late = isLate(todo, now);
+
+  if (startAt !== null && endAt !== null) {
+    const sameDay =
+      new Date(startAt * 1000).toDateString() === new Date(endAt * 1000).toDateString();
+
+    return {
+      late,
+      text: sameDay
+        ? `${momentText(startAt, language)} – ${clockText(new Date(endAt * 1000), language)}`
+        : `${momentText(startAt, language)} – ${momentText(endAt, language)}`,
+    };
+  }
+
+  if (startAt !== null) {
+    return { late, text: t("todo.plan.from", { time: momentText(startAt, language) }) };
+  }
+
+  if (endAt !== null) {
+    return { late, text: t("todo.plan.until", { time: momentText(endAt, language) }) };
+  }
+
+  return null;
 }
 
 /** How long ago `timestamp` was, measured against `now`; both are UTC epoch seconds. */

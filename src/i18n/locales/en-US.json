@@ -344,7 +344,21 @@
       "completed": "Completed"
     },
     "loading": "Loading…",
+    "overdue": "{{count}} overdue",
     "placeholder": "What needs doing?",
+    "plan": {
+      "done": "Done",
+      "edit": "Set times",
+      "end": "Ends",
+      "endPanel": "Pick an end time",
+      "from": "From {{time}}",
+      "hint": "Either end can be left empty; one alone still works.",
+      "late": "Overdue",
+      "order": "The end is before the start.",
+      "start": "Starts",
+      "startPanel": "Pick a start time",
+      "until": "Due {{time}}"
+    },
     "progress": {
       "label": "Progress"
     },

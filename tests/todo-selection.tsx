@@ -5,12 +5,18 @@ import { createRoot } from "react-dom/client";
 import { I18nProvider } from "../src/components/I18nProvider";
 import i18n from "../src/i18n";
 import { TodosPage } from "../src/pages/Todos/TodosPage";
+import { useI18nStore } from "../src/stores/i18nStore";
 import type { Todo, TodoCounts } from "../src/types/todo";
 import "../src/styles/app.css";
 
 const params = new URLSearchParams(window.location.search);
+const language = params.get("language") === "en-US" ? "en-US" : "zh-CN";
+
 document.documentElement.dataset.theme = params.get("theme") ?? "dark";
-void i18n.changeLanguage(params.get("language") ?? "zh-CN");
+void i18n.changeLanguage(language);
+// The app keeps the store and i18next in step; the demo has no switcher to do it, and dates are
+// formatted from the store rather than from i18next.
+useI18nStore.setState({ language });
 
 Object.defineProperty(window, "isTauri", { value: true });
 

@@ -344,7 +344,21 @@
       "completed": "已完成"
     },
     "loading": "加载中…",
+    "overdue": "{{count}} 项逾期",
     "placeholder": "要做什么？",
+    "plan": {
+      "done": "完成",
+      "edit": "设置时间",
+      "end": "结束",
+      "endPanel": "选择结束时间",
+      "from": "从 {{time}} 开始",
+      "hint": "两端都可以留空，只填一端也算数。",
+      "late": "已逾期",
+      "order": "结束时间早于开始时间。",
+      "start": "开始",
+      "startPanel": "选择开始时间",
+      "until": "截止 {{time}}"
+    },
     "progress": {
       "label": "完成进度"
     },

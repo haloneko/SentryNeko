@@ -1258,6 +1258,19 @@ p {
   font-variant-numeric: tabular-nums;
 }
 
+/* How many tasks the minute has left behind, beside the count of what is still open. */
+
+.todo-overdue {
+  padding: 2px 9px;
+  border: 1px solid rgb(229 83 75 / 35%);
+  border-radius: 999px;
+  background: rgb(229 83 75 / 12%);
+  color: #e5534b;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 /* The switch that turns the mode on keeps the accent while it is on, so the page says so. */
 
 .todo-select-toggle[aria-pressed="true"] {
@@ -1655,6 +1668,38 @@ p {
   font-variant-numeric: tabular-nums;
 }
 
+/* The planned window, and the flag once the moment it was planned for has gone by. */
+
+.todo-plan {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.todo-plan svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.todo-plan[data-late="true"] {
+  color: #e5534b;
+}
+
+.todo-plan-late {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(229 83 75 / 14%);
+  color: #e5534b;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
 .todo-tag {
   padding: 2px 8px;
   border: 1px solid var(--border);
@@ -1704,7 +1749,8 @@ p {
   cursor: inherit;
 }
 
-.todo-row[data-selecting="true"] .todo-tag-editor {
+.todo-row[data-selecting="true"] .todo-tag-editor,
+.todo-row[data-selecting="true"] .todo-plan-editor {
   display: none;
 }
 
@@ -1746,7 +1792,8 @@ p {
 
 /* The inline tag picker, opened under the title. */
 
-.todo-tag-editor {
+.todo-tag-editor,
+.todo-plan-editor {
   display: grid;
   gap: var(--space-2);
   margin-top: var(--space-1);
@@ -1811,6 +1858,35 @@ p {
 .todo-tag-new .todo-input {
   padding-block: 6px;
   font-size: 12.5px;
+}
+
+/* The two ends of a plan sit side by side, and stack once the row is too narrow for both. */
+
+.todo-plan-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  gap: var(--space-2);
+}
+
+.todo-plan-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.todo-plan-hint {
+  flex: 1;
+  min-width: 160px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.todo-plan-warning {
+  margin: 0;
+  color: #e5534b;
+  font-size: 11.5px;
 }
 
 .todo-error {
