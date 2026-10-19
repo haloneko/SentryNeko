@@ -89,6 +89,16 @@
     "name": "SentryNeko",
     "tagline": "Track your focus and your todos"
   },
+  "migration": {
+    "body": "This version could not carry your data into its own database, so nothing was changed: the configuration still points at the file the previous version left behind, and that file was not touched.",
+    "copy": "Copy path",
+    "copied": "Copied",
+    "file": "Database file",
+    "hint": "Close the app, start the previous version again, and try this upgrade later — your data is exactly where it was.",
+    "reason": "What went wrong",
+    "rollBack": "Roll back to the previous version",
+    "title": "Database migration failed"
+  },
   "appearance": {
     "dark": "Dark",
     "hint": "Following the system switches as soon as Windows does.",
