@@ -7,6 +7,8 @@ import { isOk } from "../types";
 import type { ApiCode, ApiResponse } from "../types";
 import { DEFAULT_ALARM_DEFAULTS } from "../types/alarm";
 import type { AlarmDefaults } from "../types/alarm";
+import { ALARM_DEFAULTS_KEY, parseSetting } from "../types/setting";
+import type { Setting } from "../types/setting";
 
 export interface AlarmDefaultsState {
   /** The stored defaults, or the built-in ones until they arrive. */
@@ -39,10 +41,11 @@ export function useAlarmDefaults(): AlarmDefaultsState {
   const reload = useCallback(async () => {
     setLoading(true);
 
-    const response = await request<AlarmDefaults>("get_alarm_defaults");
+    // An absent key answers `null` in `data`, which `parseSetting` reads as "use the defaults".
+    const response = await request<Setting>("get_setting", { key: ALARM_DEFAULTS_KEY });
 
     if (isOk(response)) {
-      setDefaults(response.data);
+      setDefaults(parseSetting(response.data, DEFAULT_ALARM_DEFAULTS));
       setError(null);
     } else {
       setError(response.code);
@@ -56,18 +59,22 @@ export function useAlarmDefaults(): AlarmDefaultsState {
   }, [reload]);
 
   const save = useCallback(async (next: AlarmDefaults): Promise<AlarmDefaults | null> => {
-    const response = await request<AlarmDefaults>("set_alarm_defaults", { defaults: next });
+    const response = await request<Setting>("set_setting", {
+      key: ALARM_DEFAULTS_KEY,
+      value: JSON.stringify(next),
+    });
 
     if (!isOk(response)) {
       setError(response.code);
       return null;
     }
 
-    // The backend validates the duration, so the answer is the value actually in force.
-    setDefaults(response.data);
+    // The backend validates the duration, so the echo is the value actually in force.
+    const saved = parseSetting(response.data, next);
+    setDefaults(saved);
     setError(null);
 
-    return response.data;
+    return saved;
   }, []);
 
   return { defaults, error, loading, reload, save };

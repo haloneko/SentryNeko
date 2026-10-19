@@ -7,6 +7,8 @@ import { isOk } from "../types";
 import type { ApiCode, ApiResponse, NotificationOutcome } from "../types";
 import type { PomodoroDurations, PomodoroPhase, PomodoroSession } from "../types/pomodoro";
 import { phaseAfter, phaseSeconds } from "../types/pomodoro";
+import { parseSetting, POMODORO_DURATIONS_KEY } from "../types/setting";
+import type { Setting } from "../types/setting";
 
 export interface PomodoroState {
   phase: PomodoroPhase;
@@ -97,20 +99,22 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   load: async () => {
     set({ loading: true, error: null });
 
-    const response = await request<PomodoroDurations>("get_pomodoro_durations");
+    // An absent key answers `null` in `data`, which `parseSetting` reads as "use the defaults".
+    const response = await request<Setting>("get_setting", { key: POMODORO_DURATIONS_KEY });
 
     if (!isOk(response)) {
       set({ loading: false, error: response.code });
       return;
     }
 
+    const durations = parseSetting(response.data, DEFAULT_DURATIONS);
     const { endsAt, phase, remainingMs, sessionId } = get();
     const idle = endsAt === null && sessionId === null;
 
     set({
-      durations: response.data,
+      durations,
       loading: false,
-      remainingMs: idle ? phaseSeconds(response.data, phase) * 1000 : remainingMs,
+      remainingMs: idle ? phaseSeconds(durations, phase) * 1000 : remainingMs,
     });
   },
 
@@ -217,19 +221,24 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   saveDurations: async (durations) => {
     set({ error: null });
 
-    const response = await request<PomodoroDurations>("set_pomodoro_durations", { durations });
+    const response = await request<Setting>("set_setting", {
+      key: POMODORO_DURATIONS_KEY,
+      value: JSON.stringify(durations),
+    });
 
     if (!isOk(response)) {
       set({ error: response.code });
       return false;
     }
 
+    // The backend validates the durations, so the echo is the value actually in force.
+    const saved = parseSetting(response.data, durations);
     const { endsAt, phase, sessionId } = get();
     const idle = endsAt === null && sessionId === null;
 
     set({
-      durations: response.data,
-      remainingMs: idle ? phaseSeconds(response.data, phase) * 1000 : get().remainingMs,
+      durations: saved,
+      remainingMs: idle ? phaseSeconds(saved, phase) * 1000 : get().remainingMs,
     });
 
     return true;
