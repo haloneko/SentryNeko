@@ -725,9 +725,20 @@ p {
   font-size: 14.5px;
 }
 
+/*
+ * Spacing lives on the items rather than between the tracks. A folded bulk bar keeps its place in
+ * the grid as a zero-height row, and a gap would still be drawn on either side of it — the page
+ * would hold two empty gaps where the bar is waiting. On the items, a folded bar takes its margin
+ * with it and leaves nothing behind.
+ */
+
 .todo-panel {
   display: grid;
-  gap: var(--space-4);
+  gap: 0;
+}
+
+.todo-panel > * + * {
+  margin-block-start: var(--space-4);
 }
 
 /* Search, the status filter, the selection switch and the count. */
@@ -808,39 +819,98 @@ p {
   font-variant-numeric: tabular-nums;
 }
 
-/* The bulk bar, shown while the selection switch is on. */
+/* The switch that turns the mode on keeps the accent while it is on, so the page says so. */
+
+.todo-select-toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+/*
+ * The bulk bar. It is in the flow all along and only unfolds, so switching modes is one move: the
+ * rows below are pushed down by the grid row growing instead of jumping when a node appears.
+ */
 
 .todo-bulk {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-block-start: 0;
+  opacity: 0;
+  transition:
+    grid-template-rows 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin-block-start 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 160ms ease;
+}
+
+.todo-bulk[data-open="true"] {
+  grid-template-rows: 1fr;
+  margin-block-start: var(--space-4);
+  opacity: 1;
+}
+
+/* The clip that lets the row collapse, and the frame the bar is drawn in. */
+
+.todo-bulk-body {
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility 0s linear 260ms;
+}
+
+.todo-bulk[data-open="true"] .todo-bulk-body {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.todo-bulk-surface {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--accent);
-  border-radius: 12px;
-  background: var(--accent-soft);
+  gap: var(--space-2);
+  padding: 8px 10px 8px var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background:
+    linear-gradient(var(--accent-soft), var(--accent-soft)),
+    var(--surface);
+  box-shadow: 0 1px 2px rgb(12 16 28 / 10%);
+  transform: translateY(-4px);
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.todo-bulk[data-open="true"] .todo-bulk-surface {
+  transform: none;
 }
 
 .todo-bulk-count {
-  font-size: 12.5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
+.todo-bulk-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+}
+
+/* Wide buttons would out-size the bar; the count already carries the emphasis. */
+.todo-bulk-quiet {
+  padding: 6px 10px;
+}
+
+/* The quiet pair sits with the count; what acts on the pick is pushed to the far end. */
 .todo-bulk-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-inline-start: auto;
-}
-
-.todo-bulk-exit {
-  border: 0;
-  background: none;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 12.5px;
-  text-decoration: underline;
-  cursor: pointer;
 }
 
 /* Empty state: a soft card rather than a dashed hole. */
@@ -983,9 +1053,16 @@ p {
   transform: translateY(-6px) scale(0.98);
 }
 
+/*
+ * A picked task is washed in the accent rather than repainted with it. The soft colour is
+ * translucent, so it is laid over the card's own surface: on the page background it would read as a
+ * darker panel in the dark theme and as a tinted one in the light theme.
+ */
 .todo-row[data-selected="true"] .todo-card {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  background:
+    linear-gradient(var(--accent-soft), var(--accent-soft)),
+    var(--surface);
 }
 
 /*
@@ -1011,9 +1088,25 @@ p {
 }
 
 /*
- * The checkbox is drawn rather than native, so the tick can pop when a task is completed and the
- * two kinds of tick — done and selected — can be told apart at a glance.
+ * The box is drawn rather than native, so the tick can pop when a task is completed and the two
+ * marks — a round one for done, a rounded square for picked — can be told apart at a glance.
  */
+
+.todo-mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+}
+
+/* Both marks share the one cell: a mode swaps them instead of widening the row. */
+.todo-mark > .todo-check {
+  grid-area: 1 / 1;
+}
+
+.todo-mark > .todo-check-select {
+  z-index: 1;
+}
 
 .todo-check {
   appearance: none;
@@ -1026,11 +1119,20 @@ p {
   cursor: pointer;
   transition:
     background-color 140ms ease,
-    border-color 140ms ease;
+    border-color 140ms ease,
+    opacity 120ms ease,
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .todo-check:hover {
   border-color: var(--accent);
+}
+
+/* A pick is a rounded square over a faint well: the shape a checkbox reads as everywhere else. */
+.todo-check-select {
+  border-radius: 6px;
+  background-color: var(--surface-hover);
+  animation: todo-mark-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .todo-check:checked {
@@ -1043,9 +1145,22 @@ p {
   animation: todo-pop 240ms ease;
 }
 
-.todo-check-select:checked {
-  /* A picked task is filled but not ticked: the accent already says which is which. */
-  background-image: none;
+/* Ticking a task off steps aside while a pick is being made: one gesture per row, one mark. */
+.todo-row[data-selecting="true"] .todo-check-done {
+  opacity: 0;
+  transform: scale(0.72);
+}
+
+@keyframes todo-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 @keyframes todo-pop {
@@ -1123,6 +1238,35 @@ p {
 .todo-card:hover .todo-actions,
 .todo-card:focus-within .todo-actions {
   opacity: 1;
+}
+
+/*
+ * While a pick is being made the row is the target: its own controls step aside and the whole card
+ * answers the click, so a stray click edits nothing. The tag panel is hidden for the same reason —
+ * it would sit inside a row that no longer takes input.
+ */
+
+.todo-row[data-selecting="true"] .todo-card {
+  cursor: pointer;
+}
+
+.todo-row[data-selecting="true"] .todo-actions {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.todo-row[data-selecting="true"] .todo-title,
+.todo-row[data-selecting="true"] .todo-meta {
+  pointer-events: none;
+}
+
+.todo-row[data-selecting="true"] .todo-title {
+  /* The card is the target now, so the title stops advertising a text cursor. */
+  cursor: inherit;
+}
+
+.todo-row[data-selecting="true"] .todo-tag-editor {
+  display: none;
 }
 
 .todo-action {
@@ -1240,7 +1384,11 @@ p {
 @media (prefers-reduced-motion: reduce) {
   .todo-card,
   .todo-card[data-enter="true"],
+  .todo-bulk,
+  .todo-bulk-surface,
+  .todo-check,
   .todo-check:checked,
+  .todo-check-select,
   .todo-ring-value {
     animation: none;
     transition: none;

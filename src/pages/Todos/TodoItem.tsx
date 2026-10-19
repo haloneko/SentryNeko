@@ -1,7 +1,7 @@
 /** One task: complete it, edit it, tag it, or take it off the list. */
 
 import { useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 
 import { useI18n } from "../../hooks/useI18n";
 import type { Tag } from "../../types/tag";
@@ -65,37 +65,60 @@ export function TodoItem({
     }
   };
 
+  /**
+   * In selection mode the whole row is the target, not only the box: the row is what the eye aims
+   * at, and the box is what the state looks like. A control inside the row still answers for
+   * itself, so clicking the square picks once rather than twice.
+   */
+  const handleCardClick = (event: MouseEvent<HTMLDivElement>): void => {
+    if ((event.target as HTMLElement).closest("input, button, a")) {
+      return;
+    }
+
+    onSelect(todo.id);
+  };
+
   return (
     <li
       className="todo-row"
       data-leaving={leaving}
       data-selected={selecting && selected}
+      data-selecting={selecting}
       ref={(element) => {
         onRowRef(todo.id, element);
       }}
       style={{ "--row": rowIndex } as CSSProperties}
     >
-      <div className="todo-card" data-completed={todo.completed} data-enter={entering}>
-        {selecting ? (
+      <div
+        className="todo-card"
+        data-completed={todo.completed}
+        data-enter={entering}
+        onClick={selecting ? handleCardClick : undefined}
+      >
+        {/* One slot for both marks: picking a task takes the place of ticking it off, never adds to it. */}
+        <span className="todo-mark">
           <input
-            aria-label={t("todo.select.item", { title: todo.title })}
-            checked={selected}
-            className="todo-check todo-check-select"
+            aria-label={t("todo.toggle")}
+            checked={todo.completed}
+            className="todo-check todo-check-done"
+            disabled={selecting}
             onChange={() => {
-              onSelect(todo.id);
+              onToggle(todo);
             }}
             type="checkbox"
           />
-        ) : null}
-        <input
-          aria-label={t("todo.toggle")}
-          checked={todo.completed}
-          className="todo-check"
-          onChange={() => {
-            onToggle(todo);
-          }}
-          type="checkbox"
-        />
+          {selecting ? (
+            <input
+              aria-label={t("todo.select.item", { title: todo.title })}
+              checked={selected}
+              className="todo-check todo-check-select"
+              onChange={() => {
+                onSelect(todo.id);
+              }}
+              type="checkbox"
+            />
+          ) : null}
+        </span>
         <div className="todo-body">
           {draft === null ? (
             <button
@@ -103,6 +126,7 @@ export function TodoItem({
               onClick={() => {
                 setDraft(todo.title);
               }}
+              tabIndex={selecting ? -1 : 0}
               type="button"
             >
               {todo.title}
@@ -153,7 +177,8 @@ export function TodoItem({
             />
           ) : null}
         </div>
-        <div className="todo-actions">
+        {/* The row's own controls step aside while a pick is being made: one mode, one gesture. */}
+        <div className="todo-actions" inert={selecting}>
           <button
             aria-label={t("todo.edit")}
             className="todo-action"

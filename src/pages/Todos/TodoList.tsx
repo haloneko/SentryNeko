@@ -196,6 +196,39 @@ export function TodoList() {
   const chosen = useMemo(() => todos.filter((todo) => selected.has(todo.id)), [todos, selected]);
 
   /**
+   * Escape leaves the mode, so a pick made by mistake costs one key instead of a trip to the bar.
+   *
+   * A field that owns the key keeps it: renaming a task and the tag filter both close on Escape,
+   * and taking the whole mode down underneath them would be a surprise.
+   */
+  useEffect(() => {
+    if (!selecting) {
+      return undefined;
+    }
+
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      const target = event.target;
+
+      if (target instanceof HTMLElement && target.closest("input, textarea")) {
+        return;
+      }
+
+      setSelecting(false);
+      setSelected(new Set());
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [selecting]);
+
+  /**
    * Lifts a row out of the flow where it stands.
    *
    * The position goes into custom properties rather than into `top`/`left` directly, because the row
@@ -389,7 +422,7 @@ export function TodoList() {
         />
         <button
           aria-pressed={selecting}
-          className="btn btn-quiet"
+          className="btn btn-quiet todo-select-toggle"
           onClick={() => {
             if (selecting) {
               exitSelecting();
@@ -408,38 +441,44 @@ export function TodoList() {
         </span>
       </div>
 
-      {selecting ? (
-        <div className="todo-bulk">
-          <span className="todo-bulk-count">{t("todo.select.count", { count: selected.size })}</span>
-          <div className="todo-bulk-actions">
-            <button className="btn btn-quiet" onClick={selectEveryVisible} type="button">
+      {/*
+        The bar is always mounted and animated open: a mode that appears out of nowhere costs the
+        eye a jump, and the rows below it would slide down in one frame.
+      */}
+      <div aria-label={t("todo.select.enter")} className="todo-bulk" data-open={selecting} role="region">
+        <div className="todo-bulk-body" inert={!selecting}>
+          <div className="todo-bulk-surface">
+            <span aria-live="polite" className="todo-bulk-count">
+              {t("todo.select.count", { count: selected.size })}
+            </span>
+            <span aria-hidden="true" className="todo-bulk-sep" />
+            <button className="btn btn-quiet todo-bulk-quiet" onClick={selectEveryVisible} type="button">
               {t("todo.select.all")}
             </button>
-            <button className="btn btn-quiet" onClick={invertSelection} type="button">
+            <button className="btn btn-quiet todo-bulk-quiet" onClick={invertSelection} type="button">
               {t("todo.select.invert")}
             </button>
-            <button
-              className="btn"
-              disabled={selected.size === 0}
-              onClick={completeSelected}
-              type="button"
-            >
-              {t("todo.select.complete")}
-            </button>
-            <button
-              className="btn btn-danger"
-              disabled={selected.size === 0}
-              onClick={deleteSelected}
-              type="button"
-            >
-              {t("todo.select.delete")}
-            </button>
+            <div className="todo-bulk-actions">
+              <button
+                className="btn"
+                disabled={selected.size === 0}
+                onClick={completeSelected}
+                type="button"
+              >
+                {t("todo.select.complete")}
+              </button>
+              <button
+                className="btn btn-danger"
+                disabled={selected.size === 0}
+                onClick={deleteSelected}
+                type="button"
+              >
+                {t("todo.select.delete")}
+              </button>
+            </div>
           </div>
-          <button className="todo-bulk-exit" onClick={exitSelecting} type="button">
-            {t("todo.select.exit")}
-          </button>
         </div>
-      ) : null}
+      </div>
 
       {error !== null ? <p className="todo-error">{t("todo.error")}</p> : null}
 
