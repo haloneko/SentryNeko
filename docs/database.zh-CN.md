@@ -72,7 +72,7 @@ app.manage(db);
 | `pomodoro_sessions` | 一次专注或休息区间 | `phase`、`planned_seconds`、`actual_seconds`、`started_at`、`ended_at`、`todo_id` |
 | `app_events` | 前台应用活动 | `app_name`、`window_title`、`started_at`、`ended_at` |
 | `alarms` | 单次或每周提醒 | `label`、`hour`、`minute`、`repeat_days`、`enabled`、`created_at` |
-| `settings` | 键值型设置 | `key`、`value`、`updated_at` |
+| `settings` | 应用设置：一行一个键，按类别分组 | `id`、`key`（唯一）、`value`、`category`、`updated_at` |
 | `tags` | 任务可携带的标签名 | `name`（唯一、大小写不敏感）、`created_at` |
 | `todo_tags` | 任务与标签的关联 | `todo_id`、`tag_id` |
 
@@ -80,15 +80,37 @@ app.manage(db);
 标签」；`todo_tags` 是另一个方向的索引，`idx_todo_tags_tag_id` 用来查「哪些任务带某个标签」。
 `Todo::set_tags` 在一个事务里同时写两边，`Tag::delete` 会把 id 从所有仍列着它的任务缓存里删掉。
 
-番茄钟时长是 `settings` 里的一行：键 `pomodoro.durations`，值是 `PomodoroDurations` 的 JSON；
-这一行不存在时按默认值处理。闹钟默认设置同样是一行：键 `alarm.defaults`，值形如
+`settings` 是偏好设置唯一的落脚处，与业务数据分开存放：新增一个设置界面只是加一行，而不是加一张表。
+一行的内容是唯一的 `key`、JSON 形式的 `value`、它归属的 `category`，以及 `updated_at`（纪元秒，
+与本库其他时间戳一致）；`id` 是代理主键，使得一行可以不靠名字被寻址。`key` 在整张表里唯一，
+因此读写单个设置不需要类别；`idx_settings_category` 让「某个主题下的全部设置」变成一次索引扫描。
+当前使用的类别有 `pomodoro`、`alarm`、`dashboard` 与 `sidebar`；未来新界面自报的类别会照原样存下，
+无需改表。
+
+所有行都经 `Setting` 写入：它会拒绝空白或过长的键、空白类别、超大值，以及不是 JSON 的值——负载本身
+保持不透明，所以 `get_setting`、`set_setting`、`list_settings` 与 `delete_setting` 能服务任意类别。
+下面这些具体模型都建立在同一组辅助函数上，各自解析自己的值。
+
+有模型承载的键在 `SPECS`（`models/setting.rs`）里登记一次：此后通用写入会先按该模型校验负载，并把行
+归入模型声明的类别，校验与归档不会各说各话。没有登记的键按原样存下，只需调用方给出类别——这正是下一个
+偏好不需要任何 Rust 改动的原因：前端自己起键、发 JSON，表就能收下。只有负载值得校验时才需要加进
+`SPECS`，代价是一行。
+
+番茄钟时长是 `pomodoro.durations` 这一行（类别 `pomodoro`），值是 `PomodoroDurations` 的 JSON；
+这一行不存在时按默认值处理。闹钟默认设置是 `alarm.defaults`（类别 `alarm`），值形如
 `{ "ringSeconds": 10, "method": "toast" }`——提示音重复多久，以及消息怎么走（`toast`，或
 `inApp` 只交给窗口）。
 
-仪表盘布局是第三行：键 `dashboard.grid`，值形如
+仪表盘布局是 `dashboard.grid`（类别 `dashboard`），值形如
 `{ "widgets": [{ "id": "focus-1", "kind": "focus", "x": 0, "y": 0, "w": 1, "h": 2, "source": "today" }] }`
 ——首页显示哪些组件，每项有自己的标识、左上角所在的格子与在两列网格上横跨的格数。`id` 让每个放置项
 可以被单独寻址，所以同一种 `kind` 可以出现多次。这一行不存在时表示从未自定义过，页面回落到内置布局。
+
+侧栏布局是 `sidebar.panels`（类别 `sidebar`），值形如
+`{ "panels": [{ "id": "todos", "visible": true }] }`——侧栏能显示的全部面板，按绘制顺序排列，
+每项带一个决定是否绘制的标记。这一行不存在时表示从未自定义过，按内置顺序显示；写成 `visible` 缺省
+的面板视为显示，这也是隐藏功能出现之前的行为。面板 id 的目录属于前端，所以本表只校验形状：
+id 不空且不重复、至少一个面板、最多 32 个。
 
 `app_events` 由前台采集器（`collectors/foreground_app.rs`）写入，它每秒采样一次前台窗口：
 

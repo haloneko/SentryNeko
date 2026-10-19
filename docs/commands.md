@@ -98,8 +98,8 @@ and reads the relation from either side (`todo_tags` for one task, `todos_with_t
 The pomodoro group persists the timer: `start_pomodoro_session` opens a row when a phase starts,
 and `finish_pomodoro_session` closes it with the seconds actually spent — the countdown itself
 runs in the frontend from timestamps, not from a tick count, and is driven from the store rather
-than the page, so switching pages does not stop it. The durations are settings, so their
-two commands sit in `settings_commands` and are edited on the settings page. The notification
+than the page, so switching pages does not stop it. The durations are the setting
+`pomodoro.durations`, edited on the settings page. The notification
 group holds the toast channel: `send_test_notification` is the diagnostic, and
 `notify_pomodoro_phase` is what the timer calls when a phase runs out. Both answer `toast`, or
 push `notification-fallback` (see `docs/events.md`) and answer `fallback` when the system refused
@@ -122,19 +122,26 @@ maintains the reminders the scheduler watches: `list_alarms`, `add_alarm`, `upda
 `set_alarm_enabled` and `delete_alarm`. `hour` and `minute` are the local wall clock and
 `repeatDays` is a weekday mask (`0` for a one-off); nothing here rings — `services/scheduler.rs`
 does, on the thread that owns the clock, so an alarm fires whether or not the page is open. How an
-alarm rings is a setting rather than a column, so it lives with the durations: `get_alarm_defaults`
-and `set_alarm_defaults` carry the ring length and the notification method, and the scheduler reads
-them when an alarm fires — editing one therefore moves every alarm, not only the next. The dashboard
-group carries the home page itself: `get_dashboard_layout` reads the placed widgets and
-`apply_dashboard_changes` applies what one arrangement changed — an `upsert` per widget moved,
-resized or added, a `remove` per widget taken off. Each placement carries its own `id`, so one kind
-can appear several times; an entry also names the cell its top-left corner sits in and the cells it
-spans (`x`, `y`, `w`, `h` on a two-column grid) plus the data source it reads. A profile that has
-never been customised has no row, so `get_dashboard_layout` answers `null` and the page sends its
-built-in layout as the first change set. The two auto-start commands own the other piece of machine
-state: `get_autostart` reports whether the per-user run key starts this executable, and
-`set_autostart` writes or removes that entry, answering with what is now in force. A registry that
-refuses the write is `PERMISSION_DENIED`.
+alarm rings is a setting rather than a column: the row `alarm.defaults` carries the ring length and
+the notification method, and the scheduler reads it when an alarm fires — editing one therefore
+moves every alarm, not only the next. The dashboard is a setting too (`dashboard.grid`): the placed
+widgets as one list, each with an `id` of its own — so one kind can appear several times — the cell
+its top-left corner sits in and the cells it spans (`x`, `y`, `w`, `h` on a two-column grid) plus
+the data source it reads. A profile that has never been customised has no row, and the page keeps
+its built-in arrangement.
+
+All four of those rows — and the sidebar, which is `sidebar.panels`, the panels in draw order each
+with a `visible` flag — are reached through the same four commands: `get_setting`, `set_setting`,
+`list_settings` and `delete_setting` address one row of the `settings` table by its unique key,
+carry a JSON `value` verbatim and file it under a `category`. That is the interface a new preference
+uses: the frontend picks a key, sends JSON, names a category, and no command is added. A key whose
+payload deserves checking is listed once in `SPECS` (`models/setting.rs`): the generic write then
+checks the payload against that model and files the row under the model's category, so one line buys
+validation without a command, a registration or a table.
+
+The two auto-start commands own the other piece of machine state: `get_autostart` reports whether
+the per-user run key starts this executable, and `set_autostart` writes or removes that entry,
+answering with what is now in force. A registry that refuses the write is `PERMISSION_DENIED`.
 
 | Command | Module | Arguments | Returns | Task |
 | --- | --- | --- | --- | --- |
@@ -157,8 +164,6 @@ refuses the write is `PERMISSION_DENIED`.
 | `set_todo_tags` | `tag_commands` | `id: i64`, `tagIds: i64[]` | `Todo` | T33 |
 | `todo_tags` | `tag_commands` | `todoId: i64` | `Tag[]` | T33 |
 | `todos_with_tag` | `tag_commands` | `tagId: i64` | `Todo[]` | T33 |
-| `get_pomodoro_durations` | `settings_commands` | — | `PomodoroDurations` (`{ focusSeconds, shortBreakSeconds, longBreakSeconds }`) | T11 |
-| `set_pomodoro_durations` | `settings_commands` | `durations: PomodoroDurations` | `PomodoroDurations` | T11 |
 | `start_pomodoro_session` | `pomodoro_commands` | `phase: Phase`, `plannedSeconds: i64`, `todoId: i64?` | `PomodoroSession` | T11 |
 | `finish_pomodoro_session` | `pomodoro_commands` | `id: i64`, `actualSeconds: i64` | `PomodoroSession` | T11 |
 | `list_pomodoro_sessions` | `pomodoro_commands` | `limit: i64` | `PomodoroSession[]` | T11 |
@@ -173,9 +178,9 @@ refuses the write is `PERMISSION_DENIED`.
 | `update_alarm` | `alarm_commands` | `id: i64`, `label: String`, `hour: i64`, `minute: i64`, `repeatDays: i64` | `Alarm` | T17 |
 | `set_alarm_enabled` | `alarm_commands` | `id: i64`, `enabled: bool` | `Alarm` | T17 |
 | `delete_alarm` | `alarm_commands` | `id: i64` | — | T17 |
-| `get_alarm_defaults` | `settings_commands` | — | `AlarmDefaults` (`{ ringSeconds, method }`) | T18 |
-| `set_alarm_defaults` | `settings_commands` | `defaults: AlarmDefaults` | `AlarmDefaults` | T18 |
 | `get_autostart` | `settings_commands` | — | `bool` — whether the login entry starts this executable | T26 |
 | `set_autostart` | `settings_commands` | `enabled: bool` | `bool` — the state now in force | T26 |
-| `get_dashboard_layout` | `settings_commands` | — | `DashboardLayout?` (`{ widgets: { id, kind, x, y, w, h, source }[] }`; `null` until customised) | — |
-| `apply_dashboard_changes` | `settings_commands` | `changes: WidgetChange[]` (`upsert` with a widget, or `remove` with an id) | `DashboardLayout` — the layout now in force | — |
+| `get_setting` | `settings_commands` | `key: String` | `Setting?` (`{ key, value, category, updatedAt }`; `null` when nothing is stored) | — |
+| `set_setting` | `settings_commands` | `key: String`, `value: String` (JSON text), `category: String?` (only for a key the backend does not know) | `Setting` — the row now in force | — |
+| `list_settings` | `settings_commands` | `category: String?` | `Setting[]` in key order | — |
+| `delete_setting` | `settings_commands` | `key: String` | `bool` — whether a row was removed | — |

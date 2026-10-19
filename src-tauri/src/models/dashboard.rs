@@ -1,29 +1,18 @@
-//! Dashboard layout: which widgets the home page shows, which cells each one takes and how a
-//! re-arrangement reaches the store.
+//! Dashboard layout: which widgets the home page shows and which cells each one takes.
 //!
-//! The page is a grid of two columns. Every placed widget has an identity of its own, so the same
-//! kind can appear several times — two todo cards, two timers, whatever the user wants. Because of
-//! that, the frontend does not send the whole layout on every drag: it sends the changes one
-//! arrangement produced (`WidgetChange`), which this module applies to the stored layout, validates
-//! and hands back.
-//!
-//! The widget catalogue belongs to the frontend, so a remark here is only what the backend can
-//! check without knowing the pages: one identity per entry, cells inside the grid, and a sane
-//! length for the whole list.
+//! The page is a two-column grid; every placement has its own id, so one kind may appear several
+//! times. The row is `dashboard.grid`, written whole through the generic settings commands. The
+//! widget catalogue belongs to the frontend, so only the shape is checked here.
 
 use std::collections::HashSet;
 
-use rusqlite::params;
 use serde::{Deserialize, Serialize};
 
-use crate::db::connection::Db;
-use crate::db::repository;
 use crate::utils::response::{ApiError, ApiResult};
-use crate::utils::time;
 
 /// Key of the layout row in the `settings` table. A new key, because the order-based layout of the
 /// first build cannot be read as cell coordinates; that row is simply left behind.
-const LAYOUT_KEY: &str = "dashboard.grid";
+pub(crate) const LAYOUT_KEY: &str = "dashboard.grid";
 
 /// Widest a widget id or kind may get, so a corrupt file cannot bloat the row.
 const MAX_NAME_LENGTH: usize = 32;
@@ -66,16 +55,6 @@ pub struct DashboardWidget {
     pub source: String,
 }
 
-/// One thing a re-arrangement did: a widget moved, resized or added, or one was removed.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "op", rename_all = "camelCase")]
-pub enum WidgetChange {
-    /// Adds the widget, or replaces the one with the same id.
-    Upsert { widget: DashboardWidget },
-    /// Drops the widget with this id; removing an absent id is a no-op.
-    Remove { id: String },
-}
-
 /// Default span of a widget, so a row written before the grid still opens.
 fn one() -> u32 {
     1
@@ -90,90 +69,8 @@ pub struct DashboardLayout {
 }
 
 impl DashboardLayout {
-    /// Reads the stored layout; `None` means the user has never customised the dashboard.
-    ///
-    /// A row written before widgets had identities is given one per position and stored back, so
-    /// the next change set can address it.
-    pub fn load(db: &Db) -> ApiResult<Option<Self>> {
-        let stored = repository::query_optional(
-            db,
-            "SELECT value FROM settings WHERE key = ?1",
-            [LAYOUT_KEY],
-            |row| Ok(row.get::<_, String>(0)?),
-        )?;
-
-        match stored {
-            Some(raw) => {
-                let mut layout: Self = serde_json::from_str(&raw)?;
-
-                if layout.name_unnamed() {
-                    layout.validate()?;
-                    layout.store(db)?;
-                }
-
-                Ok(Some(layout))
-            }
-            None => Ok(None),
-        }
-    }
-
-    /// Applies one arrangement's changes and answers with the layout now in force.
-    pub fn apply(db: &Db, changes: Vec<WidgetChange>) -> ApiResult<Self> {
-        let mut layout = Self::load(db)?.unwrap_or_default();
-
-        for change in changes {
-            match change {
-                WidgetChange::Upsert { widget } => {
-                    match layout.widgets.iter_mut().find(|item| item.id == widget.id) {
-                        Some(existing) => *existing = widget,
-                        None => layout.widgets.push(widget),
-                    }
-                }
-                WidgetChange::Remove { id } => layout.widgets.retain(|item| item.id != id),
-            }
-        }
-
-        layout.validate()?;
-        layout.store(db)
-    }
-
-    /// Validates and stores the layout, answering with what was written.
-    pub fn save(db: &Db, layout: Self) -> ApiResult<Self> {
-        layout.validate()?;
-        layout.store(db)
-    }
-
-    /// Writes the layout as it stands; callers have validated it already.
-    fn store(&self, db: &Db) -> ApiResult<Self> {
-        repository::execute(
-            db,
-            "INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)
-             ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-            params![
-                LAYOUT_KEY,
-                serde_json::to_string(self)?,
-                time::now_seconds()
-            ],
-        )?;
-
-        Ok(self.clone())
-    }
-
-    /// Gives each unnamed widget `kind-position`, the same rule the frontend applies to old rows.
-    fn name_unnamed(&mut self) -> bool {
-        let mut changed = false;
-
-        for (index, widget) in self.widgets.iter_mut().enumerate() {
-            if widget.id.trim().is_empty() {
-                widget.id = format!("{}-{index}", widget.kind);
-                changed = true;
-            }
-        }
-
-        changed
-    }
-
-    fn validate(&self) -> ApiResult<()> {
+    /// Checks the shape; the settings table calls this before it stores the payload.
+    pub(crate) fn validate(&self) -> ApiResult<()> {
         if self.widgets.len() > MAX_WIDGETS {
             return Err(ApiError::invalid_input(format!(
                 "a dashboard holds at most {MAX_WIDGETS} widgets"
@@ -263,7 +160,9 @@ fn check_name(field: &str, value: &str) -> ApiResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::connection::Db;
     use crate::db::schema;
+    use crate::models::setting::Setting;
     use crate::utils::response::ApiCode;
 
     fn created() -> Db {
@@ -300,86 +199,48 @@ mod tests {
         DashboardLayout { widgets }
     }
 
-    fn upsert(widget: DashboardWidget) -> WidgetChange {
-        WidgetChange::Upsert { widget }
+    /// Stores through the settings table, which is the path a command takes.
+    fn store(db: &Db, widgets: Vec<DashboardWidget>) -> ApiResult<DashboardLayout> {
+        let chosen = layout(widgets);
+        Setting::write_json(db, LAYOUT_KEY, &chosen)?;
+
+        Ok(chosen)
     }
 
     #[test]
     fn a_fresh_database_has_no_layout() {
         assert_eq!(
-            DashboardLayout::load(&created()).expect("the layout is read"),
+            Setting::read_json::<DashboardLayout>(&created(), LAYOUT_KEY)
+                .expect("the layout is read"),
             None
         );
     }
 
     #[test]
-    fn changes_are_applied_and_persisted() {
+    fn a_saved_layout_comes_back() {
         let db = created();
-        let stored = DashboardLayout::apply(
+        let saved = store(
             &db,
             vec![
-                upsert(at("focus-1", "focus", 0, 0, 1, 2)),
-                upsert(at("todos-1", "todos", 1, 0, 1, 1)),
+                at("focus-1", "focus", 0, 0, 1, 2),
+                at("todos-1", "todos", 1, 0, 1, 1),
             ],
         )
-        .expect("the changes are applied");
+        .expect("the layout is stored");
 
         assert_eq!(
-            DashboardLayout::load(&db).expect("the layout is read"),
-            Some(stored)
+            Setting::read_json::<DashboardLayout>(&db, LAYOUT_KEY).expect("the layout is read"),
+            Some(saved)
         );
     }
 
     #[test]
-    fn an_upsert_moves_the_widget_it_names() {
-        let db = created();
-
-        DashboardLayout::apply(&db, vec![upsert(at("todos-1", "todos", 0, 0, 1, 1))])
-            .expect("the widget is added");
-        DashboardLayout::apply(&db, vec![upsert(at("todos-1", "todos", 0, 1, 2, 1))])
-            .expect("the widget is replaced");
-
-        let stored = DashboardLayout::load(&db)
-            .expect("the layout is read")
-            .expect("a layout is stored");
-
-        assert_eq!(stored.widgets, vec![at("todos-1", "todos", 0, 1, 2, 1)]);
-    }
-
-    #[test]
-    fn a_remove_drops_only_that_placement() {
-        let db = created();
-
-        DashboardLayout::apply(
-            &db,
-            vec![
-                upsert(widget("todos-1", "todos")),
-                upsert(widget("todos-2", "todos")),
-            ],
-        )
-        .expect("both are added");
-        DashboardLayout::apply(
-            &db,
-            vec![WidgetChange::Remove {
-                id: "todos-1".to_owned(),
-            }],
-        )
-        .expect("one is removed");
-
-        let stored = DashboardLayout::load(&db)
-            .expect("the layout is read")
-            .expect("a layout is stored");
-
-        assert_eq!(stored.widgets, vec![widget("todos-2", "todos")]);
-    }
-
-    #[test]
     fn one_kind_may_be_placed_several_times() {
-        let stored = DashboardLayout::apply(
+        let stored = store(
             &created(),
             vec![
-                upsert(at("todos-1", "todos", 0, 0, 1, 1)),
-                upsert(at("todos-2", "todos", 1, 0, 1, 1)),
+                at("todos-1", "todos", 0, 0, 1, 1),
+                at("todos-2", "todos", 1, 0, 1, 1),
             ],
         )
         .expect("two placements of one kind are accepted");
@@ -389,9 +250,9 @@ mod tests {
 
     #[test]
     fn one_id_may_appear_only_once() {
-        let error = DashboardLayout::save(
+        let error = store(
             &created(),
-            layout(vec![widget("todos-1", "todos"), widget("todos-1", "focus")]),
+            vec![widget("todos-1", "todos"), widget("todos-1", "focus")],
         )
         .expect_err("the duplicate id is rejected");
 
@@ -401,9 +262,8 @@ mod tests {
 
     #[test]
     fn a_widget_wider_than_the_grid_is_rejected() {
-        let error =
-            DashboardLayout::save(&created(), layout(vec![at("focus-1", "focus", 0, 0, 3, 1)]))
-                .expect_err("the width is rejected");
+        let error = store(&created(), vec![at("focus-1", "focus", 0, 0, 3, 1)])
+            .expect_err("the width is rejected");
 
         assert_eq!(error.code(), ApiCode::InvalidInput);
         assert!(
@@ -414,18 +274,16 @@ mod tests {
 
     #[test]
     fn a_widget_taller_than_the_grid_is_rejected() {
-        let error =
-            DashboardLayout::save(&created(), layout(vec![at("focus-1", "focus", 0, 0, 1, 4)]))
-                .expect_err("the height is rejected");
+        let error = store(&created(), vec![at("focus-1", "focus", 0, 0, 1, 4)])
+            .expect_err("the height is rejected");
 
         assert_eq!(error.code(), ApiCode::InvalidInput);
     }
 
     #[test]
     fn a_widget_cannot_start_past_the_last_column() {
-        let error =
-            DashboardLayout::save(&created(), layout(vec![at("focus-1", "focus", 1, 0, 2, 1)]))
-                .expect_err("the placement is rejected");
+        let error = store(&created(), vec![at("focus-1", "focus", 1, 0, 2, 1)])
+            .expect_err("the placement is rejected");
 
         assert_eq!(error.code(), ApiCode::InvalidInput);
         assert!(
@@ -436,8 +294,8 @@ mod tests {
 
     #[test]
     fn an_empty_id_is_rejected() {
-        let error = DashboardLayout::save(&created(), layout(vec![widget("", "focus")]))
-            .expect_err("the empty id is rejected");
+        let error =
+            store(&created(), vec![widget("", "focus")]).expect_err("the empty id is rejected");
 
         assert_eq!(error.code(), ApiCode::InvalidInput);
     }
@@ -448,31 +306,8 @@ mod tests {
             .map(|index| widget(&format!("focus-{index}"), "focus"))
             .collect();
 
-        let error = DashboardLayout::save(&created(), layout(widgets))
-            .expect_err("the oversized layout is rejected");
+        let error = store(&created(), widgets).expect_err("the oversized layout is rejected");
 
         assert_eq!(error.code(), ApiCode::InvalidInput);
-    }
-
-    #[test]
-    fn an_unnamed_row_gets_an_identity_when_it_is_read() {
-        let db = created();
-
-        repository::execute(
-            &db,
-            "INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)",
-            params![
-                LAYOUT_KEY,
-                r#"{"widgets":[{"kind":"focus","x":0,"y":0,"w":1,"h":2}]}"#,
-                time::now_seconds()
-            ],
-        )
-        .expect("the old row is written");
-
-        let stored = DashboardLayout::load(&db)
-            .expect("the layout is read")
-            .expect("a layout is stored");
-
-        assert_eq!(stored.widgets, vec![at("focus-0", "focus", 0, 0, 1, 2)]);
     }
 }

@@ -12,7 +12,7 @@ use crate::utils::time;
 const COLUMNS: &str = "id, phase, planned_seconds, actual_seconds, started_at, ended_at, todo_id";
 
 /// Key of the duration row in the `settings` table.
-const DURATIONS_KEY: &str = "pomodoro.durations";
+pub(crate) const DURATIONS_KEY: &str = "pomodoro.durations";
 
 /// Longest accepted phase length: four hours.
 const MAX_SECONDS: i64 = 4 * 60 * 60;
@@ -72,39 +72,6 @@ impl Default for PomodoroDurations {
 }
 
 impl PomodoroDurations {
-    /// Reads the stored durations, falling back to the defaults on a fresh database.
-    pub fn load(db: &Db) -> ApiResult<Self> {
-        let stored = repository::query_optional(
-            db,
-            "SELECT value FROM settings WHERE key = ?1",
-            [DURATIONS_KEY],
-            |row| Ok(row.get::<_, String>(0)?),
-        )?;
-
-        match stored {
-            Some(raw) => Ok(serde_json::from_str(&raw)?),
-            None => Ok(Self::default()),
-        }
-    }
-
-    /// Validates and stores the durations; a value outside `1..=MAX_SECONDS` is `INVALID_INPUT`.
-    pub fn save(db: &Db, durations: Self) -> ApiResult<Self> {
-        durations.validate()?;
-
-        repository::execute(
-            db,
-            "INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)
-             ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-            params![
-                DURATIONS_KEY,
-                serde_json::to_string(&durations)?,
-                time::now_seconds()
-            ],
-        )?;
-
-        Ok(durations)
-    }
-
     /// The length of one phase.
     #[must_use]
     pub const fn seconds_of(&self, phase: Phase) -> i64 {
@@ -115,7 +82,7 @@ impl PomodoroDurations {
         }
     }
 
-    fn validate(&self) -> ApiResult<()> {
+    pub(crate) fn validate(&self) -> ApiResult<()> {
         for (name, seconds) in [
             ("focusSeconds", self.focus_seconds),
             ("shortBreakSeconds", self.short_break_seconds),
@@ -238,6 +205,7 @@ impl PomodoroSession {
 mod tests {
     use super::*;
     use crate::db::schema;
+    use crate::models::setting::Setting;
     use crate::models::todo::Todo;
     use crate::utils::response::ApiCode;
 
@@ -261,12 +229,13 @@ mod tests {
     }
 
     #[test]
-    fn durations_default_and_survive_a_save() {
+    fn durations_round_trip_through_the_settings_row() {
         let db = created();
 
         assert_eq!(
-            PomodoroDurations::load(&db).expect("defaults"),
-            PomodoroDurations::default()
+            Setting::read_json::<PomodoroDurations>(&db, DURATIONS_KEY).expect("read"),
+            None,
+            "a fresh database has no row, so the caller falls back to its defaults"
         );
 
         let custom = PomodoroDurations {
@@ -274,9 +243,12 @@ mod tests {
             short_break_seconds: 10 * 60,
             long_break_seconds: 20 * 60,
         };
-        PomodoroDurations::save(&db, custom).expect("stored");
+        Setting::write_json(&db, DURATIONS_KEY, &custom).expect("stored");
 
-        assert_eq!(PomodoroDurations::load(&db).expect("read back"), custom);
+        assert_eq!(
+            Setting::read_json::<PomodoroDurations>(&db, DURATIONS_KEY).expect("read back"),
+            Some(custom)
+        );
         assert_eq!(custom.seconds_of(Phase::Focus), 3000);
     }
 
@@ -294,13 +266,14 @@ mod tests {
                 ..PomodoroDurations::default()
             },
         ] {
-            let error = PomodoroDurations::save(&db, broken).expect_err("refused");
+            let error = Setting::write_json(&db, DURATIONS_KEY, &broken).expect_err("refused");
             assert_eq!(error.code(), ApiCode::InvalidInput);
         }
 
         assert_eq!(
-            PomodoroDurations::load(&db).expect("defaults"),
-            PomodoroDurations::default()
+            Setting::read_json::<PomodoroDurations>(&db, DURATIONS_KEY).expect("read"),
+            None,
+            "a refused write leaves no row behind"
         );
     }
 

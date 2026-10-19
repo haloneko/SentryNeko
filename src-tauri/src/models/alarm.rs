@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::connection::Db;
 use crate::db::repository;
+use crate::models::setting::Setting;
 use crate::utils::response::{ApiError, ApiResult};
 use crate::utils::time;
 use crate::utils::windows;
@@ -17,7 +18,7 @@ use crate::utils::windows;
 const COLUMNS: &str = "id, label, hour, minute, repeat_days, enabled, created_at";
 
 /// Key of the defaults row in the `settings` table.
-const DEFAULTS_KEY: &str = "alarm.defaults";
+pub(crate) const DEFAULTS_KEY: &str = "alarm.defaults";
 
 /// Longest accepted label, in characters.
 const MAX_LABEL_CHARS: usize = 60;
@@ -76,41 +77,23 @@ impl Default for AlarmDefaults {
 }
 
 impl AlarmDefaults {
-    /// Reads the stored defaults, falling back to the defaults on a fresh database.
+    /// Reads the stored defaults, falling back on a fresh database.
+    ///
+    /// Kept on the model because the scheduler reads it when an alarm rings.
     pub fn load(db: &Db) -> ApiResult<Self> {
-        let stored = repository::query_optional(
-            db,
-            "SELECT value FROM settings WHERE key = ?1",
-            [DEFAULTS_KEY],
-            |row| Ok(row.get::<_, String>(0)?),
-        )?;
-
-        match stored {
-            Some(raw) => Ok(serde_json::from_str(&raw)?),
-            None => Ok(Self::default()),
-        }
+        Ok(Setting::read_json(db, DEFAULTS_KEY)?.unwrap_or_default())
     }
 
     /// Validates and stores the defaults; a duration outside `1..=MAX_RING_SECONDS` is
     /// `INVALID_INPUT`.
     pub fn save(db: &Db, defaults: Self) -> ApiResult<Self> {
         defaults.validate()?;
-
-        repository::execute(
-            db,
-            "INSERT INTO settings (key, value, updated_at) VALUES (?1, ?2, ?3)
-             ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-            params![
-                DEFAULTS_KEY,
-                serde_json::to_string(&defaults)?,
-                time::now_seconds()
-            ],
-        )?;
+        Setting::write_json(db, DEFAULTS_KEY, &defaults)?;
 
         Ok(defaults)
     }
 
-    fn validate(&self) -> ApiResult<()> {
+    pub(crate) fn validate(&self) -> ApiResult<()> {
         if !(1..=MAX_RING_SECONDS).contains(&self.ring_seconds) {
             return Err(ApiError::invalid_input(format!(
                 "ringSeconds must be between 1 and {MAX_RING_SECONDS}"
@@ -592,10 +575,8 @@ mod tests {
 
     #[test]
     fn the_defaults_are_ten_seconds_of_toast() {
-        let db = created();
-
         assert_eq!(
-            AlarmDefaults::load(&db).expect("defaults"),
+            AlarmDefaults::default(),
             AlarmDefaults {
                 ring_seconds: 10,
                 method: Method::Toast,
@@ -611,9 +592,12 @@ mod tests {
             method: Method::InApp,
         };
 
-        AlarmDefaults::save(&db, chosen).expect("stored");
+        Setting::write_json(&db, DEFAULTS_KEY, &chosen).expect("stored");
 
-        assert_eq!(AlarmDefaults::load(&db).expect("read back"), chosen);
+        assert_eq!(
+            Setting::read_json::<AlarmDefaults>(&db, DEFAULTS_KEY).expect("read back"),
+            Some(chosen)
+        );
     }
 
     #[test]
@@ -621,9 +605,10 @@ mod tests {
         let db = created();
 
         for ring_seconds in [0, -1, MAX_RING_SECONDS + 1] {
-            let error = AlarmDefaults::save(
+            let error = Setting::write_json(
                 &db,
-                AlarmDefaults {
+                DEFAULTS_KEY,
+                &AlarmDefaults {
                     ring_seconds,
                     method: Method::Toast,
                 },
@@ -634,8 +619,9 @@ mod tests {
         }
 
         assert_eq!(
-            AlarmDefaults::load(&db).expect("defaults"),
-            AlarmDefaults::default()
+            Setting::read_json::<AlarmDefaults>(&db, DEFAULTS_KEY).expect("read"),
+            None,
+            "a refused write leaves no row behind"
         );
     }
 

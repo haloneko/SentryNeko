@@ -86,8 +86,7 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 标签的关联，并从两个方向读取关系（`todo_tags` 查某任务的标签，`todos_with_tag` 查某标签下的任务）。
 番茄钟这一组负责持久化：`start_pomodoro_session` 在阶段开始时插入一行，`finish_pomodoro_session`
 用实际秒数收尾——倒计时本身由前端按时间戳推进，不依赖 tick 计数，且由 store 驱动而非页面，
-因此切换页面不会中断。时长属于设置，读写命令放在
-`settings_commands` 里，并在设置页编辑。通知这一组就是 Toast 通道：`send_test_notification`
+因此切换页面不会中断。时长是设置 `pomodoro.durations`，在设置页编辑。通知这一组就是 Toast 通道：`send_test_notification`
 是诊断命令，`notify_pomodoro_phase` 由计时器在阶段结束时调用。两者成功返回 `toast`；系统拒绝
 时推送 `notification-fallback`（见 `docs/events.md`）并返回 `fallback`，番茄钟无论如何都会继续流转。
 系统这一组描述的是机器而不是数据：`get_uptime` 返回开机时刻（`bootAt`）、开机至今的秒数
@@ -103,15 +102,20 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 `list_alarms`、`add_alarm`、`update_alarm`、`set_alarm_enabled`、`delete_alarm`。`hour` 和
 `minute` 是本地墙钟时间，`repeatDays` 是星期掩码（`0` 表示单次）；这里没有任何命令会响铃——
 真正响铃的是 `services/scheduler.rs`，跑在拥有时钟的那个线程上，所以页面开没开都不影响闹钟。
-闹钟怎么响是设置而不是列，所以和时长放在一起：`get_alarm_defaults` 与 `set_alarm_defaults`
-读写响铃时长和通知方式，调度器在响的那一刻读取它们——改一次默认值，所有闹钟一起变，而不只是下
-一个。仪表盘这一组承载首页本身：`get_dashboard_layout` 读取已放置的组件，
-`apply_dashboard_changes` 应用一次排列产生的变更——移动、缩放或新增的组件各一条 `upsert`，被移除
-的组件一条 `remove`。每个放置项都有自己的 `id`，所以同一种组件可以放多个；每项还给出左上角所在的
-格子与横跨的格数（两列网格上的 `x`、`y`、`w`、`h`）以及它读取的数据来源。从未自定义过的配置没有
-这一行，`get_dashboard_layout` 返回 `null`，页面把内置布局作为第一批变更写入。两个自启命令管的是
-另一半机器状态：`get_autostart` 报告当前用户的 Run 键会不会启动这个可执行文件，`set_autostart`
-写入或删除那条记录，并返回此刻生效的状态；注册表拒绝写入时是 `PERMISSION_DENIED`。
+闹钟怎么响是设置而不是列：`alarm.defaults` 这一行承载响铃时长和通知方式，调度器在响的那一刻
+读取它——改一次默认值，所有闹钟一起变，而不只是下一个。仪表盘同样是设置（`dashboard.grid`）：已放置
+的组件汇成一张列表，每项都有自己的 `id`（因此同一种组件可以放多个）、左上角所在的格子与横跨的格数
+（两列网格上的 `x`、`y`、`w`、`h`），以及它读取的数据来源。从未自定义过的配置没有这一行，页面继续用
+内置排布。
+
+这几行——加上侧栏 `sidebar.panels`（按绘制顺序排列、各带 `visible` 的面板列表）——都由同一组命令
+读写：`get_setting`、`set_setting`、`list_settings`、`delete_setting` 按唯一键寻址 `settings` 表里
+的一行，原样收发 JSON 形式的 `value`，并归入某个 `category`。新偏好走的就是这个接口：前端自己起键、
+发 JSON、声明类别，不需要新增命令。需要校验负载的键只要在 `SPECS`（`models/setting.rs`）里登记一次：
+通用写入会先按对应模型校验，并把行归入该模型的类别，所以一行代码就换来校验，不需要命令、注册或建表。
+
+两个自启命令管的是另一半机器状态：`get_autostart` 报告当前用户的 Run 键会不会启动这个可执行文件，
+`set_autostart` 写入或删除那条记录，并返回此刻生效的状态；注册表拒绝写入时是 `PERMISSION_DENIED`。
 
 | 命令 | 模块 | 参数 | 返回 | 任务 |
 | --- | --- | --- | --- | --- |
@@ -134,8 +138,6 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 | `set_todo_tags` | `tag_commands` | `id: i64`、`tagIds: i64[]` | `Todo` | T33 |
 | `todo_tags` | `tag_commands` | `todoId: i64` | `Tag[]` | T33 |
 | `todos_with_tag` | `tag_commands` | `tagId: i64` | `Todo[]` | T33 |
-| `get_pomodoro_durations` | `settings_commands` | — | `PomodoroDurations`（`{ focusSeconds, shortBreakSeconds, longBreakSeconds }`） | T11 |
-| `set_pomodoro_durations` | `settings_commands` | `durations: PomodoroDurations` | `PomodoroDurations` | T11 |
 | `start_pomodoro_session` | `pomodoro_commands` | `phase: Phase`、`plannedSeconds: i64`、`todoId: i64?` | `PomodoroSession` | T11 |
 | `finish_pomodoro_session` | `pomodoro_commands` | `id: i64`、`actualSeconds: i64` | `PomodoroSession` | T11 |
 | `list_pomodoro_sessions` | `pomodoro_commands` | `limit: i64` | `PomodoroSession[]` | T11 |
@@ -150,9 +152,9 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 | `update_alarm` | `alarm_commands` | `id: i64`、`label: String`、`hour: i64`、`minute: i64`、`repeatDays: i64` | `Alarm` | T17 |
 | `set_alarm_enabled` | `alarm_commands` | `id: i64`、`enabled: bool` | `Alarm` | T17 |
 | `delete_alarm` | `alarm_commands` | `id: i64` | — | T17 |
-| `get_alarm_defaults` | `settings_commands` | — | `AlarmDefaults`（`{ ringSeconds, method }`） | T18 |
-| `set_alarm_defaults` | `settings_commands` | `defaults: AlarmDefaults` | `AlarmDefaults` | T18 |
 | `get_autostart` | `settings_commands` | — | `bool` —— 自启项是否指向当前可执行文件 | T26 |
 | `set_autostart` | `settings_commands` | `enabled: bool` | `bool` —— 此刻生效的状态 | T26 |
-| `get_dashboard_layout` | `settings_commands` | — | `DashboardLayout?`（`{ widgets: { id, kind, x, y, w, h, source }[] }`；未自定义时为 `null`） | — |
-| `apply_dashboard_changes` | `settings_commands` | `changes: WidgetChange[]`（`upsert` 带组件，或 `remove` 带 id） | `DashboardLayout` —— 应用后生效的布局 | — |
+| `get_setting` | `settings_commands` | `key: String` | `Setting?`（`{ key, value, category, updatedAt }`；该键没有行时为 `null`） | — |
+| `set_setting` | `settings_commands` | `key: String`、`value: String`（JSON 文本）、`category: String?`（仅后端不认识的键需要） | `Setting` —— 写入后生效的行 | — |
+| `list_settings` | `settings_commands` | `category: String?` | `Setting[]`，按键排序 | — |
+| `delete_setting` | `settings_commands` | `key: String` | `bool` —— 是否真的删掉了一行 | — |
