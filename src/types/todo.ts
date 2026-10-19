@@ -9,6 +9,10 @@ export interface Todo {
   updatedAt: number;
   /** Ids of the tags the task carries, see `types/tag.ts`. */
   tagIds: readonly number[];
+  /** UTC epoch seconds the task is planned to start, or `null` when it has no start. */
+  startAt: number | null;
+  /** UTC epoch seconds the task is planned to end, or `null` when it has no end. */
+  endAt: number | null;
 }
 
 /** Totals shown beside the list. */

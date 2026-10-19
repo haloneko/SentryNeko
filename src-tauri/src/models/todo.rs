@@ -9,7 +9,7 @@ use crate::utils::response::{ApiError, ApiResult};
 use crate::utils::{time, windows};
 
 /// Columns every query selects, in the order [`Todo::from_row`] reads them.
-const COLUMNS: &str = "id, title, completed, created_at, updated_at, tag_ids";
+const COLUMNS: &str = "id, title, completed, created_at, updated_at, tag_ids, start_at, end_at";
 
 /// A task the user maintains.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -22,6 +22,10 @@ pub struct Todo {
     pub updated_at: i64,
     /// Ids of the tags the task carries, cached from the `todo_tags` link table.
     pub tag_ids: Vec<i64>,
+    /// When the task is planned to start, UTC epoch seconds; `None` when it has no start.
+    pub start_at: Option<i64>,
+    /// When the task is planned to end, UTC epoch seconds; `None` when it has no end.
+    pub end_at: Option<i64>,
 }
 
 /// Totals shown beside the list.
@@ -61,6 +65,8 @@ impl Todo {
             created_at: row.get(3)?,
             updated_at: row.get(4)?,
             tag_ids: parse_tag_ids(&row.get::<_, String>(5)?)?,
+            start_at: row.get(6)?,
+            end_at: row.get(7)?,
         })
     }
 
@@ -87,13 +93,21 @@ impl Todo {
     }
 
     /// Inserts a task and answers with the stored row; a blank title is `INVALID_INPUT`.
-    pub fn add(db: &Db, title: &str) -> ApiResult<Self> {
+    pub fn add(
+        db: &Db,
+        title: &str,
+        start_at: Option<i64>,
+        end_at: Option<i64>,
+    ) -> ApiResult<Self> {
         let title = validate_title(title)?;
+        let start_at = validate_instant(start_at, "start_at")?;
+        let end_at = validate_instant(end_at, "end_at")?;
         let now = time::now_seconds();
         let id = repository::insert(
             db,
-            "INSERT INTO todos (title, completed, created_at, updated_at) VALUES (?1, 0, ?2, ?2)",
-            params![title, now],
+            "INSERT INTO todos (title, completed, created_at, updated_at, start_at, end_at)
+             VALUES (?1, 0, ?2, ?2, ?3, ?4)",
+            params![title, now, start_at, end_at],
         )?;
 
         Self::find(db, id)
@@ -123,6 +137,32 @@ impl Todo {
                  updated_at = ?2
              WHERE id = ?3",
             params![completed, time::now_seconds(), id],
+        )?;
+
+        require_changed(changed, id)?;
+        Self::find(db, id)
+    }
+
+    /// Sets or clears the moment a task is planned to start; a missing id is `NOT_FOUND`.
+    pub fn set_start_at(db: &Db, id: i64, start_at: Option<i64>) -> ApiResult<Self> {
+        let start_at = validate_instant(start_at, "start_at")?;
+        let changed = repository::execute(
+            db,
+            "UPDATE todos SET start_at = ?1, updated_at = ?2 WHERE id = ?3",
+            params![start_at, time::now_seconds(), id],
+        )?;
+
+        require_changed(changed, id)?;
+        Self::find(db, id)
+    }
+
+    /// Sets or clears the moment a task is planned to end; a missing id is `NOT_FOUND`.
+    pub fn set_end_at(db: &Db, id: i64, end_at: Option<i64>) -> ApiResult<Self> {
+        let end_at = validate_instant(end_at, "end_at")?;
+        let changed = repository::execute(
+            db,
+            "UPDATE todos SET end_at = ?1, updated_at = ?2 WHERE id = ?3",
+            params![end_at, time::now_seconds(), id],
         )?;
 
         require_changed(changed, id)?;
@@ -254,6 +294,19 @@ fn validate_title(title: &str) -> ApiResult<String> {
     Ok(trimmed.to_owned())
 }
 
+/// Rejects a planning moment before the epoch; a stored timestamp is never earlier than that.
+fn validate_instant(value: Option<i64>, field: &str) -> ApiResult<Option<i64>> {
+    if let Some(seconds) = value {
+        if seconds <= 0 {
+            return Err(ApiError::invalid_input(format!(
+                "{field} must be after the Unix epoch"
+            )));
+        }
+    }
+
+    Ok(value)
+}
+
 fn require_changed(changed: usize, id: i64) -> ApiResult<()> {
     if changed == 0 {
         return Err(ApiError::not_found(format!("no todo with id {id}")));
@@ -278,12 +331,12 @@ mod tests {
     fn add_trims_the_title_and_rejects_a_blank_one() {
         let db = migrated();
 
-        let todo = Todo::add(&db, "  write the docs  ").expect("the task is stored");
+        let todo = Todo::add(&db, "  write the docs  ", None, None).expect("the task is stored");
         assert_eq!(todo.title, "write the docs");
         assert!(!todo.completed);
         assert_eq!(todo.created_at, todo.updated_at);
 
-        let error = Todo::add(&db, "   ").expect_err("a blank title is refused");
+        let error = Todo::add(&db, "   ", None, None).expect_err("a blank title is refused");
         assert_eq!(error.code(), ApiCode::InvalidInput);
         assert_eq!(Todo::list(&db, None).expect("list").len(), 1);
     }
@@ -292,8 +345,8 @@ mod tests {
     fn list_puts_open_tasks_first_and_filters_by_completion() {
         let db = migrated();
 
-        let first = Todo::add(&db, "first").expect("stored");
-        Todo::add(&db, "second").expect("stored");
+        let first = Todo::add(&db, "first", None, None).expect("stored");
+        Todo::add(&db, "second", None, None).expect("stored");
         Todo::set_completed(&db, first.id, true).expect("completed");
 
         let all = Todo::list(&db, None).expect("list");
@@ -316,7 +369,7 @@ mod tests {
     #[test]
     fn rename_and_set_completed_touch_the_stored_row() {
         let db = migrated();
-        let todo = Todo::add(&db, "draft").expect("stored");
+        let todo = Todo::add(&db, "draft", None, None).expect("stored");
 
         let renamed = Todo::rename(&db, todo.id, " final ").expect("renamed");
         assert_eq!(renamed.title, "final");
@@ -374,8 +427,8 @@ mod tests {
             }
         );
 
-        let first = Todo::add(&db, "first").expect("stored");
-        Todo::add(&db, "second").expect("stored");
+        let first = Todo::add(&db, "first", None, None).expect("stored");
+        Todo::add(&db, "second", None, None).expect("stored");
         Todo::set_completed(&db, first.id, true).expect("completed");
 
         assert_eq!(
@@ -470,7 +523,7 @@ mod tests {
     #[test]
     fn set_tags_sorts_dedups_and_keeps_the_link_table_in_step() {
         let db = migrated();
-        let todo = Todo::add(&db, "tagged").expect("stored");
+        let todo = Todo::add(&db, "tagged", None, None).expect("stored");
         let work = crate::models::tag::Tag::add(&db, "work").expect("stored");
         let home = crate::models::tag::Tag::add(&db, "home").expect("stored");
 
@@ -496,7 +549,7 @@ mod tests {
     #[test]
     fn set_tags_rejects_unknown_ids_and_malformed_caches_are_reported() {
         let db = migrated();
-        let todo = Todo::add(&db, "tagged").expect("stored");
+        let todo = Todo::add(&db, "tagged", None, None).expect("stored");
 
         let unknown_tag = Todo::set_tags(&db, todo.id, &[404]).expect_err("unknown tag");
         assert_eq!(unknown_tag.code(), ApiCode::NotFound);
@@ -514,5 +567,74 @@ mod tests {
         let error = Todo::find(&db, todo.id).expect_err("the cache cannot be read");
         assert_eq!(error.code(), ApiCode::Internal);
         assert!(error.details().is_some());
+    }
+
+    #[test]
+    fn start_and_end_times_are_optional_and_stored() {
+        let db = migrated();
+
+        let planned =
+            Todo::add(&db, "planned", Some(1_800_000_000), Some(1_800_003_600)).expect("stored");
+        assert_eq!(planned.start_at, Some(1_800_000_000));
+        assert_eq!(planned.end_at, Some(1_800_003_600));
+
+        let undated = Todo::add(&db, "undated", None, None).expect("stored");
+        assert_eq!(undated.start_at, None);
+        assert_eq!(undated.end_at, None);
+
+        let only_end = Todo::add(&db, "only end", None, Some(1_800_007_200)).expect("stored");
+        assert_eq!(only_end.start_at, None);
+        assert_eq!(only_end.end_at, Some(1_800_007_200));
+
+        assert_eq!(Todo::list(&db, None).expect("list").len(), 3);
+    }
+
+    #[test]
+    fn start_and_end_times_set_clear_and_report_a_missing_task() {
+        let db = migrated();
+        let todo = Todo::add(&db, "draft", None, None).expect("stored");
+
+        let started = Todo::set_start_at(&db, todo.id, Some(1_800_000_000)).expect("started");
+        assert_eq!(started.start_at, Some(1_800_000_000));
+        assert_eq!(
+            started.end_at, None,
+            "setting one side leaves the other alone"
+        );
+        assert!(started.updated_at >= todo.updated_at);
+
+        let ended = Todo::set_end_at(&db, todo.id, Some(1_800_003_600)).expect("ended");
+        assert_eq!(ended.start_at, Some(1_800_000_000));
+        assert_eq!(ended.end_at, Some(1_800_003_600));
+        assert_eq!(
+            Todo::find(&db, todo.id).expect("found").end_at,
+            Some(1_800_003_600)
+        );
+
+        let cleared_start = Todo::set_start_at(&db, todo.id, None).expect("cleared");
+        assert_eq!(cleared_start.start_at, None);
+        assert_eq!(cleared_start.end_at, Some(1_800_003_600));
+
+        let cleared_end = Todo::set_end_at(&db, todo.id, None).expect("cleared");
+        assert_eq!(cleared_end.end_at, None);
+
+        for result in [
+            Todo::set_start_at(&db, 404, None).map(|_| ()),
+            Todo::set_end_at(&db, 404, None).map(|_| ()),
+        ] {
+            assert_eq!(result.expect_err("missing id").code(), ApiCode::NotFound);
+        }
+
+        assert_eq!(
+            Todo::set_start_at(&db, todo.id, Some(0))
+                .expect_err("the epoch itself is refused")
+                .code(),
+            ApiCode::InvalidInput
+        );
+        assert_eq!(
+            Todo::set_end_at(&db, todo.id, Some(-1))
+                .expect_err("a negative instant is refused")
+                .code(),
+            ApiCode::InvalidInput
+        );
     }
 }

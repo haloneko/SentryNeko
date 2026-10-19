@@ -4,10 +4,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { useI18n } from "../../hooks/useI18n";
+import { useMinuteClock } from "../../hooks/useMinuteClock";
 import { useTags } from "../../hooks/useTags";
 import { useTodos } from "../../hooks/useTodos";
 import type { Todo, TodoFilter } from "../../types/todo";
-import { groupTodos, searchTodos } from "./todos";
+import { groupTodos, overdueCount, searchTodos } from "./todos";
 import { TodoItem } from "./TodoItem";
 import { TodoSearch } from "./TodoSearch";
 
@@ -71,23 +72,6 @@ const MOVE_MS = 320;
 /** How long the row that changed group stays lit once it has landed. */
 const SETTLE_MS = 640;
 
-/** The wall clock the relative timestamps are measured against, in the epoch seconds the API uses. */
-function useNow(): number {
-  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNow(Math.floor(Date.now() / 1000));
-    }, 60_000);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, []);
-
-  return now;
-}
-
 /** Filter switch, the search, the groups themselves and the bulk actions. */
 export function TodoList() {
   const { t } = useI18n();
@@ -98,13 +82,15 @@ export function TodoList() {
     loading,
     remove,
     rename,
+    setEndAt,
     setFilter,
+    setStartAt,
     todos,
     toggle,
     updateTags,
   } = useTodos();
   const { tags } = useTags();
-  const now = useNow();
+  const now = useMinuteClock();
 
   const [query, setQuery] = useState("");
   const [selecting, setSelecting] = useState(false);
@@ -113,6 +99,11 @@ export function TodoList() {
 
   const visible = useMemo(() => searchTodos(todos, tags, query), [todos, tags, query]);
   const groups = useMemo(() => groupTodos(visible), [visible]);
+
+  // Counted against the same minute the rows read, so the badge and the flags on the rows agree.
+  // It covers what the search leaves: a count of tasks that are not on the screen beside them
+  // would be a number with nothing to point at.
+  const overdue = useMemo(() => overdueCount(visible, now), [visible, now]);
 
   /** The row elements by task id, so a task that moved can be measured where it landed. */
   const rowElements = useRef(new Map<number, HTMLLIElement>());
@@ -333,6 +324,15 @@ export function TodoList() {
     void updateTags(todo.id, tagIds);
   };
 
+  /** The two ends are separate commands, so the row is patched by the answer of the one that moved. */
+  const handleSetStartAt = (todo: Todo, startAt: number | null): void => {
+    void setStartAt(todo.id, startAt);
+  };
+
+  const handleSetEndAt = (todo: Todo, endAt: number | null): void => {
+    void setEndAt(todo.id, endAt);
+  };
+
   const handleSelect = (id: number): void => {
     setSelected((current) => {
       const next = new Set(current);
@@ -434,6 +434,9 @@ export function TodoList() {
         >
           {selecting ? t("todo.select.exit") : t("todo.select.enter")}
         </button>
+        {overdue > 0 ? (
+          <span className="todo-overdue">{t("todo.overdue", { count: overdue })}</span>
+        ) : null}
         <span className="todo-count">
           {query === ""
             ? t("todo.remaining", { remaining: counts.remaining })
@@ -521,6 +524,8 @@ export function TodoList() {
                       onRename={handleRename}
                       onRowRef={placeRow}
                       onSelect={handleSelect}
+                      onSetEndAt={handleSetEndAt}
+                      onSetStartAt={handleSetStartAt}
                       onToggle={handleToggle}
                       onUpdateTags={handleUpdateTags}
                       rowIndex={index}

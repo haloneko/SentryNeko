@@ -84,7 +84,7 @@ app.manage(db);
 
 | 表 | 存放 | 关键列 |
 | --- | --- | --- |
-| `todos` | 用户维护的任务 | `title`、`completed`、`completed_at`、`created_at`、`updated_at`、`tag_ids` |
+| `todos` | 用户维护的任务 | `title`、`completed`、`completed_at`、`created_at`、`updated_at`、`tag_ids`、`start_at`、`end_at` |
 | `pomodoro_sessions` | 一次专注或休息区间 | `phase`、`planned_seconds`、`actual_seconds`、`started_at`、`ended_at`、`todo_id` |
 | `app_events` | 前台应用活动 | `app_name`、`window_title`、`started_at`、`ended_at` |
 | `alarms` | 单次或每周提醒 | `label`、`hour`、`minute`、`repeat_days`、`enabled`、`created_at` |

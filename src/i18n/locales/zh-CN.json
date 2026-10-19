@@ -180,6 +180,22 @@
       "usage": "应用"
     }
   },
+  "dueDate": {
+    "clear": "清除",
+    "close": "关闭",
+    "day": "日",
+    "done": "完成",
+    "hour": "时",
+    "invalid": "请输入有效的日期或时间",
+    "minute": "分",
+    "month": "月",
+    "now": "现在",
+    "open": "打开选择器",
+    "scrollHint": "滚动调整",
+    "today": "今天",
+    "tomorrow": "明天",
+    "year": "年"
+  },
   "events": {
     "error": "事件流加载失败。",
     "loading": "加载中…",
@@ -309,6 +325,10 @@
   "todo": {
     "add": "添加",
     "delete": "删除任务",
+    "due": {
+      "add": "截止日期",
+      "edit": "设置截止日期"
+    },
     "edit": "编辑任务",
     "empty": "这里还没有任务。",
     "error": "列表加载失败。",
@@ -324,7 +344,21 @@
       "completed": "已完成"
     },
     "loading": "加载中…",
+    "overdue": "{{count}} 项逾期",
     "placeholder": "要做什么？",
+    "plan": {
+      "done": "完成",
+      "edit": "设置时间",
+      "end": "结束",
+      "endPanel": "选择结束时间",
+      "from": "从 {{time}} 开始",
+      "hint": "两端都可以留空，只填一端也算数。",
+      "late": "已逾期",
+      "order": "结束时间早于开始时间。",
+      "start": "开始",
+      "startPanel": "选择开始时间",
+      "until": "截止 {{time}}"
+    },
     "progress": {
       "label": "完成进度"
     },

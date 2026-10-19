@@ -152,8 +152,10 @@ answering with what is now in force. A registry that refuses the write is `PERMI
 | `set_color_mode` | `settings_commands` | `mode: String` | `String` (mode in force) | — |
 | `emit_test_event` | `event_commands` | — | `TestEvent` (`{ sequence }`) | T08 |
 | `list_todos` | `todo_commands` | `completed: bool?` | `Todo[]` | T10 |
-| `add_todo` | `todo_commands` | `title: String` | `Todo` | T10 |
+| `add_todo` | `todo_commands` | `title: String`, `start_at: i64?`, `end_at: i64?` | `Todo` | T10 |
 | `rename_todo` | `todo_commands` | `id: i64`, `title: String` | `Todo` | T10 |
+| `set_todo_start_at` | `todo_commands` | `id: i64`, `start_at: i64?` | `Todo` | T10 |
+| `set_todo_end_at` | `todo_commands` | `id: i64`, `end_at: i64?` | `Todo` | T10 |
 | `set_todo_completed` | `todo_commands` | `id: i64`, `completed: bool` | `Todo` | T10 |
 | `delete_todo` | `todo_commands` | `id: i64` | — | T10 |
 | `todo_counts` | `todo_commands` | — | `TodoCounts` (`{ total, remaining, completed }`) | T10 |

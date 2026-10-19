@@ -6,7 +6,8 @@ import type { CSSProperties, MouseEvent } from "react";
 import { useI18n } from "../../hooks/useI18n";
 import type { Tag } from "../../types/tag";
 import type { Todo } from "../../types/todo";
-import { ageOf, tagNamesOf } from "./todos";
+import { ageOf, planSummary, tagNamesOf } from "./todos";
+import { TodoPlanEditor } from "./TodoPlanEditor";
 import { TodoTagEditor } from "./TodoTagEditor";
 
 export interface TodoItemProps {
@@ -21,6 +22,10 @@ export interface TodoItemProps {
   /** Registers the row, so the list can measure it before and after it moves between groups. */
   onRowRef: (id: number, element: HTMLLIElement | null) => void;
   onSelect: (id: number) => void;
+  /** Stores the moment the task should end, or clears it with `null`. */
+  onSetEndAt: (todo: Todo, endAt: number | null) => void;
+  /** Stores the moment the task should start, or clears it with `null`. */
+  onSetStartAt: (todo: Todo, startAt: number | null) => void;
   onToggle: (todo: Todo) => void;
   onUpdateTags: (todo: Todo, tagIds: readonly number[]) => void;
   /** Place in the list, which staggers the entrance animation. */
@@ -39,6 +44,8 @@ export function TodoItem({
   onRename,
   onRowRef,
   onSelect,
+  onSetEndAt,
+  onSetStartAt,
   onToggle,
   onUpdateTags,
   rowIndex,
@@ -47,12 +54,14 @@ export function TodoItem({
   tags,
   todo,
 }: TodoItemProps) {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const [draft, setDraft] = useState<string | null>(null);
   const [tagging, setTagging] = useState(false);
+  const [planning, setPlanning] = useState(false);
 
   const age = ageOf(todo.createdAt, now);
   const names = tagNamesOf(todo, tags);
+  const plan = planSummary(todo, now, language, t);
 
   /** Leaves the field and stores what was typed, unless nothing changed. */
   const commit = (): void => {
@@ -153,6 +162,18 @@ export function TodoItem({
             />
           )}
           <span className="todo-meta">
+            {plan === null ? null : (
+              <span className="todo-plan" data-late={plan.late}>
+                <svg aria-hidden="true" viewBox="0 0 16 16">
+                  <circle cx="8" cy="8" r="6" />
+                  <path d="M8 4.5V8l2.5 1.5" />
+                </svg>
+                {plan.text}
+              </span>
+            )}
+            {plan?.late === true ? (
+              <span className="todo-plan-late">{t("todo.plan.late")}</span>
+            ) : null}
             <span className="todo-time">
               {age.unit === "now"
                 ? t("todo.time.now")
@@ -176,6 +197,20 @@ export function TodoItem({
               todo={todo}
             />
           ) : null}
+          {planning ? (
+            <TodoPlanEditor
+              onClose={() => {
+                setPlanning(false);
+              }}
+              onEndChange={(endAt) => {
+                onSetEndAt(todo, endAt);
+              }}
+              onStartChange={(startAt) => {
+                onSetStartAt(todo, startAt);
+              }}
+              todo={todo}
+            />
+          ) : null}
         </div>
         {/* The row's own controls step aside while a pick is being made: one mode, one gesture. */}
         <div className="todo-actions" inert={selecting}>
@@ -193,11 +228,28 @@ export function TodoItem({
             </svg>
           </button>
           <button
+            aria-label={t("todo.plan.edit")}
+            aria-pressed={planning}
+            className="todo-action"
+            onClick={() => {
+              setPlanning((open) => !open);
+              setTagging(false);
+            }}
+            title={t("todo.plan.edit")}
+            type="button"
+          >
+            <svg aria-hidden="true" viewBox="0 0 16 16">
+              <circle cx="8" cy="8" r="6" />
+              <path d="M8 4.5V8l2.5 1.5" />
+            </svg>
+          </button>
+          <button
             aria-label={t("todo.tags.label")}
             aria-pressed={tagging}
             className="todo-action"
             onClick={() => {
               setTagging((open) => !open);
+              setPlanning(false);
             }}
             title={t("todo.tags.label")}
             type="button"

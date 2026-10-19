@@ -26,7 +26,10 @@ CREATE TABLE IF NOT EXISTS todos (
     completed_at INTEGER,
     created_at   INTEGER NOT NULL,
     updated_at   INTEGER NOT NULL,
-    tag_ids      TEXT    NOT NULL DEFAULT '[]'
+    tag_ids      TEXT    NOT NULL DEFAULT '[]',
+    -- Optional planning moments, both UTC epoch seconds.
+    start_at     INTEGER,
+    end_at       INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS pomodoro_sessions (
