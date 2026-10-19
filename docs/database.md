@@ -5,6 +5,26 @@
 SQLite through `rusqlite` with an `r2d2` connection pool. One idempotent script creates the
 schema — nothing creates tables by hand.
 
+## What lives where
+
+State lives in three places, and only one of them is this database. Inside it, the split is
+preferences against records:
+
+| Store | Holds | Why there |
+| --- | --- | --- |
+| `config.json` | `databasePath`, `language`, `colorMode` | Known before the database opens, and readable when it cannot |
+| `settings` table | The preferences: `alarm.defaults`, `pomodoro.durations`, `dashboard.grid`, `sidebar.panels` | Written and read whole, never queried by field |
+| The rest of the schema | Tasks, tags, focus sessions, foreground events, alarms | One row per record, filtered and joined |
+| Browser `localStorage` | Mirrors of the two layouts and the colour mode | First paint only; the two stores above win |
+
+A row in `settings` is a key, a category and JSON as sent — the backend keeps no model of a payload
+(see [Schema](#schema)). The screen that owns a preference names the category, checks what it
+writes and normalizes what it reads; a backend consumer parses the value into its own model and
+checks it there.
+
+Clearing, exporting or importing data covers `config.json` and the database alike: emptying
+`settings` restores the preferences, not the language or the appearance.
+
 ## Layers
 
 | File | Responsibility |
@@ -88,7 +108,7 @@ answers "which tags" without a join, while `todo_tags` is the index the other di
 `idx_todo_tags_tag_id` finds every task carrying a tag. `Todo::set_tags` writes both sides in one
 transaction, and `Tag::delete` removes its id from the cache of every task that listed it.
 
-`settings` is the one place preferences live, kept apart from the data the app tracks so that a new
+`settings` is where runtime preferences live, kept apart from the data the app tracks so that a new
 screen adds a row instead of a table. A row is a unique `key`, a JSON `value`, the `category` it is
 grouped under and `updated_at` (epoch seconds, like every other timestamp here); `id` is the
 surrogate key, so a row can be addressed by something other than its name. `key` is unique across
@@ -98,19 +118,9 @@ use are `pomodoro`, `alarm`, `dashboard` and `sidebar`; a category nobody knows 
 given, so a future screen needs no schema change.
 
 Every row is written through `Setting`, which rejects a blank or over-long key, a blank category, an
-oversized value and a value that is not JSON. That is the whole of the checking: the payload stays
-opaque, and no model here describes one, so `get_setting`, `set_setting`, `list_settings` and
-`delete_setting` serve any preference and a new one costs no Rust at all — the frontend invents a
-key, names a category, sends JSON, and the table takes it.
-
-The shape belongs to the screen that owns it, which is also where it is checked: a store validates
-what it writes and normalizes what it reads back, so a row written by an older build or edited by
-hand degrades to a usable default instead of reaching a screen.
-
-Where backend code needs the value itself, it parses the row into its own model and checks it there
-rather than trusting the table: the scheduler reads `alarm.defaults` when an alarm rings, rejects a
-ring duration outside `1..=60`, and rings the built-in default for a row it cannot use. Storing junk
-therefore never becomes ringing with junk.
+oversized value and a value that is not JSON — that is all it asks of a payload, so
+`get_setting`/`set_setting` serve any preference and a new one costs no Rust at all. What the value
+means is decided elsewhere; see [What lives where](#what-lives-where).
 
 The pomodoro durations are the row `pomodoro.durations` (category `pomodoro`), whose value is
 `{ "focusSeconds": 1500, "shortBreakSeconds": 300, "longBreakSeconds": 900 }`. A missing row means
