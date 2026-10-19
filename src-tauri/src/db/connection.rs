@@ -9,8 +9,16 @@ use rusqlite::Connection;
 
 use crate::utils::response::{ApiCode, ApiError, ApiResult};
 
-/// Database file name inside the application data directory.
-pub const DATABASE_FILE_NAME: &str = "sentryneko.db";
+/// Stem every database file name starts with; the version this build reads follows the dash.
+pub const DATABASE_STEM: &str = "sentryneko";
+
+/// The database file this build opens: the stem, this build's version, and the extension.
+///
+/// The name carries the version so the file on disk says which build wrote it — that is what lets
+/// startup tell a current database from an older one without opening either of them.
+pub fn database_file_name() -> String {
+    format!("{DATABASE_STEM}-{}.db", crate::version::PROGRAM_VERSION)
+}
 
 /// Pooled SQLite connections.
 pub type DbPool = Pool<SqliteConnectionManager>;
