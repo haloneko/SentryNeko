@@ -392,9 +392,12 @@ mod tests {
         assert_eq!(rung.len(), 1);
         assert!(!rung[0].enabled, "a one-off is switched off once it rang");
         assert_eq!(chime.plays(), 1);
+        // The title is localised, so it is read from the same copy the scheduler reaches for.
+        let language = fixture.config.language().unwrap_or(Language::DEFAULT);
+        let copy = Notification::alarm(language, "stand up");
         assert_eq!(
             toast.shown(),
-            [("Alarm".to_owned(), "stand up".to_owned())],
+            [(copy.title, "stand up".to_owned())],
             "the toast carries the label"
         );
 
