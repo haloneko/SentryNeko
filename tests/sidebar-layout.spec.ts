@@ -23,11 +23,13 @@ test("sidebar editor drags with animation, persists hidden panels and restores f
   expect(await rows.evaluateAll((elements) => elements.some((element) => element.getAnimations().length > 0))).toBe(true);
   await page.mouse.up();
   await expect(rows.first()).toContainText("Todos");
-  await expect(page.locator(".nav a[href='#/todos']")).toHaveCount(0);
+  // A draft: neither the rail nor storage moves before the arrangement is applied.
+  await expect(page.locator(".nav a[href='#/todos']")).toHaveCount(1);
   await page.screenshot({ path: test.info().outputPath("sidebar-editor.png") });
   await expect(editor.getByRole("button", { name: "Close", exact: true })).toBeVisible();
   await editor.getByRole("button", { name: "Done", exact: true }).click();
   await expect(editor).toHaveCount(0);
+  await expect(page.locator(".nav a[href='#/todos']")).toHaveCount(0);
   await expect(edit).toBeFocused();
   await page.reload();
   await edit.click();
@@ -38,6 +40,8 @@ test("sidebar editor drags with animation, persists hidden panels and restores f
   await expect(editor.getByRole("switch", { name: "Show Todos" })).toBeChecked();
   await page.keyboard.press("Escape");
   await expect(editor).toHaveCount(0);
+  // Escape drops the restored defaults with the draft, so the rail keeps the applied layout.
+  await expect(page.locator(".nav a[href='#/todos']")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

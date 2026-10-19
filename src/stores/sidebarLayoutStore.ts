@@ -1,17 +1,21 @@
 /** Sidebar preferences are window chrome, persisted alongside the collapsed flag. */
 import { create } from "zustand";
 
-import { defaultSidebarLayout, normalizeSidebarLayout, reorderSidebarLayout } from "../types/sidebar";
-import type { SidebarLayout, SidebarPanelId } from "../types/sidebar";
+import { defaultSidebarLayout, normalizeSidebarLayout } from "../types/sidebar";
+import type { SidebarLayout } from "../types/sidebar";
 
 export const SIDEBAR_LAYOUT_STORAGE_KEY = "sentryneko.sidebarLayout";
 
 interface SidebarLayoutState {
   layout: SidebarLayout;
   persistenceError: boolean;
-  setVisible: (id: SidebarPanelId, visible: boolean) => void;
-  reset: () => void;
-  reorder: (id: SidebarPanelId, target: SidebarPanelId) => void;
+  /**
+   * Commits the arrangement an editor settled on.
+   *
+   * The editor holds a draft of its own, so the rail never moves while panels are being dragged
+   * or switched; this is the only write path, and therefore the only thing a restart can see.
+   */
+  save: (layout: SidebarLayout) => void;
 }
 
 function readLayout(): SidebarLayout {
@@ -25,8 +29,10 @@ function readLayout(): SidebarLayout {
   }
 }
 
-export const useSidebarLayoutStore = create<SidebarLayoutState>((set, get) => {
-  function save(layout: SidebarLayout): void {
+export const useSidebarLayoutStore = create<SidebarLayoutState>((set) => ({
+  layout: readLayout(),
+  persistenceError: false,
+  save: (layout) => {
     let persistenceError = false;
 
     try {
@@ -36,15 +42,5 @@ export const useSidebarLayoutStore = create<SidebarLayoutState>((set, get) => {
     }
 
     set({ layout, persistenceError });
-  }
-
-  return {
-    layout: readLayout(),
-    persistenceError: false,
-    setVisible: (id, visible) => {
-      save(get().layout.map((panel) => (panel.id === id ? { ...panel, visible } : panel)));
-    },
-    reset: () => save(defaultSidebarLayout()),
-    reorder: (id, target) => save(reorderSidebarLayout(get().layout, id, target)),
-  };
-});
+  },
+}));

@@ -3,8 +3,8 @@ import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "re
 import { createPortal } from "react-dom";
 import { useI18n } from "../hooks/useI18n";
 import { useSidebarLayoutStore } from "../stores/sidebarLayoutStore";
-import { SIDEBAR_PANELS } from "../types/sidebar";
-import type { SidebarPanelId } from "../types/sidebar";
+import { defaultSidebarLayout, reorderSidebarLayout, SIDEBAR_PANELS } from "../types/sidebar";
+import type { SidebarLayout, SidebarPanelId } from "../types/sidebar";
 import { ActionIcon } from "./ui/ActionIcon";
 import { NavIcon } from "./ui/NavIcon";
 
@@ -18,15 +18,23 @@ interface Gesture {
 
 export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
-  const { layout, persistenceError, setVisible, reorder, reset } = useSidebarLayoutStore();
+  const { layout, persistenceError, save } = useSidebarLayoutStore();
   const dialog = useRef<HTMLDialogElement>(null);
   const rows = useRef(new Map<SidebarPanelId, HTMLLIElement>());
   const positions = useRef(new Map<SidebarPanelId, number>());
   const gesture = useRef<Gesture | null>(null);
   const closeTimer = useRef<number | undefined>(undefined);
+  // The draft is what the rows draw; the rail and the saved layout only change when it is applied.
+  const [draft, setDraft] = useState<SidebarLayout>(layout);
+  const latest = useRef(draft);
   const [dragged, setDragged] = useState<SidebarPanelId | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [closing, setClosing] = useState(false);
+
+  function edit(next: SidebarLayout): void {
+    latest.current = next;
+    setDraft(next);
+  }
 
   function finishDrag(): void {
     const active = gesture.current;
@@ -71,12 +79,22 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
   }, []);
 
   function announceMove(id: SidebarPanelId, target: SidebarPanelId): void {
-    reorder(id, target);
-    const updated = useSidebarLayoutStore.getState().layout;
+    const next = reorderSidebarLayout(latest.current, id, target);
+    edit(next);
     setAnnouncement(t("sidebar.reordered", {
       panel: t(SIDEBAR_PANELS[id].label),
-      position: updated.findIndex((panel) => panel.id === id) + 1, total: updated.length,
+      position: next.findIndex((panel) => panel.id === id) + 1, total: next.length,
     }));
+  }
+
+  function setVisible(id: SidebarPanelId, visible: boolean): void {
+    edit(latest.current.map((panel) => (panel.id === id ? { ...panel, visible } : panel)));
+  }
+
+  /** Applies the draft, then leaves: the only path that moves the rail. */
+  function apply(): void {
+    save(latest.current);
+    close();
   }
 
   const pointerMove = useEffectEvent((event: PointerEvent) => {
@@ -89,7 +107,7 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
     const desiredTop = active.originTop + event.clientY - active.startY;
     element.style.transform = `translateY(${desiredTop - element.offsetTop}px)`;
     const center = desiredTop + element.offsetHeight / 2;
-    const ordered = useSidebarLayoutStore.getState().layout;
+    const ordered = latest.current;
     const target = ordered.reduce((nearest, panel) => {
       const row = rows.current.get(panel.id);
       const current = rows.current.get(nearest.id);
@@ -138,7 +156,7 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
       }
     });
     positions.current = next;
-  }, [layout]);
+  }, [draft]);
 
   return createPortal(<dialog aria-labelledby="sidebar-editor-title" aria-describedby="sidebar-editor-hint"
     className="sidebar-editor" data-closing={closing} ref={dialog}
@@ -154,7 +172,7 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
         <p className="settings-hint" id="sidebar-editor-hint">{t("sidebar.editorHint")}</p>
       </div>
       <div className="sidebar-editor-actions">
-        <button aria-label={t("sidebar.reset")} className="icon-btn" onClick={reset}
+        <button aria-label={t("sidebar.reset")} className="icon-btn" onClick={() => edit(defaultSidebarLayout())}
           title={t("sidebar.reset")} type="button">
           <ActionIcon name="reset" />
         </button>
@@ -162,7 +180,7 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
           title={t("sidebar.close")} type="button">
           <ActionIcon name="cancel" />
         </button>
-        <button aria-label={t("sidebar.done")} className="icon-btn" data-variant="primary" onClick={close}
+        <button aria-label={t("sidebar.done")} className="icon-btn" data-variant="primary" onClick={apply}
           title={t("sidebar.done")} type="button">
           <ActionIcon name="check" />
         </button>
@@ -170,7 +188,7 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
     </header>
     <p className="sr-only" id="sidebar-keyboard-hint">{t("sidebar.keyboardHint")}</p>
     <ol aria-label={t("sidebar.title")} className="sidebar-editor-list">
-      {layout.map(({ id, visible }, index) => {
+      {draft.map(({ id, visible }, index) => {
         const label = t(SIDEBAR_PANELS[id].label);
         return <li className="sidebar-editor-row" data-dragging={dragged === id} data-visible={visible} key={id}
           ref={(element) => { if (element) rows.current.set(id, element); else rows.current.delete(id); }}>
@@ -188,10 +206,10 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
             }}
             onKeyDown={(event) => {
               const targetIndex = event.key === "ArrowUp" ? index - 1 : event.key === "ArrowDown" ? index + 1 :
-                event.key === "Home" ? 0 : event.key === "End" ? layout.length - 1 : null;
+                event.key === "Home" ? 0 : event.key === "End" ? draft.length - 1 : null;
               if (targetIndex === null) return;
               event.preventDefault();
-              const target = layout[targetIndex];
+              const target = draft[targetIndex];
               if (target && target.id !== id) announceMove(id, target.id);
             }}>
             <ActionIcon name="grip" />
