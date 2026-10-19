@@ -38,15 +38,51 @@ export type NotificationMethod = "toast" | "inApp";
 export const NOTIFICATION_METHODS = ["toast", "inApp"] as const satisfies
   readonly NotificationMethod[];
 
-/** What an alarm rings with; mirrors `models::alarm::AlarmDefaults`. */
+/** What an alarm rings with; the shape of the `alarm.defaults` row. */
 export interface AlarmDefaults {
-  /** How long the tone repeats, in seconds, `1..=60`. */
+  /** How long the tone repeats, in seconds. */
   ringSeconds: number;
   method: NotificationMethod;
 }
 
-/** The backend's own default, shown until the stored one arrives. */
+/** Shortest and longest ring duration the settings page offers, in seconds. */
+export const MIN_RING_SECONDS = 1;
+export const MAX_RING_SECONDS = 60;
+
+/** The built-in default, shown until the stored one arrives. */
 export const DEFAULT_ALARM_DEFAULTS: AlarmDefaults = { method: "toast", ringSeconds: 10 };
+
+/**
+ * Reads a stored value as the defaults, field by field.
+ *
+ * The row is the frontend's to check: the backend stores whatever it is handed, so a duration
+ * outside `1..=60` or an unknown method falls back to the default for that field rather than
+ * reaching the scheduler.
+ */
+export function normalizeAlarmDefaults(value: unknown): AlarmDefaults {
+  if (value === null || typeof value !== "object") {
+    return DEFAULT_ALARM_DEFAULTS;
+  }
+
+  const stored = value as Partial<Record<keyof AlarmDefaults, unknown>>;
+
+  return {
+    method: NOTIFICATION_METHODS.includes(stored.method as NotificationMethod)
+      ? (stored.method as NotificationMethod)
+      : DEFAULT_ALARM_DEFAULTS.method,
+    ringSeconds: ringSeconds(stored.ringSeconds),
+  };
+}
+
+/** A whole number of seconds the settings page could have written, or the default. */
+function ringSeconds(value: unknown): number {
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= MIN_RING_SECONDS &&
+    value <= MAX_RING_SECONDS
+    ? value
+    : DEFAULT_ALARM_DEFAULTS.ringSeconds;
+}
 
 /** The `t()` key of one notification method. */
 export const METHOD_LABELS: Record<NotificationMethod, string> = {

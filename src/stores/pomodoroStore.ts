@@ -6,7 +6,17 @@ import { create } from "zustand";
 import { isOk } from "../types";
 import type { ApiCode, ApiResponse, NotificationOutcome } from "../types";
 import type { PomodoroDurations, PomodoroPhase, PomodoroSession } from "../types/pomodoro";
-import { phaseAfter, phaseSeconds } from "../types/pomodoro";
+import {
+  DEFAULT_DURATIONS,
+  normalizeDurations,
+  phaseAfter,
+  phaseSeconds,
+} from "../types/pomodoro";
+import { parseSetting, SETTINGS } from "../types/setting";
+import type { Setting } from "../types/setting";
+
+/** The row this store reads its durations from; the backend stores it as sent. */
+const { category: DURATIONS_CATEGORY, key: DURATIONS_KEY } = SETTINGS.pomodoroDurations;
 
 export interface PomodoroState {
   phase: PomodoroPhase;
@@ -32,13 +42,6 @@ export interface PomodoroState {
   /** Advances the clock; the page calls it on an interval, so render throttling cannot drift it. */
   tick: (now: number) => Promise<void>;
 }
-
-/** Applied until the stored durations arrive, so the clock never starts at zero. */
-const DEFAULT_DURATIONS: PomodoroDurations = {
-  focusSeconds: 25 * 60,
-  shortBreakSeconds: 5 * 60,
-  longBreakSeconds: 15 * 60,
-};
 
 /** Runs a command, answering `UNSUPPORTED` outside Tauri so the UI can react the same way. */
 async function request<T>(command: string, args: Record<string, unknown> = {}): Promise<ApiResponse<T>> {
@@ -97,20 +100,23 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   load: async () => {
     set({ loading: true, error: null });
 
-    const response = await request<PomodoroDurations>("get_pomodoro_durations");
+    // An absent key answers `null` in `data`, which `parseSetting` reads as "use the defaults".
+    const response = await request<Setting>("get_setting", { key: DURATIONS_KEY });
 
     if (!isOk(response)) {
       set({ loading: false, error: response.code });
       return;
     }
 
+    // The row is the frontend's to check: a duration nobody could have entered falls back.
+    const durations = normalizeDurations(parseSetting<unknown>(response.data, null));
     const { endsAt, phase, remainingMs, sessionId } = get();
     const idle = endsAt === null && sessionId === null;
 
     set({
-      durations: response.data,
+      durations,
       loading: false,
-      remainingMs: idle ? phaseSeconds(response.data, phase) * 1000 : remainingMs,
+      remainingMs: idle ? phaseSeconds(durations, phase) * 1000 : remainingMs,
     });
   },
 
@@ -217,19 +223,28 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   saveDurations: async (durations) => {
     set({ error: null });
 
-    const response = await request<PomodoroDurations>("set_pomodoro_durations", { durations });
+    // The backend stores what it is handed, so the store is where a length is checked: what goes
+    // into the row is what came out of the settings page, clamped to a phase it could produce.
+    const next = normalizeDurations(durations);
+    const response = await request<Setting>("set_setting", {
+      key: DURATIONS_KEY,
+      value: JSON.stringify(next),
+      category: DURATIONS_CATEGORY,
+    });
 
     if (!isOk(response)) {
       set({ error: response.code });
       return false;
     }
 
+    // The echo is what is now in force; normalizing it keeps the clock on a usable length.
+    const saved = normalizeDurations(parseSetting<unknown>(response.data, next));
     const { endsAt, phase, sessionId } = get();
     const idle = endsAt === null && sessionId === null;
 
     set({
-      durations: response.data,
-      remainingMs: idle ? phaseSeconds(response.data, phase) * 1000 : get().remainingMs,
+      durations: saved,
+      remainingMs: idle ? phaseSeconds(saved, phase) * 1000 : get().remainingMs,
     });
 
     return true;

@@ -5,6 +5,26 @@
 SQLite through `rusqlite` with an `r2d2` connection pool. One idempotent script creates the
 schema — nothing creates tables by hand.
 
+## What lives where
+
+State lives in three places, and only one of them is this database. Inside it, the split is
+preferences against records:
+
+| Store | Holds | Why there |
+| --- | --- | --- |
+| `config.json` | `databasePath`, `language`, `colorMode` | Known before the database opens, and readable when it cannot |
+| `settings` table | The preferences: `alarm.defaults`, `pomodoro.durations`, `dashboard.grid`, `sidebar.panels` | Written and read whole, never queried by field |
+| The rest of the schema | Tasks, tags, focus sessions, foreground events, alarms | One row per record, filtered and joined |
+| Browser `localStorage` | Mirrors of the two layouts and the colour mode | First paint only; the two stores above win |
+
+A row in `settings` is a key, a category and JSON as sent — the backend keeps no model of a payload
+(see [Schema](#schema)). The screen that owns a preference names the category, checks what it
+writes and normalizes what it reads; a backend consumer parses the value into its own model and
+checks it there.
+
+Clearing, exporting or importing data covers `config.json` and the database alike: emptying
+`settings` restores the preferences, not the language or the appearance.
+
 ## Layers
 
 | File | Responsibility |
@@ -79,7 +99,7 @@ The schema holds seven tables:
 | `pomodoro_sessions` | One focus or break interval | `phase`, `planned_seconds`, `actual_seconds`, `started_at`, `ended_at`, `todo_id` |
 | `app_events` | Foreground application activity | `app_name`, `window_title`, `started_at`, `ended_at` |
 | `alarms` | One-off or weekly reminders | `label`, `hour`, `minute`, `repeat_days`, `enabled`, `created_at` |
-| `settings` | Key/value application settings | `key`, `value`, `updated_at` |
+| `settings` | Application settings, one row per key and grouped by category | `id`, `key` (unique), `value`, `category`, `updated_at` |
 | `tags` | Tag names a task can carry | `name` (unique, case-insensitive), `created_at` |
 | `todo_tags` | Link between a task and a tag | `todo_id`, `tag_id` |
 
@@ -88,17 +108,37 @@ answers "which tags" without a join, while `todo_tags` is the index the other di
 `idx_todo_tags_tag_id` finds every task carrying a tag. `Todo::set_tags` writes both sides in one
 transaction, and `Tag::delete` removes its id from the cache of every task that listed it.
 
-The pomodoro durations are a single `settings` row: key `pomodoro.durations`, value the JSON form
-of `PomodoroDurations`. A missing row means the defaults apply. The alarm defaults are the same
-shape: key `alarm.defaults`, value `{ "ringSeconds": 10, "method": "toast" }` — how long the tone
-repeats and how the message travels (`toast`, or `inApp` for the window alone).
+`settings` is where runtime preferences live, kept apart from the data the app tracks so that a new
+screen adds a row instead of a table. A row is a unique `key`, a JSON `value`, the `category` it is
+grouped under and `updated_at` (epoch seconds, like every other timestamp here); `id` is the
+surrogate key, so a row can be addressed by something other than its name. `key` is unique across
+the whole table, which means a read or a write never needs the category, while
+`idx_settings_category` turns "everything about one subject" into one indexed scan. Categories in
+use are `pomodoro`, `alarm`, `dashboard` and `sidebar`; a category nobody knows yet is stored as
+given, so a future screen needs no schema change.
 
-The dashboard layout is the third such row: key `dashboard.grid`, value
-`{ "widgets": [{ "id": "focus-1", "kind": "focus", "x": 0, "y": 0, "w": 1, "h": 2, "source": "today" }] }`
-— the widgets the home page shows, each with an identity of its own, the cell its top-left corner
-sits in and how many cells it spans on a two-column grid. The `id` is what makes a placement
-addressable, so the same `kind` may appear more than once. A missing row means the dashboard was
-never customised and the page falls back to its built-in layout.
+Every row is written through `Setting`, which rejects a blank or over-long key, a blank category, an
+oversized value and a value that is not JSON — that is all it asks of a payload, so
+`get_setting`/`set_setting` serve any preference and a new one costs no Rust at all. What the value
+means is decided elsewhere; see [What lives where](#what-lives-where).
+
+The pomodoro durations are the row `pomodoro.durations` (category `pomodoro`), whose value is
+`{ "focusSeconds": 1500, "shortBreakSeconds": 300, "longBreakSeconds": 900 }`. A missing row means
+the defaults apply. The alarm defaults are `alarm.defaults` (category `alarm`),
+`{ "ringSeconds": 10, "method": "toast" }` — how long the tone repeats and how the message travels
+(`toast`, or `inApp` for the window alone).
+
+The dashboard layout is `dashboard.grid` (category `dashboard`), whose value is
+`{ "columns": 4, "placements": { "focus": { "x": 0, "y": 0, "w": 2, "h": 2 } }, "hidden": ["todos"] }`
+— the columns the grid has, one rectangle per panel keyed by the panel id, and the panels parked in
+the library, which keep their rectangles so putting one back where it was costs nothing. A missing
+row means the dashboard was never customised and the page falls back to its built-in layout.
+
+The sidebar layout is `sidebar.panels` (category `sidebar`), whose value is
+`{ "panels": [{ "id": "todos", "visible": true }] }` — every panel the rail can show, in draw order,
+each with the flag that decides whether it is drawn. A missing row means the rail was never
+customised and the built-in order applies; a panel written without `visible` counts as shown, which
+is what the rail did before hiding existed.
 
 `app_events` is written by the foreground collector (`collectors/foreground_app.rs`), which samples
 the foreground window once a second:

@@ -1,4 +1,6 @@
 //! Settings commands: read and update persisted user settings.
+//!
+//! Preferences are reached through the four generic commands; a new one needs no command here.
 
 use std::path::PathBuf;
 
@@ -6,58 +8,44 @@ use tauri::State;
 
 use crate::config::Config;
 use crate::db::connection::Db;
-use crate::models::alarm::AlarmDefaults;
-use crate::models::dashboard::{DashboardLayout, WidgetChange};
-use crate::models::pomodoro::PomodoroDurations;
+use crate::models::setting::Setting;
 use crate::services::autostart::{Autostart, WindowsRunKey};
 use crate::services::i18n::Language;
 use crate::services::theme::ColorMode;
 use crate::services::tray::Tray;
 use crate::utils::response::{ApiError, ApiResponse, ApiResult};
 
-/// Reads the pomodoro phase durations.
+/// Reads one stored setting by key, `null` when nothing is filed under it.
 #[tauri::command]
-pub fn get_pomodoro_durations(db: State<'_, Db>) -> ApiResponse<PomodoroDurations> {
-    PomodoroDurations::load(&db).into()
+pub fn get_setting(db: State<'_, Db>, key: String) -> ApiResponse<Option<Setting>> {
+    Setting::load(&db, &key).into()
 }
 
-/// Stores the pomodoro phase durations.
+/// Creates or replaces one setting; `value` is JSON text and `category` is the subject it belongs
+/// to.
+///
+/// The backend stores both as given — it holds no model of any payload — so the caller owns the
+/// shape of what it writes.
 #[tauri::command]
-pub fn set_pomodoro_durations(
+pub fn set_setting(
     db: State<'_, Db>,
-    durations: PomodoroDurations,
-) -> ApiResponse<PomodoroDurations> {
-    PomodoroDurations::save(&db, durations).into()
+    key: String,
+    value: String,
+    category: String,
+) -> ApiResponse<Setting> {
+    Setting::set(&db, &key, &value, &category).into()
 }
 
-/// Reads the ring duration and notification method every alarm rings with.
+/// Lists settings in key order, narrowed to one category when it is given.
 #[tauri::command]
-pub fn get_alarm_defaults(db: State<'_, Db>) -> ApiResponse<AlarmDefaults> {
-    AlarmDefaults::load(&db).into()
+pub fn list_settings(db: State<'_, Db>, category: Option<String>) -> ApiResponse<Vec<Setting>> {
+    Setting::list(&db, category.as_deref()).into()
 }
 
-/// Stores the ring duration and notification method every alarm rings with.
+/// Removes one setting, answering `true` when a row was there.
 #[tauri::command]
-pub fn set_alarm_defaults(
-    db: State<'_, Db>,
-    defaults: AlarmDefaults,
-) -> ApiResponse<AlarmDefaults> {
-    AlarmDefaults::save(&db, defaults).into()
-}
-
-/// Reads the dashboard layout, `null` until the user has customised the widget list.
-#[tauri::command]
-pub fn get_dashboard_layout(db: State<'_, Db>) -> ApiResponse<Option<DashboardLayout>> {
-    DashboardLayout::load(&db).into()
-}
-
-/// Applies the changes one arrangement produced and answers with the layout now in force.
-#[tauri::command]
-pub fn apply_dashboard_changes(
-    db: State<'_, Db>,
-    changes: Vec<WidgetChange>,
-) -> ApiResponse<DashboardLayout> {
-    DashboardLayout::apply(&db, changes).into()
+pub fn delete_setting(db: State<'_, Db>, key: String) -> ApiResponse<bool> {
+    Setting::delete(&db, &key).into()
 }
 
 /// Reads whether Windows starts the application when the user signs in.

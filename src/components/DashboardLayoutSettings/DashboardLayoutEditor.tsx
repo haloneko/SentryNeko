@@ -107,7 +107,7 @@ function rectOf(placement: WidgetPlacement, cell: number, gap: number): CellRect
 /** Full-window editor; the grid is the dashboard itself, one pointer drop away from the layout. */
 export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
   const { t } = useI18n();
-  const { layout: saved, save } = useDashboardLayout();
+  const { layout: saved, persistenceError, save } = useDashboardLayout();
   const draft = useDraftLayout(saved);
   const { layout } = draft;
 
@@ -196,7 +196,7 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
   }, [layout, metrics]);
 
   const commit = useCallback(() => {
-    save(layoutRef.current);
+    void save(layoutRef.current);
     onClose();
   }, [onClose, save]);
 
@@ -829,6 +829,9 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
 
         <footer className="editor-foot">
           <span className="editor-note">{t("dashboard.layout.hint")}</span>
+          {persistenceError ? (
+            <p className="todo-error" role="alert">{t("dashboard.layout.saveError")}</p>
+          ) : null}
           <span className="editor-shortcuts">{t("dashboard.layout.shortcuts")}</span>
         </footer>
       </div>

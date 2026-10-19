@@ -4,6 +4,22 @@
 
 SQLite，驱动为 `rusqlite`，连接由 `r2d2` 池管理；表结构由一份幂等脚本创建，不手工建表。
 
+## 状态都存在哪里
+
+状态存在三处，其中只有一处是本数据库；在库内又分成偏好与记录两类：
+
+| 位置 | 内容 | 为什么在这里 |
+| --- | --- | --- |
+| `config.json` | `databasePath`、`language`、`colorMode` | 打开数据库之前就要知道，数据库打不开时也能读到 |
+| `settings` 表 | 四项偏好：`alarm.defaults`、`pomodoro.durations`、`dashboard.grid`、`sidebar.panels` | 整块读写，从不按字段查询 |
+| 其余表 | 任务、标签、专注记录、前台事件、闹钟 | 一行一条记录，要筛选和连接 |
+| 浏览器 `localStorage` | 两个布局与主题的镜像 | 只为首屏；以上两处才是准 |
+
+`settings` 的一行是 key、category 与按原样收发的 JSON——后端不持有任何负载的模型（见[表结构](#表结构)）。
+写入的界面自己声明类别、自己校验，取用的后端代码把值解析成自己的模型再校验。
+
+清空、导出或导入数据要同时覆盖 `config.json` 与数据库：清空 `settings` 恢复的是偏好，不包括语言与外观。
+
 ## 分层
 
 | 文件 | 职责 |
@@ -72,7 +88,7 @@ app.manage(db);
 | `pomodoro_sessions` | 一次专注或休息区间 | `phase`、`planned_seconds`、`actual_seconds`、`started_at`、`ended_at`、`todo_id` |
 | `app_events` | 前台应用活动 | `app_name`、`window_title`、`started_at`、`ended_at` |
 | `alarms` | 单次或每周提醒 | `label`、`hour`、`minute`、`repeat_days`、`enabled`、`created_at` |
-| `settings` | 键值型设置 | `key`、`value`、`updated_at` |
+| `settings` | 应用设置：一行一个键，按类别分组 | `id`、`key`（唯一）、`value`、`category`、`updated_at` |
 | `tags` | 任务可携带的标签名 | `name`（唯一、大小写不敏感）、`created_at` |
 | `todo_tags` | 任务与标签的关联 | `todo_id`、`tag_id` |
 
@@ -80,15 +96,32 @@ app.manage(db);
 标签」；`todo_tags` 是另一个方向的索引，`idx_todo_tags_tag_id` 用来查「哪些任务带某个标签」。
 `Todo::set_tags` 在一个事务里同时写两边，`Tag::delete` 会把 id 从所有仍列着它的任务缓存里删掉。
 
-番茄钟时长是 `settings` 里的一行：键 `pomodoro.durations`，值是 `PomodoroDurations` 的 JSON；
-这一行不存在时按默认值处理。闹钟默认设置同样是一行：键 `alarm.defaults`，值形如
+`settings` 是运行期偏好的落脚处，与业务数据分开存放：新增一个设置界面只是加一行，而不是加一张表。
+一行的内容是唯一的 `key`、JSON 形式的 `value`、它归属的 `category`，以及 `updated_at`（纪元秒，
+与本库其他时间戳一致）；`id` 是代理主键，使得一行可以不靠名字被寻址。`key` 在整张表里唯一，
+因此读写单个设置不需要类别；`idx_settings_category` 让「某个主题下的全部设置」变成一次索引扫描。
+当前使用的类别有 `pomodoro`、`alarm`、`dashboard` 与 `sidebar`；未来新界面自报的类别会照原样存下，
+无需改表。
+
+所有行都经 `Setting` 写入：它拒绝空白或过长的键、空白类别、超大值，以及不是 JSON 的值——对负载只要求
+这些，所以 `get_setting`/`set_setting` 能服务任意偏好，新增一个偏好不需要任何 Rust 改动。值本身是什么
+意思由别处决定，见[状态都存在哪里](#状态都存在哪里)。
+
+番茄钟时长是 `pomodoro.durations` 这一行（类别 `pomodoro`），值形如
+`{ "focusSeconds": 1500, "shortBreakSeconds": 300, "longBreakSeconds": 900 }`；这一行不存在时
+按默认值处理。闹钟默认设置是 `alarm.defaults`（类别 `alarm`），值形如
 `{ "ringSeconds": 10, "method": "toast" }`——提示音重复多久，以及消息怎么走（`toast`，或
 `inApp` 只交给窗口）。
 
-仪表盘布局是第三行：键 `dashboard.grid`，值形如
-`{ "widgets": [{ "id": "focus-1", "kind": "focus", "x": 0, "y": 0, "w": 1, "h": 2, "source": "today" }] }`
-——首页显示哪些组件，每项有自己的标识、左上角所在的格子与在两列网格上横跨的格数。`id` 让每个放置项
-可以被单独寻址，所以同一种 `kind` 可以出现多次。这一行不存在时表示从未自定义过，页面回落到内置布局。
+仪表盘布局是 `dashboard.grid`（类别 `dashboard`），值形如
+`{ "columns": 4, "placements": { "focus": { "x": 0, "y": 0, "w": 2, "h": 2 } }, "hidden": ["todos"] }`
+——网格的列数、按面板 id 存放的每个面板矩形，以及收进组件库的面板；收起的面板保留自己的矩形，所以
+放回原处不花任何代价。这一行不存在时表示从未自定义过，页面回落到内置布局。
+
+侧栏布局是 `sidebar.panels`（类别 `sidebar`），值形如
+`{ "panels": [{ "id": "todos", "visible": true }] }`——侧栏能显示的全部面板，按绘制顺序排列，
+每项带一个决定是否绘制的标记。这一行不存在时表示从未自定义过，按内置顺序显示；写成 `visible` 缺省
+的面板视为显示，这也是隐藏功能出现之前的行为。
 
 `app_events` 由前台采集器（`collectors/foreground_app.rs`）写入，它每秒采样一次前台窗口：
 

@@ -11,7 +11,7 @@
     "test:numeric-input": "playwright test",
     "icons": "tauri icon src-tauri/app-icon.svg",
     "tauri": "tauri",
-    "test": "tsc --ignoreConfig --target es2022 --module esnext --skipLibCheck --outDir .cache/sidebar-test src/types/sidebar.ts && node --test scripts/*.test.mjs",
+    "test": "tsc --ignoreConfig --target es2022 --module esnext --skipLibCheck --outDir .cache/sidebar-test src/types/alarm.ts src/types/pomodoro.ts src/types/sidebar.ts src/types/setting.ts && node --test scripts/*.test.mjs",
     "test:sidebar": "tsc --ignoreConfig --target es2022 --module esnext --skipLibCheck --outDir .cache/sidebar-test src/types/sidebar.ts && node --test scripts/sidebar.test.mjs"
   },
   "dependencies": {

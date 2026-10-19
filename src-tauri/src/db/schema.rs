@@ -58,8 +58,10 @@ CREATE TABLE IF NOT EXISTS alarms (
 );
 
 CREATE TABLE IF NOT EXISTS settings (
-    key        TEXT    PRIMARY KEY,
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    key        TEXT    NOT NULL UNIQUE,
     value      TEXT    NOT NULL,
+    category   TEXT    NOT NULL DEFAULT '',
     updated_at INTEGER NOT NULL
 );
 
@@ -86,6 +88,9 @@ CREATE INDEX IF NOT EXISTS idx_app_events_started_at
 
 CREATE INDEX IF NOT EXISTS idx_todo_tags_tag_id
     ON todo_tags (tag_id);
+
+CREATE INDEX IF NOT EXISTS idx_settings_category
+    ON settings (category, key);
 ";
 
 /// Creates every missing table and index; running it again changes nothing.

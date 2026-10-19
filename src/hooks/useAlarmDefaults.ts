@@ -5,8 +5,13 @@ import { useCallback, useEffect, useState } from "react";
 
 import { isOk } from "../types";
 import type { ApiCode, ApiResponse } from "../types";
-import { DEFAULT_ALARM_DEFAULTS } from "../types/alarm";
+import { DEFAULT_ALARM_DEFAULTS, normalizeAlarmDefaults } from "../types/alarm";
 import type { AlarmDefaults } from "../types/alarm";
+import { parseSetting, SETTINGS } from "../types/setting";
+import type { Setting } from "../types/setting";
+
+/** The row this hook reads; the backend stores it as sent. */
+const { category: DEFAULTS_CATEGORY, key: DEFAULTS_KEY } = SETTINGS.alarmDefaults;
 
 export interface AlarmDefaultsState {
   /** The stored defaults, or the built-in ones until they arrive. */
@@ -39,10 +44,12 @@ export function useAlarmDefaults(): AlarmDefaultsState {
   const reload = useCallback(async () => {
     setLoading(true);
 
-    const response = await request<AlarmDefaults>("get_alarm_defaults");
+    // An absent key answers `null` in `data`, which `parseSetting` reads as "use the defaults".
+    const response = await request<Setting>("get_setting", { key: DEFAULTS_KEY });
 
     if (isOk(response)) {
-      setDefaults(response.data);
+      // The row is the frontend's to check: a duration outside `1..=60` falls back.
+      setDefaults(normalizeAlarmDefaults(parseSetting<unknown>(response.data, null)));
       setError(null);
     } else {
       setError(response.code);
@@ -56,18 +63,26 @@ export function useAlarmDefaults(): AlarmDefaultsState {
   }, [reload]);
 
   const save = useCallback(async (next: AlarmDefaults): Promise<AlarmDefaults | null> => {
-    const response = await request<AlarmDefaults>("set_alarm_defaults", { defaults: next });
+    // The backend stores what it is handed, so the check happens here: what goes into the row is
+    // a duration and a method the settings page can produce.
+    const checked = normalizeAlarmDefaults(next);
+    const response = await request<Setting>("set_setting", {
+      key: DEFAULTS_KEY,
+      value: JSON.stringify(checked),
+      category: DEFAULTS_CATEGORY,
+    });
 
     if (!isOk(response)) {
       setError(response.code);
       return null;
     }
 
-    // The backend validates the duration, so the answer is the value actually in force.
-    setDefaults(response.data);
+    // The echo is what is now in force; normalizing it keeps the form on a usable value.
+    const saved = normalizeAlarmDefaults(parseSetting<unknown>(response.data, checked));
+    setDefaults(saved);
     setError(null);
 
-    return response.data;
+    return saved;
   }, []);
 
   return { defaults, error, loading, reload, save };

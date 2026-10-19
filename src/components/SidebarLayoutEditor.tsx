@@ -93,7 +93,7 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
 
   /** Applies the draft, then leaves: the only path that moves the rail. */
   function apply(): void {
-    save(latest.current);
+    void save(latest.current);
     close();
   }
 
