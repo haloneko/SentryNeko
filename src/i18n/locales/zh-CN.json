@@ -181,12 +181,17 @@
     }
   },
   "dueDate": {
-    "clear": "清除日期",
+    "clear": "清除",
     "close": "关闭",
     "day": "日",
     "done": "完成",
-    "label": "选择截止日期",
+    "hour": "时",
+    "invalid": "请输入有效的日期或时间",
+    "minute": "分",
     "month": "月",
+    "now": "现在",
+    "open": "打开选择器",
+    "scrollHint": "滚动调整",
     "today": "今天",
     "tomorrow": "明天",
     "year": "年"

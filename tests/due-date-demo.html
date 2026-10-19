@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DateTimeField · time demo</title>
+    <style>
+      body {
+        margin: 0;
+      }
+
+      .demo-shell {
+        display: grid;
+        gap: 20px;
+        max-width: 680px;
+        margin-inline: auto;
+        padding: 48px 24px 80px;
+      }
+
+      .demo-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .demo-head h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+
+      .demo-head p {
+        margin: 4px 0 0;
+        color: var(--text-muted);
+        font-size: 12.5px;
+        line-height: 1.6;
+      }
+
+      .demo-head code {
+        padding: 1px 5px;
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        background: var(--surface-hover);
+        font-family: ui-monospace, "Cascadia Code", monospace;
+        font-size: 11.5px;
+      }
+
+      .demo-switches {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .demo-switches a {
+        padding: 4px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        color: var(--text-muted);
+        font-size: 12px;
+        text-decoration: none;
+      }
+
+      .demo-switches a[aria-current="true"] {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        color: var(--accent-text);
+      }
+
+      .demo-card {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--surface);
+      }
+
+      .demo-card h2 {
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      /* Two fields of one window sit side by side, and stack when the column gets narrow. */
+      .demo-fields {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+      }
+
+      .demo-note {
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .demo-value {
+        margin: 0;
+        color: var(--text-muted);
+        font-family: ui-monospace, "Cascadia Code", monospace;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/tests/due-date-demo.tsx"></script>
+  </body>
+</html>

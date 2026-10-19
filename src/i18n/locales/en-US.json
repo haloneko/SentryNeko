@@ -181,12 +181,17 @@
     }
   },
   "dueDate": {
-    "clear": "Clear date",
+    "clear": "Clear",
     "close": "Close",
     "day": "Day",
     "done": "Done",
-    "label": "Pick a due date",
+    "hour": "Hour",
+    "invalid": "Enter a valid date or time",
+    "minute": "Minute",
     "month": "Month",
+    "now": "Now",
+    "open": "Open picker",
+    "scrollHint": "Scroll to adjust",
     "today": "Today",
     "tomorrow": "Tomorrow",
     "year": "Year"

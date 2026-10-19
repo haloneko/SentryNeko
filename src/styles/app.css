@@ -536,15 +536,94 @@ p {
  * would be the one surface on the page that does not belong to the app.
  */
 
-.due-date {
+.date-time-field {
   position: relative;
 }
 
-.due-date > .due-date-panel {
+.date-time-field > .due-date-panel {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   z-index: 40;
+}
+
+/* The field is one control: the box and its button share the outline, and the focus ring wraps both. */
+.date-time-row {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.date-time-row:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.date-time-field[data-invalid="true"] .date-time-row {
+  border-color: #e5534b;
+  box-shadow: 0 0 0 3px rgb(229 83 75 / 14%);
+}
+
+.date-time-input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding-inline: 11px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.date-time-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.date-time-trigger {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 34px;
+  border: 0;
+  border-inline-start: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.date-time-trigger:hover,
+.date-time-trigger[aria-expanded="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.date-time-trigger svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.date-time-error {
+  margin: 0;
+  color: #e5534b;
+  font-size: 11px;
 }
 
 .due-date-panel {
@@ -642,6 +721,16 @@ p {
   display: grid;
   grid-template-columns: 1fr 1.4fr 0.8fr;
   gap: 10px;
+}
+
+/* The time row is the second line of the same sentence: an hour, then a minute. */
+.due-date-time {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.due-date-grid--time {
+  grid-template-columns: 1fr 1fr;
 }
 
 /* The label sits on the outline, the way an outlined field reads in the rest of the app. */
