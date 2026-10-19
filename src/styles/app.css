@@ -196,6 +196,22 @@ p {
   line-height: 1.45;
 }
 
+
+.brand-version {
+  align-self: flex-end;
+  margin-inline-start: auto;
+  padding-block-end: 1px;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.app-shell[data-collapsed="true"] .brand-version {
+  display: none;
+}
+
 /*
  * Labels are clipped, never re-wrapped: the rail animates its width, and `nowrap` plus hidden
  * overflow turns that into a wipe. Text keeps its line box, so rows never change height and the

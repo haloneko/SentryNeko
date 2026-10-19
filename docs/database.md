@@ -76,11 +76,15 @@ Rules:
   field falls back to its default.
 - A missing, `null` or blank `language` triggers system-locale detection and an immediate
   attempt to save the supported tag (or `en-US` if detection fails or is unsupported).
-  For an existing file, only `language` is patched: relative paths, unknown keys and other
-  stored values are preserved, and absent fields remain absent. If saving fails, startup
-  continues with the resolved language in memory and retries detection on the next launch.
-  Creating a new configuration still requires a successful write. A saved choice takes
-  precedence on subsequent launches; settings can override it.
+  For an existing file, only the fields it lacks are patched: relative paths, unknown keys and
+  other stored values are preserved. If saving fails, startup continues with the resolved
+  language in memory and retries detection on the next launch. Creating a new configuration
+  still requires a successful write. A saved choice takes precedence on subsequent launches;
+  settings can override it.
+- The version the interface shows is not stored here at all: it is compiled into the binary and
+  answered by `get_version`. The file only holds what has to be known before the database opens.
+  Patching a field leaves the rest of the document in place, keeping relative paths and keys this
+  build does not recognise.
 - An unknown `language` tag falls back to `Language::DEFAULT` and leaves the file as it is.
 - An unknown `colorMode` falls back to `ColorMode::DEFAULT` (`system`) the same way.
 - A file that does not parse is reported as `IO` with the parser message in `details` and is
@@ -206,8 +210,8 @@ leaves both sides — the rate follows the list the user sees.
 ## Schema creation
 
 `ensure` runs the script in a transaction on every start: a missing table or index is created, an
-existing one is left alone. Nothing is versioned, because the app has not shipped — a schema
-change is a local rebuild rather than a migration.
+existing one is left alone, and running it again changes nothing. Nothing is versioned, because the
+app has not shipped — a schema change is a local rebuild rather than a migration.
 
 ## Repository helpers
 

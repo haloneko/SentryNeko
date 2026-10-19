@@ -87,7 +87,9 @@ Every command the frontend may call is listed here. The language pair is the int
 `src/i18n/`: `get_language` answers with the tag stored in `config.json`, and `set_language`
 rejects anything outside `Language::ALL` with `INVALID_INPUT`. The appearance pair does the same
 for `dark`, `light` and `system`: `get_color_mode` reads the stored choice and `set_color_mode`
-rejects anything else with `INVALID_INPUT`. `emit_test_event` is the
+rejects anything else with `INVALID_INPUT`. `get_version` answers the binary's own version,
+compiled in from `Cargo.toml`, and reads nothing else to produce it; the frontend only displays
+it. `emit_test_event` is the
 diagnostic behind the event bus probe; the push it triggers is defined in `docs/events.md`.
 The todo group is the list itself: `list_todos` filters by completion, every mutation answers
 with the stored row, `todo_counts` feeds the remaining counter, and `completion_rate` answers how
@@ -150,6 +152,7 @@ answering with what is now in force. A registry that refuses the write is `PERMI
 | `set_language` | `settings_commands` | `language: String` | `String` (tag in force) | T07 |
 | `get_color_mode` | `settings_commands` | — | `String` (`dark`, `light` or `system`) | — |
 | `set_color_mode` | `settings_commands` | `mode: String` | `String` (mode in force) | — |
+| `get_version` | `settings_commands` | — | `String` (the build's own version) | — |
 | `emit_test_event` | `event_commands` | — | `TestEvent` (`{ sequence }`) | T08 |
 | `list_todos` | `todo_commands` | `completed: bool?` | `Todo[]` | T10 |
 | `add_todo` | `todo_commands` | `title: String`, `start_at: i64?`, `end_at: i64?` | `Todo` | T10 |
