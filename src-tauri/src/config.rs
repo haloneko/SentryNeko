@@ -107,6 +107,25 @@ impl Config {
         Ok(self.snapshot()?.database_path)
     }
 
+    /// Records `path` as the database file the application opens.
+    ///
+    /// Called once a database of another version has been carried into this build's file, so the
+    /// next start finds a name that matches and opens it directly instead of carrying it again.
+    pub fn set_database_path(&self, path: &Path) -> ApiResult<()> {
+        let mut current = self.current.write().map_err(|_| lock_error("write"))?;
+
+        if current.database_path != path {
+            let updated = AppConfig {
+                database_path: path.to_owned(),
+                ..current.clone()
+            };
+            self.persist(&updated)?;
+            *current = updated;
+        }
+
+        Ok(())
+    }
+
     /// Language in force.
     pub fn language(&self) -> ApiResult<Language> {
         Ok(self.snapshot()?.language)

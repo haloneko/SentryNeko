@@ -13,12 +13,12 @@ use tauri::{Manager, RunEvent};
 
 use crate::collectors::foreground_app::RunningCollector;
 use crate::commands::{
-    alarm_commands, app_event_commands, event_commands, heatmap_commands, notification_commands,
-    pomodoro_commands, settings_commands, system_commands, tag_commands, todo_commands,
+    alarm_commands, app_event_commands, event_commands, heatmap_commands, migration_commands,
+    notification_commands, pomodoro_commands, settings_commands, system_commands, tag_commands,
+    todo_commands,
 };
 use crate::config::Config;
-use crate::db::connection::Db;
-use crate::db::schema;
+use crate::db::upgrade;
 use crate::services::autostart::{self, Autostart, WindowsRunKey};
 use crate::services::event_bus::EventBus;
 use crate::services::scheduler::RunningScheduler;
@@ -35,32 +35,48 @@ pub fn run() {
         .setup(|app| {
             let directory = app.path().app_data_dir()?;
             let config = Config::open(&directory)?;
-            let db = Db::open(config.database_path()?)?;
-            schema::ensure(&db)?;
-            app.manage(config.clone());
-            app.manage(db.clone());
-            let bus = EventBus::new(app.handle().clone());
-            app.manage(bus.clone());
-            app.manage(RunningCollector::spawn(db.clone(), bus.clone())?);
-            app.manage(RunningScheduler::spawn(
-                db.clone(),
-                bus.clone(),
-                config.clone(),
-                app.handle().clone(),
-            )?);
-            app.manage(tray::Tray::install(app.handle(), db, config, bus)?);
-            app.manage(Autostart::new(WindowsRunKey));
+            // The database file's name carries the version that wrote it. A file named for this
+            // build is opened as it stands; any other name is carried into this build's file first,
+            // and only a copy that committed in full moves the configuration — a failed one leaves
+            // the previous build's file on record and starts nothing that reads a database.
+            let migration = match upgrade::open(&config)? {
+                upgrade::Opened::Current(db) => {
+                    app.manage(db.clone());
+                    let bus = EventBus::new(app.handle().clone());
+                    app.manage(bus.clone());
+                    app.manage(RunningCollector::spawn(db.clone(), bus.clone())?);
+                    app.manage(RunningScheduler::spawn(
+                        db.clone(),
+                        bus.clone(),
+                        config.clone(),
+                        app.handle().clone(),
+                    )?);
+                    app.manage(tray::Tray::install(app.handle(), db, config.clone(), bus)?);
+                    app.manage(Autostart::new(WindowsRunKey));
 
-            // The window is the face of a resident app: closing it parks it in the tray instead of
-            // ending the process, so the tracking and the alarms keep running.
-            if let Some(window) = app.get_webview_window(tray::WINDOW_LABEL) {
-                tray::hide_on_close(&window);
-            }
+                    // The window is the face of a resident app: closing it parks it in the tray
+                    // instead of ending the process, so the tracking and the alarms keep running.
+                    if let Some(window) = app.get_webview_window(tray::WINDOW_LABEL) {
+                        tray::hide_on_close(&window);
+                    }
 
-            // A login start stays in the tray: nobody asked for a window at that moment.
-            if autostart::launched_at_login() {
-                tray::hide_window(app.handle());
-            }
+                    // A login start stays in the tray: nobody asked for a window at that moment.
+                    if autostart::launched_at_login() {
+                        tray::hide_window(app.handle());
+                    }
+
+                    upgrade::Migration::current()
+                }
+                upgrade::Opened::Stranded(stranded) => {
+                    // No database means nothing that reads one is started, and no tray to park a
+                    // window in: closing the window ends the process, which is the only way
+                    // forward. The window opens on the rollback the interface offers.
+                    upgrade::Migration::stranded(stranded)
+                }
+            };
+
+            app.manage(config);
+            app.manage(migration);
 
             Ok(())
         })
@@ -70,6 +86,8 @@ pub fn run() {
             settings_commands::get_color_mode,
             settings_commands::set_color_mode,
             settings_commands::get_version,
+            migration_commands::get_stranded,
+            migration_commands::roll_back,
             event_commands::emit_test_event,
             todo_commands::list_todos,
             todo_commands::add_todo,
