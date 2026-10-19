@@ -21,7 +21,7 @@ Status legend: `[ ]` not started　`[~]` in progress　`[x]` done　`[!]` blocke
 | --- | --- | --- | --- |
 | **M0** Runnable foundation | A shell that proves frontend ↔ Tauri command ↔ SQLite works end to end | T01–T09 | After `pnpm tauri dev`, one test record can be written and read, and the language can be switched |
 | **M1** Usable MVP | Todo + Pomodoro + foreground collection form a closed loop | T10–T16 | One full day of usage recorded, Pomodoro completion notifies, data persisted |
-| **M2** Analytics & system integration | Data visualization plus always-on background service | T17–T26, T34 | Heatmap / trends / ranking available, tray resident and auto-start on boot |
+| **M2** Analytics & system integration | Data visualization plus always-on background service | T17–T26 | Heatmap / trends / ranking available, tray resident and auto-start on boot |
 | **M3** Reserved extensions | Social, sharing, extra languages | T27–T32 | Started on demand, never blocking M1/M2 |
 
 ## P0 Foundation (blocking)
@@ -65,7 +65,6 @@ Status legend: `[ ]` not started　`[~]` in progress　`[x]` done　`[!]` blocke
 | [x] | T25 | System tray: stay resident when minimized + context menu + single instance | T02, T11 | Menu offers start Pomodoro, today's stats, show/hide window; closing the main window does not quit the app; launching again focuses or restores the existing window without another resident process or tray icon |
 | [x] | T26 | Auto-start with Windows (registry / Task Scheduler) | T25 | A settings switch writes `HKCU\...\Run` for the running executable; switching it on twice leaves one entry, switching it off removes it, and a login start waits in the tray |
 | [x] | T34 | Reusable numeric input with wheel adjustment (#36) | T16, T18 | Validated typing, wheel / keyboard / arrow stepping, configurable min / max / step, and both themes; reused for Pomodoro and alarm durations |
-| [x] | T38 | Sidebar panel settings (#38) | T09, T16 | Visibility toggles and up/down controls apply immediately; layout survives restarts; defaults show every panel; Settings stays reachable |
 
 ## P3 Reserved (stubs only, not implemented)
 

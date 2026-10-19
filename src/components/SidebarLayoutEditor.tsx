@@ -5,6 +5,7 @@ import { useI18n } from "../hooks/useI18n";
 import { useSidebarLayoutStore } from "../stores/sidebarLayoutStore";
 import { SIDEBAR_PANELS } from "../types/sidebar";
 import type { SidebarPanelId } from "../types/sidebar";
+import { ActionIcon } from "./ui/ActionIcon";
 import { NavIcon } from "./ui/NavIcon";
 
 interface Gesture {
@@ -58,6 +59,8 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
     const previous = document.activeElement;
     const overflow = document.body.style.overflow;
     element?.showModal();
+    // The first grip, not the header actions: opening the window must not arm "restore defaults".
+    element?.querySelector<HTMLElement>(".sidebar-drag-handle")?.focus();
     document.body.style.overflow = "hidden";
     return () => {
       window.clearTimeout(closeTimer.current);
@@ -146,8 +149,24 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
         event.clientY < bounds.top || event.clientY > bounds.bottom)) close();
     }}>
     <header className="sidebar-editor-header">
-      <h2 id="sidebar-editor-title">{t("sidebar.edit")}</h2>
-      <p className="settings-hint" id="sidebar-editor-hint">{t("sidebar.editorHint")}</p>
+      <div className="sidebar-editor-lead">
+        <h2 id="sidebar-editor-title">{t("sidebar.edit")}</h2>
+        <p className="settings-hint" id="sidebar-editor-hint">{t("sidebar.editorHint")}</p>
+      </div>
+      <div className="sidebar-editor-actions">
+        <button aria-label={t("sidebar.reset")} className="icon-btn" onClick={reset}
+          title={t("sidebar.reset")} type="button">
+          <ActionIcon name="reset" />
+        </button>
+        <button aria-label={t("sidebar.close")} className="icon-btn" onClick={close}
+          title={t("sidebar.close")} type="button">
+          <ActionIcon name="cancel" />
+        </button>
+        <button aria-label={t("sidebar.done")} className="icon-btn" data-variant="primary" onClick={close}
+          title={t("sidebar.done")} type="button">
+          <ActionIcon name="check" />
+        </button>
+      </div>
     </header>
     <p className="sr-only" id="sidebar-keyboard-hint">{t("sidebar.keyboardHint")}</p>
     <ol aria-label={t("sidebar.title")} className="sidebar-editor-list">
@@ -175,9 +194,7 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
               const target = layout[targetIndex];
               if (target && target.id !== id) announceMove(id, target.id);
             }}>
-            <svg aria-hidden="true" viewBox="0 0 16 20">
-              {[5, 10, 15].flatMap((cy) => [5, 11].map((cx) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="1.2" />))}
-            </svg>
+            <ActionIcon name="grip" />
           </button>
           <span className="sidebar-editor-panel"><NavIcon name={id} /><span>{label}</span></span>
           <input role="switch" className="toggle" type="checkbox" checked={visible}
@@ -190,10 +207,6 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
     <footer className="sidebar-editor-footer">
       <p className="settings-hint">{t("sidebar.settingsAlwaysVisible")}</p>
       {persistenceError ? <p className="todo-error" role="alert">{t("sidebar.saveError")}</p> : null}
-      <div className="sidebar-editor-buttons">
-        <button className="btn btn-quiet" onClick={reset} type="button">{t("sidebar.reset")}</button>
-        <button className="btn" onClick={close} type="button">{t("sidebar.done")}</button>
-      </div>
     </footer>
   </dialog>, document.body);
 }

@@ -15,8 +15,9 @@ export function SidebarLayoutSettings() {
       <span className="layout-summary">{t("sidebar.summary", {
         visible: layout.filter((panel) => panel.visible).length, total: layout.length,
       })}</span>
-      <button className="btn" onClick={() => setEditing(true)} type="button">
-        <ActionIcon name="edit" />{t("sidebar.edit")}
+      <button aria-label={t("sidebar.edit")} className="icon-btn" onClick={() => setEditing(true)}
+        title={t("sidebar.edit")} type="button">
+        <ActionIcon name="edit" />
       </button>
     </div>
     {persistenceError ? <p className="todo-error" role="alert">{t("sidebar.saveError")}</p> : null}

@@ -25,6 +25,7 @@ test("sidebar editor drags with animation, persists hidden panels and restores f
   await expect(rows.first()).toContainText("Todos");
   await expect(page.locator(".nav a[href='#/todos']")).toHaveCount(0);
   await page.screenshot({ path: test.info().outputPath("sidebar-editor.png") });
+  await expect(editor.getByRole("button", { name: "Close", exact: true })).toBeVisible();
   await editor.getByRole("button", { name: "Done", exact: true }).click();
   await expect(editor).toHaveCount(0);
   await expect(edit).toBeFocused();

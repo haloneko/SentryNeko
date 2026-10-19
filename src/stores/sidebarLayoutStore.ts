@@ -10,7 +10,6 @@ interface SidebarLayoutState {
   layout: SidebarLayout;
   persistenceError: boolean;
   setVisible: (id: SidebarPanelId, visible: boolean) => void;
-  move: (id: SidebarPanelId, direction: -1 | 1) => void;
   reset: () => void;
   reorder: (id: SidebarPanelId, target: SidebarPanelId) => void;
 }
@@ -44,21 +43,6 @@ export const useSidebarLayoutStore = create<SidebarLayoutState>((set, get) => {
     persistenceError: false,
     setVisible: (id, visible) => {
       save(get().layout.map((panel) => (panel.id === id ? { ...panel, visible } : panel)));
-    },
-    move: (id, direction) => {
-      const layout = [...get().layout];
-      const index = layout.findIndex((panel) => panel.id === id);
-      const target = index + direction;
-      const panel = layout[index];
-      const neighbor = layout[target];
-
-      if (!panel || !neighbor) {
-        return;
-      }
-
-      layout[index] = neighbor;
-      layout[target] = panel;
-      save(layout);
     },
     reset: () => save(defaultSidebarLayout()),
     reorder: (id, target) => save(reorderSidebarLayout(get().layout, id, target)),

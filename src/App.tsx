@@ -248,15 +248,19 @@ function Shell() {
               className="sidebar-toggle"
               onClick={toggleSidebar}
               onBlur={hideTooltip}
-              onFocus={(event) => showTooltip(t("nav.expand"), event.currentTarget)}
-              onMouseEnter={(event) => showTooltip(t("nav.expand"), event.currentTarget)}
+              onFocus={(event) =>
+                showTooltip(t(collapsed ? "nav.expand" : "nav.collapse"), event.currentTarget)
+              }
+              onMouseEnter={(event) =>
+                showTooltip(t(collapsed ? "nav.expand" : "nav.collapse"), event.currentTarget)
+              }
               onMouseLeave={hideTooltip}
+              title={t(collapsed ? "nav.expand" : "nav.collapse")}
               type="button"
             >
               <svg aria-hidden="true" className="nav-icon" viewBox="0 0 24 24">
                 <path d={collapsed ? "M10 6l6 6-6 6" : "M14 6l-6 6 6 6"} />
               </svg>
-              <span className="sidebar-toggle-label">{t("nav.collapse")}</span>
             </button>
           </div>
         )}

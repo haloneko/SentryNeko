@@ -5,20 +5,13 @@
 
 import type { ReactNode } from "react";
 
-export type ActionIconName =
-  | "cancel"
-  | "check"
-  | "down"
-  | "edit"
-  | "plus"
-  | "remove"
-  | "reset"
-  | "undo"
-  | "up";
+export type ActionIconName = "cancel" | "check" | "edit" | "grip" | "plus" | "remove" | "reset" | "undo";
 
 const DRAWINGS: Record<ActionIconName, ReactNode> = {
-  up: <path d="m6 15 6-6 6 6" />,
-  down: <path d="m6 9 6 6 6-6" />,
+  // Two columns of dots: the row itself is what moves, and the dots are filled rather than stroked.
+  grip: [5.9, 12, 18.1].flatMap((cy) => [8.6, 15.4].map((cx) => (
+    <circle cx={cx} cy={cy} fill="currentColor" key={`${cx}-${cy}`} r="1.9" stroke="none" />
+  ))),
   // Pencil over a corner: the button opens an editor.
   edit: (
     <>
