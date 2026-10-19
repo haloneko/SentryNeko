@@ -180,8 +180,8 @@ test("settings persist bounded Pomodoro minutes and alarm seconds", async ({ pag
   await expect(focus).toHaveValue("240");
   await expect(alarm).toHaveValue("60");
   await expect.poll(() => page.evaluate(() => window.numericInputSaves)).toEqual(expect.arrayContaining([
-    { command: "set_pomodoro_durations", value: { focusSeconds: 14400, shortBreakSeconds: 300, longBreakSeconds: 900 } },
-    { command: "set_alarm_defaults", value: { method: "toast", ringSeconds: 60 } },
+    { command: "pomodoro.durations", value: { focusSeconds: 14400, shortBreakSeconds: 300, longBreakSeconds: 900 } },
+    { command: "alarm.defaults", value: { method: "toast", ringSeconds: 60 } },
   ]));
 });
 
@@ -193,8 +193,8 @@ test("settings arrows use the translated field names", async ({ page }) => {
 });
 
 for (const setting of [
-  { label: "Focus (minutes)", command: "set_pomodoro_durations" },
-  { label: "Ring duration (seconds)", command: "set_alarm_defaults" },
+  { label: "Focus (minutes)", command: "pomodoro.durations" },
+  { label: "Ring duration (seconds)", command: "alarm.defaults" },
 ]) {
   test(`${setting.label} saves on blur before the settings form unmounts`, async ({ page }) => {
     await page.goto(`${fixture}?settings`);
@@ -204,7 +204,7 @@ for (const setting of [
     await page.getByRole("button", { name: "Unmount settings" }).click();
     await expect(page.getByRole("spinbutton")).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => window.numericInputSaves)).toEqual([
-      { command: setting.command, value: setting.command === "set_pomodoro_durations"
+      { command: setting.command, value: setting.command === "pomodoro.durations"
         ? { focusSeconds: 1620, shortBreakSeconds: 300, longBreakSeconds: 900 }
         : { method: "toast", ringSeconds: 27 } },
     ]);

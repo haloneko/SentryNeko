@@ -24,17 +24,20 @@ void i18n.changeLanguage(params.get("language") ?? "en-US");
 window.numericInputSaves = [];
 Object.defineProperty(window, "isTauri", { value: true });
 let defaults: AlarmDefaults = { method: "toast", ringSeconds: 10 };
+let durations: PomodoroDurations = { focusSeconds: 1500, shortBreakSeconds: 300, longBreakSeconds: 900 };
 mockIPC((command, args) => {
   let data: unknown = null;
-  if (command === "get_alarm_defaults") {
-    data = defaults;
-  } else if (command === "set_alarm_defaults") {
-    defaults = (args as { defaults: AlarmDefaults }).defaults;
-    data = defaults;
-    window.numericInputSaves.push({ command, value: data });
-  } else if (command === "set_pomodoro_durations") {
-    data = (args as { durations: PomodoroDurations }).durations;
-    window.numericInputSaves.push({ command, value: data });
+  if (command === "get_setting") {
+    const { key } = args as { key: string };
+    const stored = key === "alarm.defaults" ? defaults : key === "pomodoro.durations" ? durations : null;
+    data = stored === null ? null : { key, value: JSON.stringify(stored), category: "", updatedAt: 0 };
+  } else if (command === "set_setting") {
+    const { key, value } = args as { key: string; value: string };
+    const parsed: unknown = JSON.parse(value);
+    if (key === "alarm.defaults") defaults = parsed as AlarmDefaults;
+    if (key === "pomodoro.durations") durations = parsed as PomodoroDurations;
+    data = { key, value, category: "", updatedAt: 0 };
+    window.numericInputSaves.push({ command: key, value: parsed });
   }
   return { code: "OK", data, details: null, message: "OK" };
 });
