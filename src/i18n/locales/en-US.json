@@ -180,6 +180,17 @@
       "usage": "Apps"
     }
   },
+  "dueDate": {
+    "clear": "Clear date",
+    "close": "Close",
+    "day": "Day",
+    "done": "Done",
+    "label": "Pick a due date",
+    "month": "Month",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "year": "Year"
+  },
   "events": {
     "error": "The event stream could not be loaded.",
     "loading": "Loading…",
@@ -309,6 +320,10 @@
   "todo": {
     "add": "Add",
     "delete": "Delete task",
+    "due": {
+      "add": "Due date",
+      "edit": "Set due date"
+    },
     "edit": "Edit task",
     "empty": "No tasks here.",
     "error": "The list could not be loaded.",

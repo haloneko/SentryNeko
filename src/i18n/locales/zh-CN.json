@@ -180,6 +180,17 @@
       "usage": "应用"
     }
   },
+  "dueDate": {
+    "clear": "清除日期",
+    "close": "关闭",
+    "day": "日",
+    "done": "完成",
+    "label": "选择截止日期",
+    "month": "月",
+    "today": "今天",
+    "tomorrow": "明天",
+    "year": "年"
+  },
   "events": {
     "error": "事件流加载失败。",
     "loading": "加载中…",
@@ -309,6 +320,10 @@
   "todo": {
     "add": "添加",
     "delete": "删除任务",
+    "due": {
+      "add": "截止日期",
+      "edit": "设置截止日期"
+    },
     "edit": "编辑任务",
     "empty": "这里还没有任务。",
     "error": "列表加载失败。",
