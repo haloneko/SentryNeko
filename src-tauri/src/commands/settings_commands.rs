@@ -14,6 +14,7 @@ use crate::services::i18n::Language;
 use crate::services::theme::ColorMode;
 use crate::services::tray::Tray;
 use crate::utils::response::{ApiError, ApiResponse, ApiResult};
+use crate::version::PROGRAM_VERSION;
 
 /// Reads one stored setting by key, `null` when nothing is filed under it.
 #[tauri::command]
@@ -148,6 +149,15 @@ fn write_color_mode(config: &Config, code: &str) -> ApiResult<ColorMode> {
     config.set_color_mode(mode)?;
 
     Ok(mode)
+}
+
+/// Answers the version of this build, for the interface to display.
+///
+/// The number is compiled into the binary, so nothing is read from the configuration or the
+/// database to produce it.
+#[tauri::command]
+pub fn get_version() -> ApiResponse<String> {
+    ApiResponse::ok(PROGRAM_VERSION.to_owned())
 }
 
 fn known_modes() -> String {

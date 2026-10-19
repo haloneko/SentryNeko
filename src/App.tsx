@@ -29,6 +29,7 @@ import { TodosPage } from "./pages/Todos";
 import { useAppEventStore } from "./stores/appEventStore";
 import { usePomodoroStore } from "./stores/pomodoroStore";
 import { useSidebarLayoutStore } from "./stores/sidebarLayoutStore";
+import { useVersionStore, versionLabel } from "./stores/versionStore";
 import type { AppEvent } from "./types/appEvent";
 import { SIDEBAR_PANELS, SIDEBAR_PANEL_IDS } from "./types/sidebar";
 
@@ -107,6 +108,7 @@ function Shell() {
   const [narrow, setNarrow] = useState(isNarrowWindow);
   const collapsed = preferredCollapsed || narrow;
   const [tooltip, setTooltip] = useState<NavTooltip | null>(null);
+  const version = useVersionStore((state) => state.version);
 
   usePageZoom(contentRef);
 
@@ -211,6 +213,7 @@ function Shell() {
           <span className="brand-mark">
             <span aria-hidden="true" className="brand-dot" />
             <span className="brand-name">{t("app.name")}</span>
+            <span className="brand-version">{versionLabel(version)}</span>
           </span>
           <p className="brand-tagline">{t("app.tagline")}</p>
         </div>

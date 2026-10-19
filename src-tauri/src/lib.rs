@@ -7,6 +7,7 @@ pub mod db;
 pub mod models;
 pub mod services;
 pub mod utils;
+pub mod version;
 
 use tauri::{Manager, RunEvent};
 
@@ -68,6 +69,7 @@ pub fn run() {
             settings_commands::set_language,
             settings_commands::get_color_mode,
             settings_commands::set_color_mode,
+            settings_commands::get_version,
             event_commands::emit_test_event,
             todo_commands::list_todos,
             todo_commands::add_todo,
