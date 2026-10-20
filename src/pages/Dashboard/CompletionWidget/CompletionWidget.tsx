@@ -1,38 +1,35 @@
-/** Completion panel: how much of today's list is done. */
+/** Completion panel: how many tasks were finished today. */
 
-import { useCompletionRate } from "../../../hooks/useCompletionRate";
+import { useEffect } from "react";
+
 import { useI18n } from "../../../hooks/useI18n";
+import { useTodos } from "../../../hooks/useTodos";
 
-/** The share of today's tasks that are finished. */
+/** Today's finished count, with the lifetime count as its note. */
 export function CompletionWidget() {
   const { t } = useI18n();
-  const { completion, error, loading } = useCompletionRate("today");
+  const { completions, completionsError, completionsLoading, refreshCompletions } = useTodos();
 
-  const percent =
-    completion.total === 0 ? 0 : Math.round((completion.completed / completion.total) * 100);
+  useEffect(() => {
+    void refreshCompletions();
+  }, [refreshCompletions]);
 
   return (
     <section className="dash-panel">
-      <p className="dash-kicker">{t("dashboard.rate.title")}</p>
-      {loading ? <p className="dash-muted">{t("dashboard.loading")}</p> : null}
-      {error !== null ? <p className="error">{t("dashboard.error")}</p> : null}
-      {!loading && error === null ? (
-        completion.total === 0 ? (
-          <p className="dash-muted">{t("dashboard.rate.empty")}</p>
-        ) : (
-          <>
-            <p className="dash-rate">{t("dashboard.rate.value", { percent })}</p>
-            <p className="dash-note">
-              {t("dashboard.rate.counts", {
-                completed: completion.completed,
-                total: completion.total,
-              })}
-            </p>
-            <span aria-hidden="true" className="meter">
-              <span style={{ width: `${percent}%` }} />
-            </span>
-          </>
-        )
+      <p className="dash-kicker">{t("dashboard.done.title")}</p>
+      {completionsLoading ? <p className="dash-muted">{t("dashboard.loading")}</p> : null}
+      {completionsError !== null ? <p className="error">{t("dashboard.error")}</p> : null}
+      {!completionsLoading && completionsError === null ? (
+        <>
+          <p className="dash-count">
+            {completions.today}
+            <span className="dash-unit">{t("dashboard.done.unit")}</span>
+          </p>
+          <p className="dash-note">{t("dashboard.done.total", { count: completions.all })}</p>
+          {completions.today === 0 ? (
+            <p className="dash-muted">{t("dashboard.done.empty")}</p>
+          ) : null}
+        </>
       ) : null}
     </section>
   );

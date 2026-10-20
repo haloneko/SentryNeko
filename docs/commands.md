@@ -96,8 +96,8 @@ whose file the configuration still names. Both are described in `docs/database.m
 `emit_test_event` is the
 diagnostic behind the event bus probe; the push it triggers is defined in `docs/events.md`.
 The todo group is the list itself: `list_todos` filters by completion, every mutation answers
-with the stored row, `todo_counts` feeds the remaining counter, and `completion_rate` answers how
-many tasks of the `all` or `today` scope are done — the counting rules live in
+with the stored row, `todo_counts` feeds the remaining counter, and `todo_completions` answers how
+many tasks were finished today and in total — the counting rules live in
 `docs/database.md`. The tag group is reserved —
 no page calls it yet: it maintains the name index, links tags to a task through `set_todo_tags`,
 and reads the relation from either side (`todo_tags` for one task, `todos_with_tag` for one tag).
@@ -168,7 +168,7 @@ answering with what is now in force. A registry that refuses the write is `PERMI
 | `set_todo_completed` | `todo_commands` | `id: i64`, `completed: bool` | `Todo` | T10 |
 | `delete_todo` | `todo_commands` | `id: i64` | — | T10 |
 | `todo_counts` | `todo_commands` | — | `TodoCounts` (`{ total, remaining, completed }`) | T10 |
-| `completion_rate` | `todo_commands` | `scope: "all" \| "today"` | `TaskCompletion` (`{ total, completed }`) | T22 |
+| `todo_completions` | `todo_commands` | — | `TodoCompletions` (`{ today, all }`) | T36 |
 | `list_tags` | `tag_commands` | — | `Tag[]` | T33 |
 | `add_tag` | `tag_commands` | `name: String` | `Tag` | T33 |
 | `rename_tag` | `tag_commands` | `id: i64`, `name: String` | `Tag` | T33 |

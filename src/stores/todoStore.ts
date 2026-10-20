@@ -5,17 +5,24 @@ import { create } from "zustand";
 
 import { isOk } from "../types";
 import type { ApiCode, ApiResponse } from "../types";
-import type { Todo, TodoCounts, TodoFilter } from "../types/todo";
+import type { Todo, TodoCompletions, TodoCounts, TodoFilter } from "../types/todo";
 
 export interface TodoState {
   todos: readonly Todo[];
   counts: TodoCounts;
+  /** Finished tasks of today and of all time; the page head and the dashboard read these. */
+  completions: TodoCompletions;
+  completionsLoading: boolean;
+  /** Code of the failed `todo_completions` call, `null` while everything is fine. */
+  completionsError: ApiCode | null;
   filter: TodoFilter;
   loading: boolean;
   /** Code of the last failed call, `null` while everything is fine. */
   error: ApiCode | null;
   setFilter: (filter: TodoFilter) => void;
   refresh: () => Promise<void>;
+  /** Reloads the finished counts alone, for the panels that show nothing else. */
+  refreshCompletions: () => Promise<void>;
   add: (title: string, startAt: number | null, endAt: number | null) => Promise<boolean>;
   rename: (id: number, title: string) => Promise<boolean>;
   /** Sets or clears when a task starts; the stored row replaces the one on the page. */
@@ -29,6 +36,8 @@ export interface TodoState {
 }
 
 const EMPTY_COUNTS: TodoCounts = { total: 0, remaining: 0, completed: 0 };
+
+const EMPTY_COMPLETIONS: TodoCompletions = { all: 0, today: 0 };
 
 /** Maps the UI filter to the `completed` argument the command takes. */
 function completionArgument(filter: TodoFilter): boolean | null {
@@ -84,6 +93,9 @@ function recounted(counts: TodoCounts, before: Todo | null, after: Todo | null):
 export const useTodoStore = create<TodoState>((set, get) => ({
   todos: [],
   counts: EMPTY_COUNTS,
+  completions: EMPTY_COMPLETIONS,
+  completionsLoading: false,
+  completionsError: null,
   filter: "all",
   loading: false,
   error: null,
@@ -114,7 +126,31 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       return;
     }
 
-    set({ todos: list.data, counts: counts.data, loading: false });
+    const completions = await request<TodoCompletions>("todo_completions");
+
+    if (!isOk(completions)) {
+      set({ loading: false, error: completions.code });
+      return;
+    }
+
+    set({
+      todos: list.data,
+      counts: counts.data,
+      completions: completions.data,
+      loading: false,
+    });
+  },
+
+  refreshCompletions: async () => {
+    set({ completionsError: null, completionsLoading: true });
+
+    const response = await request<TodoCompletions>("todo_completions");
+
+    set(
+      isOk(response)
+        ? { completions: response.data, completionsError: null, completionsLoading: false }
+        : { completionsError: response.code, completionsLoading: false },
+    );
   },
 
   add: async (title, startAt, endAt) => {
@@ -240,6 +276,9 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       counts: recounted(state.counts, todo, moved),
     }));
 
+    // Which day the task now counts towards is the backend's answer, not the page's guess.
+    void get().refreshCompletions();
+
     return true;
   },
 
@@ -258,6 +297,8 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       todos: state.todos.filter((todo) => todo.id !== id),
       counts: recounted(state.counts, state.todos.find((todo) => todo.id === id) ?? null, null),
     }));
+
+    void get().refreshCompletions();
 
     return true;
   },

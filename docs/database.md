@@ -181,10 +181,11 @@ The heatmap (`models/heatmap.rs`) rolls `pomodoro_sessions` and `todos` up into 
   and clears it when the task is reopened, so renaming a finished task never moves it to another
   day.
 
-The completion rate (`models/todo.rs`) reads `todos` from two angles: `all` counts every stored
-task, `today` only those whose `created_at` falls after local midnight. The numerator is the tasks
-of that scope with `completed` set, so reopening a task moves the rate back, and a deleted task
-leaves both sides — the rate follows the list the user sees.
+The finished counts (`models/todo.rs`) read `todos` by `completed_at`: `today` counts the finished
+tasks whose stamp falls after local midnight, `all` counts every finished task. A task is a plan for
+later, so a ratio says nothing about the day; a count does. A row finished before the stamp existed
+has no day of its own and shows up in the total only. Reopening a task clears the stamp, and
+deleting it removes the row — either way both counts follow.
 
 `alarms` is maintained by `commands/alarm_commands.rs` and read by `services/scheduler.rs`:
 

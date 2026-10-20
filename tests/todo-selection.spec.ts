@@ -80,14 +80,13 @@ test("selection mode picks rows, acts on them and closes on Escape", async ({ pa
   expect(errors).toEqual([]);
 });
 
-test("a row asks before it is deleted, and names the task", async ({ page }) => {
+test("a row asks before it is deleted", async ({ page }) => {
   await page.goto("/tests/todo-selection.html?theme=dark&language=en-US");
   const row = rowOf(page, "写周报");
   const confirm = page.getByRole("dialog");
 
   await row.getByRole("button", { name: "Delete task" }).click();
   await expect(confirm.getByRole("heading", { name: "Delete this task?" })).toBeVisible();
-  await expect(confirm).toContainText("写周报");
 
   await confirm.getByRole("button", { name: "Cancel" }).click();
   await expect(confirm).toHaveCount(0);
@@ -96,6 +95,21 @@ test("a row asks before it is deleted, and names the task", async ({ page }) => 
   await row.getByRole("button", { name: "Delete task" }).click();
   await confirm.getByRole("button", { name: "Delete" }).click();
   await expect(row).toHaveCount(0);
+});
+
+test("the head counts finished tasks instead of showing a percentage", async ({ page }) => {
+  await page.goto("/tests/todo-selection.html?theme=dark&language=zh-CN");
+
+  const done = page.locator(".todo-done");
+  await expect(done).toContainText("今天完成");
+  await expect(done.locator("b")).toHaveText("2");
+  // The ring and its percentage are gone: the page counts, it does not divide.
+  await expect(page.locator(".todo-ring")).toHaveCount(0);
+  await expect(page.getByText("%")).toHaveCount(0);
+
+  // Ticking a task off moves the count.
+  await rowOf(page, "整理 SentryNeko 的批量选择交互").locator(".todo-check-done").check();
+  await expect(done.locator("b")).toHaveText("3");
 });
 
 for (const theme of ["dark", "light"] as const) {

@@ -6,7 +6,7 @@ import { I18nProvider } from "../src/components/I18nProvider";
 import i18n from "../src/i18n";
 import { TodosPage } from "../src/pages/Todos/TodosPage";
 import { useI18nStore } from "../src/stores/i18nStore";
-import type { Todo, TodoCounts } from "../src/types/todo";
+import type { Todo, TodoCompletions, TodoCounts } from "../src/types/todo";
 import "../src/styles/app.css";
 
 const params = new URLSearchParams(window.location.search);
@@ -37,6 +37,13 @@ function counts(): TodoCounts {
   return { total: todos.length, remaining: todos.length - completed, completed };
 }
 
+/** The fixture has no completion stamps, so every finished task counts towards today too. */
+function completions(): TodoCompletions {
+  const finished = todos.filter((todo) => todo.completed).length;
+
+  return { all: finished, today: finished };
+}
+
 mockIPC((command, payload) => {
   const args = (payload ?? {}) as Record<string, unknown>;
   let data: unknown = null;
@@ -48,6 +55,8 @@ mockIPC((command, payload) => {
     data = typeof completed === "boolean" ? todos.filter((todo) => todo.completed === completed) : todos;
   } else if (command === "todo_counts") {
     data = counts();
+  } else if (command === "todo_completions") {
+    data = completions();
   } else if (command === "list_tags") {
     data = [
       { id: 1, name: "work", createdAt: now },
