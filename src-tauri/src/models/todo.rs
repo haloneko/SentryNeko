@@ -2,6 +2,7 @@
 
 use rusqlite::{params, Row};
 use serde::Serialize;
+use serde_json::{Map, Value};
 
 use crate::db::connection::Db;
 use crate::db::repository;
@@ -10,13 +11,17 @@ use crate::utils::{time, windows};
 
 /// Columns every query selects, in the order [`Todo::from_row`] reads them.
 const COLUMNS: &str =
-    "id, title, completed, created_at, updated_at, tag_ids, start_at, end_at, starred_at";
+    "id, title, completed, created_at, updated_at, tag_ids, start_at, end_at, starred_at, extra";
 
 /// Starred tasks first, the most recently starred on top; everything else keeps its old order.
 const ORDER: &str = "completed, starred_at IS NULL, starred_at DESC, id DESC";
 
+const MAX_EXTRA_BYTES: usize = 8 * 1024;
+
+const MAX_EXTRA_KEY_CHARS: usize = 64;
+
 /// A task the user maintains.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Todo {
     pub id: i64,
@@ -32,6 +37,12 @@ pub struct Todo {
     pub end_at: Option<i64>,
     /// When the task was pinned to the top of its group, UTC epoch seconds; `None` when it is not.
     pub starred_at: Option<i64>,
+    /// Attributes this build may not read, as one JSON object.
+    ///
+    /// A bag rather than a column per idea, so a feature that only the interface cares about does not
+    /// cost a schema change. Anything the page sorts, filters or counts by belongs in a column of its
+    /// own instead: this bag is not indexed and is read as a whole.
+    pub extra: Map<String, Value>,
 }
 
 /// Totals shown beside the list.
@@ -70,6 +81,7 @@ impl Todo {
             start_at: row.get(6)?,
             end_at: row.get(7)?,
             starred_at: row.get(8)?,
+            extra: parse_extra(row.get::<_, Option<String>>(9)?.as_deref()),
         })
     }
 
@@ -188,6 +200,41 @@ impl Todo {
         require_changed(changed, id)?;
         Self::find(db, id)
     }
+    pub fn set_extra(db: &Db, id: i64, patch: &Map<String, Value>) -> ApiResult<Self> {
+        let current = Self::find(db, id)?;
+
+        if patch.is_empty() {
+            return Ok(current);
+        }
+
+        let mut merged = current.extra;
+
+        for (key, value) in patch {
+            validate_extra_key(key)?;
+
+            if value.is_null() {
+                merged.remove(key);
+            } else {
+                merged.insert(key.clone(), value.clone());
+            }
+        }
+
+        let stored = serde_json::to_string(&merged)?;
+
+        if stored.len() > MAX_EXTRA_BYTES {
+            return Err(ApiError::invalid_input(format!(
+                "a task may carry at most {MAX_EXTRA_BYTES} bytes of attributes"
+            )));
+        }
+
+        repository::execute(
+            db,
+            "UPDATE todos SET extra = ?1, updated_at = ?2 WHERE id = ?3",
+            params![stored, time::now_seconds(), id],
+        )?;
+
+        Self::find(db, id)
+    }
 
     /// Deletes a task; a missing id is `NOT_FOUND`.
     pub fn delete(db: &Db, id: i64) -> ApiResult<()> {
@@ -249,6 +296,10 @@ impl Todo {
         )
     }
 }
+fn parse_extra(raw: Option<&str>) -> Map<String, Value> {
+    raw.and_then(|text| serde_json::from_str::<Map<String, Value>>(text).ok())
+        .unwrap_or_default()
+}
 
 /// Reads the cached id list; a malformed column is reported as `INTERNAL`.
 fn parse_tag_ids(raw: &str) -> ApiResult<Vec<i64>> {
@@ -300,6 +351,23 @@ impl TodoCompletions {
             },
         )
     }
+}
+
+fn validate_extra_key(key: &str) -> ApiResult<()> {
+    let allowed = key.chars().count() <= MAX_EXTRA_KEY_CHARS
+        && key.starts_with(|first: char| first.is_ascii_lowercase())
+        && key
+            .chars()
+            .all(|letter| letter.is_ascii_lowercase() || letter.is_ascii_digit() || matches!(letter, '_' | '.' | ':' | '-'));
+
+    if allowed {
+        return Ok(());
+    }
+
+    Err(ApiError::invalid_input(format!(
+        "{key:?} is not an attribute key: a lowercase word, at most {MAX_EXTRA_KEY_CHARS} characters, \
+         then lowercase letters, digits, '_', '.', ':' or '-'"
+    )))
 }
 
 /// Trims the title and rejects an empty result.
@@ -427,6 +495,7 @@ mod tests {
             Todo::rename(&db, 404, "x").map(|_| ()),
             Todo::set_completed(&db, 404, true).map(|_| ()),
             Todo::set_starred(&db, 404, true).map(|_| ()),
+            Todo::set_extra(&db, 404, &Map::new()).map(|_| ()),
             Todo::delete(&db, 404),
             Todo::find(&db, 404).map(|_| ()),
         ] {
@@ -504,6 +573,123 @@ mod tests {
             params![instant, id],
         )
         .expect("the pin is stored");
+    }
+
+    /// An attribute patch, shaped the way the command hands one over.
+    fn patch(pairs: Vec<(&str, Value)>) -> Map<String, Value> {
+        pairs
+            .into_iter()
+            .map(|(key, value)| (key.to_owned(), value))
+            .collect()
+    }
+
+    #[test]
+    fn a_new_task_carries_an_empty_bag() {
+        let db = migrated();
+        let todo = Todo::add(&db, "plain", None, None).expect("stored");
+
+        assert!(todo.extra.is_empty(), "a fresh row starts with no attributes");
+        assert_eq!(Todo::find(&db, todo.id).expect("found").extra, todo.extra);
+    }
+
+    #[test]
+    fn extra_merges_keeps_what_it_does_not_know_and_clears_on_null() {
+        let db = migrated();
+        let todo = Todo::add(&db, "annotated", None, None).expect("stored");
+
+        let first = Todo::set_extra(
+            &db,
+            todo.id,
+            &patch(vec![
+                ("source", Value::String("import".to_owned())),
+                ("weight", Value::from(3)),
+            ]),
+        )
+        .expect("merged");
+
+        assert_eq!(first.extra["source"], Value::String("import".to_owned()));
+        assert_eq!(first.extra["weight"], Value::from(3));
+
+        // A key this call does not mention survives, which is what lets another build own it.
+        let second = Todo::set_extra(&db, todo.id, &patch(vec![("due.hint", Value::from("evening"))]))
+            .expect("merged");
+
+        assert_eq!(second.extra["source"], Value::String("import".to_owned()));
+        assert_eq!(second.extra["weight"], Value::from(3));
+        assert_eq!(second.extra["due.hint"], Value::from("evening"));
+
+        // `null` is how a key is taken out again.
+        let third =
+            Todo::set_extra(&db, todo.id, &patch(vec![("weight", Value::Null)])).expect("cleared");
+
+        assert!(!third.extra.contains_key("weight"));
+        assert_eq!(third.extra.len(), 2);
+        assert_eq!(third.extra, Todo::find(&db, todo.id).expect("found").extra);
+    }
+
+    #[test]
+    fn extra_refuses_a_key_it_could_not_read_and_an_oversized_bag() {
+        let db = migrated();
+        let todo = Todo::add(&db, "annotated", None, None).expect("stored");
+
+        for key in ["Source", "9lives", "with space", "quote\"d"] {
+            let error = Todo::set_extra(&db, todo.id, &patch(vec![(key, Value::from(1))]))
+                .expect_err("the key is refused");
+
+            assert_eq!(error.code(), ApiCode::InvalidInput, "{key:?} was accepted");
+        }
+
+        let huge = "x".repeat(MAX_EXTRA_BYTES);
+        let error = Todo::set_extra(&db, todo.id, &patch(vec![("note", Value::String(huge))]))
+            .expect_err("the bag is too large");
+
+        assert_eq!(error.code(), ApiCode::InvalidInput);
+        assert!(
+            Todo::find(&db, todo.id).expect("found").extra.is_empty(),
+            "a refused patch writes nothing"
+        );
+    }
+
+    #[test]
+    fn an_empty_patch_leaves_the_row_alone() {
+        let db = migrated();
+        let todo = Todo::add(&db, "annotated", None, None).expect("stored");
+        let annotated =
+            Todo::set_extra(&db, todo.id, &patch(vec![("source", Value::from("import"))]))
+                .expect("merged");
+
+        let untouched = Todo::set_extra(&db, todo.id, &Map::new()).expect("no-op");
+
+        assert_eq!(untouched, annotated, "nothing to merge means nothing written");
+    }
+
+    #[test]
+    fn a_bag_this_build_cannot_read_is_passed_over_rather_than_failing_the_row() {
+        assert!(parse_extra(None).is_empty());
+        assert!(parse_extra(Some("not json")).is_empty());
+        assert!(parse_extra(Some("[1, 2]")).is_empty(), "an array is not a bag");
+        assert_eq!(
+            parse_extra(Some(r#"{"source": "import"}"#)),
+            patch(vec![("source", Value::from("import"))])
+        );
+    }
+
+    #[test]
+    fn the_column_refuses_a_payload_that_is_not_an_object() {
+        let db = migrated();
+        let todo = Todo::add(&db, "annotated", None, None).expect("stored");
+
+        let refused = repository::execute(
+            &db,
+            "UPDATE todos SET extra = '[1, 2]' WHERE id = ?1",
+            [todo.id],
+        );
+
+        assert!(
+            refused.is_err(),
+            "the check keeps a shape this build cannot read out of the table"
+        );
+        assert!(Todo::find(&db, todo.id).expect("found").extra.is_empty());
     }
 
     #[test]

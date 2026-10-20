@@ -569,6 +569,11 @@ mod tests {
             rusqlite::types::Value::Null,
             "a column with no default stays empty"
         );
+        assert_eq!(
+            scalar(&db, "SELECT extra FROM todos WHERE id = 1"),
+            rusqlite::types::Value::Text("{}".to_owned()),
+            "an older file gets an empty bag rather than a missing one"
+        );
     }
 
     #[test]

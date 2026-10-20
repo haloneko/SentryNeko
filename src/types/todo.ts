@@ -19,6 +19,8 @@ export interface Todo {
    * The moment rather than a flag, because the list puts the most recently starred task first.
    */
   starredAt: number | null;
+
+  extra: Readonly<Record<string, unknown>>;
 }
 
 /** Totals shown beside the list. */

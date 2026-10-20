@@ -100,7 +100,7 @@ The schema holds seven tables:
 
 | Table | Holds | Key columns |
 | --- | --- | --- |
-| `todos` | Tasks the user maintains | `title`, `completed`, `completed_at`, `created_at`, `updated_at`, `tag_ids`, `start_at`, `end_at`, `starred_at` |
+| `todos` | Tasks the user maintains | `title`, `completed`, `completed_at`, `created_at`, `updated_at`, `tag_ids`, `start_at`, `end_at`, `starred_at`, `extra` |
 | `pomodoro_sessions` | One focus or break interval | `phase`, `planned_seconds`, `actual_seconds`, `started_at`, `ended_at`, `todo_id` |
 | `app_events` | Foreground application activity | `app_name`, `window_title`, `started_at`, `ended_at` |
 | `alarms` | One-off or weekly reminders | `label`, `hour`, `minute`, `repeat_days`, `enabled`, `created_at` |
@@ -112,6 +112,13 @@ Tags are stored twice on purpose: `todos.tag_ids` is a JSON array of tag ids, so
 answers "which tags" without a join, while `todo_tags` is the index the other direction reads —
 `idx_todo_tags_tag_id` finds every task carrying a tag. `Todo::set_tags` writes both sides in one
 transaction, and `Tag::delete` removes its id from the cache of every task that listed it.
+
+`todos.extra` is the one place a task carries something the schema does not name: one JSON object,
+checked by the column itself, so a feature only the interface cares about costs no schema change. It
+is deliberately not a substitute for a column. Anything the app sorts, filters or counts by belongs in
+a column of its own, because the bag is read whole, never indexed, and capped at 8 KB per task. Writes
+go through `Todo::set_extra`, which merges: a key the caller does not mention — including one written
+by another build — is left exactly as it was, and `null` is how a key is removed.
 
 `settings` is where runtime preferences live, kept apart from the data the app tracks so that a new
 screen adds a row instead of a table. A row is a unique `key`, a JSON `value`, the `category` it is
