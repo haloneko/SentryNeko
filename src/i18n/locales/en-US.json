@@ -90,7 +90,7 @@
     "tagline": "Track your focus and your todos"
   },
   "migration": {
-    "body": "This version could not carry your data into its own database, so nothing was changed: the configuration still points at the file the previous version left behind, and that file was not touched.",
+    "body": "This version could not carry your data into its own database, so nothing was changed.",
     "copy": "Copy path",
     "copied": "Copied",
     "file": "Database file",

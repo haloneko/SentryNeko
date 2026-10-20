@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 
 import App from "./App";
@@ -12,13 +12,30 @@ import { loadSidebarLayout } from "./stores/sidebarLayoutStore";
 import { loadVersion } from "./stores/versionStore";
 import "./styles/app.css";
 
+/** Mounts `ui` as the whole interface, language provider included. */
+function mount(ui: ReactNode): void {
+  const container = document.getElementById("root");
+
+  if (!container) {
+    return;
+  }
+
+  createRoot(container).render(<StrictMode>
+    <I18nProvider>{ui}</I18nProvider>
+  </StrictMode>);
+}
+
 async function render(): Promise<void> {
-  // The chosen language and appearance live in `config.json`, the sidebar and dashboard
-  // arrangements in the settings table; resolving them before the first paint keeps the interface
-  // from flashing the defaults. The version and the database are resolved with them, so the label
-  // never appears first with a fallback number and then changes under the eye.
-  const [stranded] = await Promise.all([
-    loadStranded(),
+  const stranded = await loadStranded();
+
+  if (stranded) {
+    await loadLanguage();
+    mount(<MigrationStranded stranded={stranded} />);
+
+    return;
+  }
+
+  await Promise.all([
     loadLanguage(),
     loadColorMode(),
     loadSidebarLayout(),
@@ -26,21 +43,7 @@ async function render(): Promise<void> {
     loadVersion(),
   ]);
 
-  const container = document.getElementById("root");
-
-  if (!container) {
-    return;
-  }
-
-  createRoot(container).render(
-    <StrictMode>
-      <I18nProvider>
-        {/* A start that found no database has nothing to show but the way back to the previous
-            build, so the application itself is not mounted at all. */}
-        {stranded ? <MigrationStranded stranded={stranded} /> : <App />}
-      </I18nProvider>
-    </StrictMode>,
-  );
+  mount(<App />);
 }
 
 void render();
