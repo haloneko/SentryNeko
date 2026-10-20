@@ -31,7 +31,10 @@ CREATE TABLE IF NOT EXISTS todos (
     start_at     INTEGER,
     end_at       INTEGER,
     -- When the task was pinned to the top of its group, UTC epoch seconds; NULL while it is not.
-    starred_at   INTEGER
+    starred_at   INTEGER,
+    notes        TEXT,
+    extra        TEXT    NOT NULL DEFAULT '{}'
+                 CHECK (json_valid(extra) AND json_type(extra) = 'object')
 );
 
 CREATE TABLE IF NOT EXISTS pomodoro_sessions (

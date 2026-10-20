@@ -1,5 +1,6 @@
 //! Todo CRUD commands.
 
+use serde_json::{Map, Value};
 use tauri::State;
 
 use crate::db::connection::Db;
@@ -52,6 +53,16 @@ pub fn set_todo_completed(db: State<'_, Db>, id: i64, completed: bool) -> ApiRes
 #[tauri::command]
 pub fn set_todo_starred(db: State<'_, Db>, id: i64, starred: bool) -> ApiResponse<Todo> {
     Todo::set_starred(&db, id, starred).into()
+}
+
+/// Merges attributes into a task's extension bag; a `null` value removes the key it names.
+#[tauri::command]
+pub fn set_todo_extra(
+    db: State<'_, Db>,
+    id: i64,
+    patch: Map<String, Value>,
+) -> ApiResponse<Todo> {
+    Todo::set_extra(&db, id, &patch).into()
 }
 
 /// Deletes a task.

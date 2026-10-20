@@ -25,10 +25,10 @@ const now = Math.floor(Date.now() / 1000);
 
 /** The tasks the page lists. The mock mutates this list, so a bulk action can be seen to land. */
 const todos: Todo[] = [
-  { id: 1, title: "整理 SentryNeko 的批量选择交互", completed: false, createdAt: now - 300, updatedAt: now - 300, tagIds: [1], startAt: null, endAt: null, starredAt: null },
-  { id: 2, title: "Review the pull request that adds the heatmap bucket rules", completed: true, createdAt: now - 7200, updatedAt: now - 600, tagIds: [1, 2], startAt: null, endAt: null, starredAt: null },
-  { id: 3, title: "把仪表盘布局存进设置表", completed: false, createdAt: now - 86_400, updatedAt: now - 86_400, tagIds: [], startAt: null, endAt: null, starredAt: null },
-  { id: 4, title: "写周报", completed: true, createdAt: now - 200_000, updatedAt: now - 100_000, tagIds: [], startAt: null, endAt: null, starredAt: null },
+  { id: 1, title: "整理 SentryNeko 的批量选择交互", completed: false, createdAt: now - 300, updatedAt: now - 300, tagIds: [1], startAt: null, endAt: null, starredAt: null, extra: {}, notes: null },
+  { id: 2, title: "Review the pull request that adds the heatmap bucket rules", completed: true, createdAt: now - 7200, updatedAt: now - 600, tagIds: [1, 2], startAt: null, endAt: null, starredAt: null, extra: {}, notes: null },
+  { id: 3, title: "把仪表盘布局存进设置表", completed: false, createdAt: now - 86_400, updatedAt: now - 86_400, tagIds: [], startAt: null, endAt: null, starredAt: null, extra: {}, notes: null },
+  { id: 4, title: "写周报", completed: true, createdAt: now - 200_000, updatedAt: now - 100_000, tagIds: [], startAt: null, endAt: null, starredAt: null, extra: {}, notes: null },
 ];
 
 /**
