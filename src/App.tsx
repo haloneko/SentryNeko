@@ -223,6 +223,7 @@ function Shell() {
             <span
               aria-hidden="true"
               className={appStyles.navIndicator}
+              data-testid="nav-indicator"
               style={{ height: indicator.height, transform: `translateY(${indicator.top}px)` }}
             />
           ) : null}
