@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { CSSProperties, MouseEvent } from "react";
 
+import { ActionIcon } from "../../components/ui/ActionIcon";
+import { Popconfirm } from "../../components/ui/Popconfirm";
 import { useI18n } from "../../hooks/useI18n";
 import type { Tag } from "../../types/tag";
 import type { Todo } from "../../types/todo";
@@ -259,19 +261,28 @@ export function TodoItem({
               <circle cx="5.5" cy="5.5" r="0.9" />
             </svg>
           </button>
-          <button
-            aria-label={t("todo.delete")}
-            className="todo-action todo-action-danger"
-            onClick={() => {
+          {/* The row names itself in the panel, so the task about to go is never in doubt. */}
+          <Popconfirm
+            cancelText={t("todo.confirm.cancel")}
+            confirmText={t("todo.confirm.delete")}
+            danger
+            icon={<ActionIcon name="delete" />}
+            onConfirm={() => {
               onRemove(todo);
             }}
-            title={t("todo.delete")}
-            type="button"
+            title={t("todo.confirm.deleteTask")}
           >
-            <svg aria-hidden="true" viewBox="0 0 10 10">
-              <path d="M1 1l8 8M9 1l-8 8" />
-            </svg>
-          </button>
+            <button
+              aria-label={t("todo.delete")}
+              className="todo-action todo-action-danger"
+              title={t("todo.delete")}
+              type="button"
+            >
+              <svg aria-hidden="true" viewBox="0 0 10 10">
+                <path d="M1 1l8 8M9 1l-8 8" />
+              </svg>
+            </button>
+          </Popconfirm>
         </div>
       </div>
     </li>

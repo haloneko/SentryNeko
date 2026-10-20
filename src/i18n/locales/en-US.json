@@ -340,6 +340,12 @@
   },
   "todo": {
     "add": "Add",
+    "confirm": {
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleteSelected": "Delete the selected tasks?",
+      "deleteTask": "Delete this task?"
+    },
     "delete": "Delete task",
     "due": {
       "add": "Due date",

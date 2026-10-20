@@ -49,10 +49,19 @@ test("selection mode picks rows, acts on them and closes on Escape", async ({ pa
   await expect(page.locator(".todo-group-head")).toContainText("Completed");
   await expect(page.locator(".todo-group-count")).toHaveText("4");
 
-  // Delete takes the picked row off the list.
+  // Delete asks first: dismissing the panel keeps the pick and the row.
   await rowOf(page, "写周报").locator(".todo-card").click();
   await expect(bar.getByText("1 selected")).toBeVisible();
   await bar.getByRole("button", { name: "Delete selected" }).click();
+  const confirm = page.getByRole("dialog");
+  await expect(confirm.getByRole("heading", { name: "Delete the selected tasks?" })).toBeVisible();
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(rowOf(page, "写周报")).toHaveCount(1);
+  await expect(bar.getByText("1 selected")).toBeVisible();
+
+  // Confirming takes the picked row off the list.
+  await bar.getByRole("button", { name: "Delete selected" }).click();
+  await confirm.getByRole("button", { name: "Delete" }).click();
   await expect(rowOf(page, "写周报")).toHaveCount(0);
   await expect(page.locator(".todo-group-count")).toHaveText("3");
 
@@ -69,6 +78,24 @@ test("selection mode picks rows, acts on them and closes on Escape", async ({ pa
 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect(errors).toEqual([]);
+});
+
+test("a row asks before it is deleted, and names the task", async ({ page }) => {
+  await page.goto("/tests/todo-selection.html?theme=dark&language=en-US");
+  const row = rowOf(page, "写周报");
+  const confirm = page.getByRole("dialog");
+
+  await row.getByRole("button", { name: "Delete task" }).click();
+  await expect(confirm.getByRole("heading", { name: "Delete this task?" })).toBeVisible();
+  await expect(confirm).toContainText("写周报");
+
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(confirm).toHaveCount(0);
+  await expect(row).toHaveCount(1);
+
+  await row.getByRole("button", { name: "Delete task" }).click();
+  await confirm.getByRole("button", { name: "Delete" }).click();
+  await expect(row).toHaveCount(0);
 });
 
 for (const theme of ["dark", "light"] as const) {

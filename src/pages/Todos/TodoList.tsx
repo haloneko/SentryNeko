@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
+import { ActionIcon } from "../../components/ui/ActionIcon";
+import { Popconfirm } from "../../components/ui/Popconfirm";
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { useI18n } from "../../hooks/useI18n";
 import { useMinuteClock } from "../../hooks/useMinuteClock";
@@ -470,14 +472,18 @@ export function TodoList() {
               >
                 {t("todo.select.complete")}
               </button>
-              <button
-                className="btn btn-danger"
-                disabled={selected.size === 0}
-                onClick={deleteSelected}
-                type="button"
+              <Popconfirm
+                cancelText={t("todo.confirm.cancel")}
+                confirmText={t("todo.confirm.delete")}
+                danger
+                icon={<ActionIcon name="delete" />}
+                onConfirm={deleteSelected}
+                title={t("todo.confirm.deleteSelected")}
               >
-                {t("todo.select.delete")}
-              </button>
+                <button className="btn btn-danger" disabled={selected.size === 0} type="button">
+                  {t("todo.select.delete")}
+                </button>
+              </Popconfirm>
             </div>
           </div>
         </div>

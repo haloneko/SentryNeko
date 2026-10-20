@@ -340,6 +340,12 @@
   },
   "todo": {
     "add": "添加",
+    "confirm": {
+      "cancel": "取消",
+      "delete": "删除",
+      "deleteSelected": "删除选中的任务？",
+      "deleteTask": "删除这个任务？"
+    },
     "delete": "删除任务",
     "due": {
       "add": "截止日期",
