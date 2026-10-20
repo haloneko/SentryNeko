@@ -88,7 +88,7 @@ app.manage(db);
 
 | 表 | 存放 | 关键列 |
 | --- | --- | --- |
-| `todos` | 用户维护的任务 | `title`、`completed`、`completed_at`、`created_at`、`updated_at`、`tag_ids`、`start_at`、`end_at`、`starred_at`、`extra` |
+| `todos` | 用户维护的任务 | `title`、`completed`、`completed_at`、`created_at`、`updated_at`、`tag_ids`、`start_at`、`end_at`、`starred_at`、`extra`、`notes` |
 | `pomodoro_sessions` | 一次专注或休息区间 | `phase`、`planned_seconds`、`actual_seconds`、`started_at`、`ended_at`、`todo_id` |
 | `app_events` | 前台应用活动 | `app_name`、`window_title`、`started_at`、`ended_at` |
 | `alarms` | 单次或每周提醒 | `label`、`hour`、`minute`、`repeat_days`、`enabled`、`created_at` |
@@ -104,6 +104,9 @@ app.manage(db);
 把关，因此只有界面关心的属性不必再动 schema。它刻意不是「列的替代品」——凡是需要排序、筛选、
 统计的字段一律建真列，因为这个包是整体读出来的、从不建索引，且每个任务最多 8 KB。写入只经过
 `Todo::set_extra`，语义是合并：调用方没提到的键（包括别的版本写下的键）原样保留，`null` 表示删除该键。
+
+`todos.notes` 则是该规则的反例，值得记着：它是一列独立的文本，因为备注是人写给自己的话，长到需要
+自己的空间，也是将来搜索第一个会看的地方。目前只是预留：列和读取路径都在，但还没有任何命令写它。
 
 `settings` 是运行期偏好的落脚处，与业务数据分开存放：新增一个设置界面只是加一行，而不是加一张表。
 一行的内容是唯一的 `key`、JSON 形式的 `value`、它归属的 `category`，以及 `updated_at`（纪元秒，

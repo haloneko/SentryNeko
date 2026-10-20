@@ -21,6 +21,13 @@ export interface Todo {
   starredAt: number | null;
 
   extra: Readonly<Record<string, unknown>>;
+  /**
+   * Reserved: the column is read here, but nothing writes it yet.
+   *
+   * A note would be free-form text the user writes for themselves, so it is a column of its own
+   * rather than an entry in `extra`.
+   */
+  notes: string | null;
 }
 
 /** Totals shown beside the list. */

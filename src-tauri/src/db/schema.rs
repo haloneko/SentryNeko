@@ -32,8 +32,7 @@ CREATE TABLE IF NOT EXISTS todos (
     end_at       INTEGER,
     -- When the task was pinned to the top of its group, UTC epoch seconds; NULL while it is not.
     starred_at   INTEGER,
-    -- Attributes a build may not read, as one JSON object. Writes merge into it, so a key another
-    -- version wrote survives a round trip through a build that does not know it.
+    notes        TEXT,
     extra        TEXT    NOT NULL DEFAULT '{}'
                  CHECK (json_valid(extra) AND json_type(extra) = 'object')
 );

@@ -100,7 +100,7 @@ The schema holds seven tables:
 
 | Table | Holds | Key columns |
 | --- | --- | --- |
-| `todos` | Tasks the user maintains | `title`, `completed`, `completed_at`, `created_at`, `updated_at`, `tag_ids`, `start_at`, `end_at`, `starred_at`, `extra` |
+| `todos` | Tasks the user maintains | `title`, `completed`, `completed_at`, `created_at`, `updated_at`, `tag_ids`, `start_at`, `end_at`, `starred_at`, `extra`, `notes` |
 | `pomodoro_sessions` | One focus or break interval | `phase`, `planned_seconds`, `actual_seconds`, `started_at`, `ended_at`, `todo_id` |
 | `app_events` | Foreground application activity | `app_name`, `window_title`, `started_at`, `ended_at` |
 | `alarms` | One-off or weekly reminders | `label`, `hour`, `minute`, `repeat_days`, `enabled`, `created_at` |
@@ -119,6 +119,11 @@ is deliberately not a substitute for a column. Anything the app sorts, filters o
 a column of its own, because the bag is read whole, never indexed, and capped at 8 KB per task. Writes
 go through `Todo::set_extra`, which merges: a key the caller does not mention — including one written
 by another build — is left exactly as it was, and `null` is how a key is removed.
+
+`todos.notes` is the counter-example worth keeping in mind: it is a column of its own, because a note
+is text someone wrote for themselves, long enough to need room and the first thing a search would
+look at. It is only reserved for now: the column and the way it is read are in place, but no command
+writes it yet.
 
 `settings` is where runtime preferences live, kept apart from the data the app tracks so that a new
 screen adds a row instead of a table. A row is a unique `key`, a JSON `value`, the `category` it is

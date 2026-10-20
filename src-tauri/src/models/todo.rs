@@ -11,7 +11,7 @@ use crate::utils::{time, windows};
 
 /// Columns every query selects, in the order [`Todo::from_row`] reads them.
 const COLUMNS: &str =
-    "id, title, completed, created_at, updated_at, tag_ids, start_at, end_at, starred_at, extra";
+    "id, title, completed, created_at, updated_at, tag_ids, start_at, end_at, starred_at, notes, extra";
 
 /// Starred tasks first, the most recently starred on top; everything else keeps its old order.
 const ORDER: &str = "completed, starred_at IS NULL, starred_at DESC, id DESC";
@@ -43,6 +43,8 @@ pub struct Todo {
     /// cost a schema change. Anything the page sorts, filters or counts by belongs in a column of its
     /// own instead: this bag is not indexed and is read as a whole.
     pub extra: Map<String, Value>,
+    /// Reserved: the column is read here, but nothing writes it yet.
+    pub notes: Option<String>,
 }
 
 /// Totals shown beside the list.
@@ -81,7 +83,8 @@ impl Todo {
             start_at: row.get(6)?,
             end_at: row.get(7)?,
             starred_at: row.get(8)?,
-            extra: parse_extra(row.get::<_, Option<String>>(9)?.as_deref()),
+            notes: row.get(9)?,
+            extra: parse_extra(row.get::<_, Option<String>>(10)?.as_deref()),
         })
     }
 
@@ -690,6 +693,16 @@ mod tests {
             "the check keeps a shape this build cannot read out of the table"
         );
         assert!(Todo::find(&db, todo.id).expect("found").extra.is_empty());
+    }
+
+    #[test]
+    fn a_note_column_starts_empty_and_reads_back() {
+        let db = migrated();
+        let todo = Todo::add(&db, "noted", None, None).expect("stored");
+
+        assert_eq!(todo.notes, None, "a new task carries no note");
+        assert_eq!(Todo::find(&db, todo.id).expect("found").notes, None);
+        assert_eq!(Todo::list(&db, None).expect("list")[0].notes, None);
     }
 
     #[test]
