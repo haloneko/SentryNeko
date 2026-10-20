@@ -231,13 +231,12 @@ SentryNeko/
 │
 ├── docs/                             # Documentation (English + Simplified Chinese)
 │   ├── commands.md                   # Tauri command reference
-│   ├── database.md                   # Schema, the connection pool and scripts/init_db.ps1
+│   ├── database.md                   # Schema and the connection pool
 │   ├── events.md                     # Tauri event definitions
 │   ├── i18n.md                       # i18n guide
 │   └── architecture.md               # Architecture notes
 │
 ├── scripts/
-│   ├── init_db.ps1                   # Database initialization script (PowerShell)
 │   ├── dev.ps1                       # One-command dev environment (PowerShell)
 │   └── check_locales.mjs             # Locale key parity check, run by `pnpm lint`
 │
@@ -275,15 +274,12 @@ pnpm install
 # 2. Generate the application icons (they are generated artifacts, only app-icon.svg is tracked)
 pnpm icons
 
-# 3. Initialize the local database (optional, tables are created on first run)
-powershell -ExecutionPolicy Bypass -File scripts/init_db.ps1
-
-# 4. Start the dev environment (frontend HMR + Rust backend)
+# 3. Start the dev environment (frontend HMR + Rust backend; the tables are created on first run)
 pnpm tauri dev
 # or use the convenience script
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1
 
-# 5. Build the Windows installer (msi / nsis)
+# 4. Build the Windows installer (msi / nsis)
 pnpm tauri build
 ```
 
@@ -295,7 +291,7 @@ pnpm tauri build
 | --- | --- |
 | [docs/architecture.md](docs/architecture.md) | Layered architecture, data flow and module responsibilities |
 | [docs/commands.md](docs/commands.md) | Tauri command signatures and response format |
-| [docs/database.md](docs/database.md) | Schema, the connection pool and `scripts/init_db.ps1` |
+| [docs/database.md](docs/database.md) | Schema, migrations and the connection pool |
 | [docs/events.md](docs/events.md) | Tauri event definitions and trigger points |
 | [docs/i18n.md](docs/i18n.md) | How copy is organized and how to add a language |
 | [docs/tray.md](docs/tray.md) | System tray: close-to-tray, menu entries and the live today line |

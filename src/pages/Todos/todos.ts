@@ -28,9 +28,29 @@ export function matchesQuery(todo: Todo, tags: readonly Tag[], query: string): b
   return todo.tagIds.some((id) => names.get(id)?.includes(needle) ?? false);
 }
 
-/** Newest first, so a task that was just added arrives at the top of its group. */
+/**
+ * Starred tasks first, the most recently starred on top; everything else newest first, so a task
+ * that was just added arrives at the top of its group.
+ *
+ * A pin is a way of saying "this one matters now", so the latest pin is the most prominent one. The
+ * order of the unpinned tasks is untouched: pinning something never rearranges the rest.
+ */
 export function sortTodos(todos: readonly Todo[]): readonly Todo[] {
-  return [...todos].sort((a, b) => b.createdAt - a.createdAt || b.id - a.id);
+  return [...todos].sort((a, b) => {
+    if (a.starredAt !== null || b.starredAt !== null) {
+      if (a.starredAt === null) {
+        return 1;
+      }
+
+      if (b.starredAt === null) {
+        return -1;
+      }
+
+      return b.starredAt - a.starredAt || b.id - a.id;
+    }
+
+    return b.createdAt - a.createdAt || b.id - a.id;
+  });
 }
 
 /** The tasks the search leaves, in the order the page shows them. */

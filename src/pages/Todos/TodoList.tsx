@@ -87,6 +87,7 @@ export function TodoList() {
     rename,
     setEndAt,
     setFilter,
+    setStarred,
     setStartAt,
     todos,
     toggle,
@@ -319,6 +320,14 @@ export function TodoList() {
     retire([todo.id], () => remove(todo.id));
   };
 
+  /**
+   * Pinning never takes a row off the page, so the row is left where it is and the flip above
+   * carries it to the top of its group.
+   */
+  const handleStar = (todo: Todo): void => {
+    void setStarred(todo.id, todo.starredAt === null);
+  };
+
   const handleRename = (todo: Todo, title: string): void => {
     void rename(todo.id, title);
   };
@@ -540,6 +549,7 @@ export function TodoList() {
                       onSelect={handleSelect}
                       onSetEndAt={handleSetEndAt}
                       onSetStartAt={handleSetStartAt}
+                      onStar={handleStar}
                       onToggle={handleToggle}
                       onUpdateTags={handleUpdateTags}
                       rowIndex={index}

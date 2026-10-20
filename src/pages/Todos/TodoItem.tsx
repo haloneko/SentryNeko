@@ -29,6 +29,8 @@ export interface TodoItemProps {
   onSetEndAt: (todo: Todo, endAt: number | null) => void;
   /** Stores the moment the task should start, or clears it with `null`. */
   onSetStartAt: (todo: Todo, startAt: number | null) => void;
+  /** Pins the task to the top of its group, or unpins it. */
+  onStar: (todo: Todo) => void;
   onToggle: (todo: Todo) => void;
   onUpdateTags: (todo: Todo, tagIds: readonly number[]) => void;
   /** Place in the list, which staggers the entrance animation. */
@@ -49,6 +51,7 @@ export function TodoItem({
   onSelect,
   onSetEndAt,
   onSetStartAt,
+  onStar,
   onToggle,
   onUpdateTags,
   rowIndex,
@@ -65,6 +68,7 @@ export function TodoItem({
   const age = ageOf(todo.createdAt, now);
   const names = tagNamesOf(todo, tags);
   const plan = planSummary(todo, now, language, t);
+  const starred = todo.starredAt !== null;
 
   /** Leaves the field and stores what was typed, unless nothing changed. */
   const commit = (): void => {
@@ -96,6 +100,7 @@ export function TodoItem({
       data-leaving={leaving}
       data-selected={selecting && selected}
       data-selecting={selecting}
+      data-starred={starred}
       data-testid="todo-row"
       ref={(element) => {
         onRowRef(todo.id, element);
@@ -138,6 +143,7 @@ export function TodoItem({
           {draft === null ? (
             <button
               className={todosStyles.todoTitle}
+              data-testid="todo-title"
               onClick={() => {
                 setDraft(todo.title);
               }}
@@ -221,6 +227,23 @@ export function TodoItem({
         </div>
         {/* The row's own controls step aside while a pick is being made: one mode, one gesture. */}
         <div className={todosStyles.todoActions} inert={selecting}>
+          {/* The star reads as filled or outlined, so the row's state is legible without hovering. */}
+          <button
+            aria-label={starred ? t("todo.star.remove") : t("todo.star.add")}
+            aria-pressed={starred}
+            className={`${todosStyles.todoAction} ${todosStyles.todoActionStar}`}
+            data-starred={starred}
+            data-testid="todo-star"
+            onClick={() => {
+              onStar(todo);
+            }}
+            title={starred ? t("todo.star.remove") : t("todo.star.add")}
+            type="button"
+          >
+            <svg aria-hidden="true" viewBox="0 0 16 16">
+              <path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z" />
+            </svg>
+          </button>
           <button
             aria-label={t("todo.edit")}
             className={todosStyles.todoAction}

@@ -31,7 +31,7 @@ Status legend: `[ ]` not started　`[~]` in progress　`[x]` done　`[!]` blocke
 | [x] | T01 | Project scaffolding: Tauri 2 + React + TS + Vite | — | `package.json` / `vite.config.ts` / `tsconfig.json` / `index.html` in place; frontend and backend directories match the README structure |
 | [x] | T02 | Tauri config & capabilities: `tauri.conf.json` + `capabilities/default.json` + icons | T01 | Window size / title / bundle targets (msi, nsis) configured; the IPC allow-list is kept minimal |
 | [x] | T03 | Unified command response and error conventions | T01 | `utils/response.rs` defines the shared envelope, `types/index.ts` mirrors it, and no command returns a bare value |
-| [x] | T04 | SQLite integration: connection pool + schema creation + generic repository | T02 | `db/{connection,schema,repository}.rs` usable; `scripts/init_db.ps1` creates tables idempotently |
+| [x] | T04 | SQLite integration: connection pool + schema creation + generic repository | T02 | `db/{connection,schema,repository}.rs` usable; `schema::ensure` creates the tables idempotently |
 | [x] | T05 | Config read/write: database path, language, persisted settings | T04 | `config.rs` creates the config on first run, detects and saves the system language when none is stored (#32); settings survive a restart |
 | [x] | T06 | Backend i18n skeleton (localized error messages) | T03 | `services/i18n.rs` supports zh-CN / en-US with error-code → message mapping |
 | [x] | T07 | Frontend i18n skeleton (i18next + persisted language) | T05 | `i18n/`, `zh-CN.json` and `en-US.json` ready; `ja-JP.json` stubbed |

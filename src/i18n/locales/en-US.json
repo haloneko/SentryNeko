@@ -398,6 +398,10 @@
       "invert": "Invert",
       "item": "Select “{{title}}”"
     },
+    "star": {
+      "add": "Star this task",
+      "remove": "Remove the star"
+    },
     "subtitle": "{{total}} tasks · {{remaining}} left",
     "tags": {
       "create": "New tag",

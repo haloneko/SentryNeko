@@ -139,6 +139,7 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 | `set_todo_start_at` | `todo_commands` | `id: i64`、`start_at: i64?` | `Todo` | T10 |
 | `set_todo_end_at` | `todo_commands` | `id: i64`、`end_at: i64?` | `Todo` | T10 |
 | `set_todo_completed` | `todo_commands` | `id: i64`、`completed: bool` | `Todo` | T10 |
+| `set_todo_starred` | `todo_commands` | `id: i64`、`starred: bool` | `Todo` | — |
 | `delete_todo` | `todo_commands` | `id: i64` | — | T10 |
 | `todo_counts` | `todo_commands` | — | `TodoCounts`（`{ total, remaining, completed }`） | T10 |
 | `todo_completions` | `todo_commands` | — | `TodoCompletions`（`{ today, all }`） | T36 |

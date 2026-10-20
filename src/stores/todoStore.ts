@@ -32,6 +32,8 @@ export interface TodoState {
   /** Replaces the tags a task carries; an empty list leaves it untagged. */
   updateTags: (id: number, tagIds: readonly number[]) => Promise<boolean>;
   toggle: (todo: Todo) => Promise<boolean>;
+  /** Pins a task to the top of its group, or unpins it. */
+  setStarred: (id: number, starred: boolean) => Promise<boolean>;
   remove: (id: number) => Promise<boolean>;
 }
 
@@ -278,6 +280,27 @@ export const useTodoStore = create<TodoState>((set, get) => ({
 
     // Which day the task now counts towards is the backend's answer, not the page's guess.
     void get().refreshCompletions();
+
+    return true;
+  },
+
+  setStarred: async (id, starred) => {
+    set({ error: null });
+
+    const response = await request<Todo>("set_todo_starred", { id, starred });
+
+    if (!isOk(response)) {
+      set({ error: response.code });
+      return false;
+    }
+
+    const pinned = response.data;
+
+    // The row is patched where it is: the pin lives in the sort, so the page puts it back on top
+    // without the store having to guess where that is.
+    set((state) => ({
+      todos: state.todos.map((todo) => (todo.id === pinned.id ? pinned : todo)),
+    }));
 
     return true;
   },

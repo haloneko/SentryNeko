@@ -48,6 +48,12 @@ pub fn set_todo_completed(db: State<'_, Db>, id: i64, completed: bool) -> ApiRes
     Todo::set_completed(&db, id, completed).into()
 }
 
+/// Pins a task to the top of its group, or unpins it.
+#[tauri::command]
+pub fn set_todo_starred(db: State<'_, Db>, id: i64, starred: bool) -> ApiResponse<Todo> {
+    Todo::set_starred(&db, id, starred).into()
+}
+
 /// Deletes a task.
 #[tauri::command]
 pub fn delete_todo(db: State<'_, Db>, id: i64) -> ApiResponse<()> {
