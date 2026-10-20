@@ -113,6 +113,15 @@ zero). Temporary blanks, signs and decimal points stay editable and settle to th
 current value on blur or Enter. Wheel and arrow adjustments publish immediately;
 disabled and read-only inputs allow the page to scroll normally.
 
+`Popconfirm` in `src/components/ui/` wraps the action button it is given and opens a small
+bubble against it — above it by default, or below when the window has no room there. That
+button's own `onClick` runs first, and a prevented click keeps the bubble shut. `title` (which
+can stand alone), `content`, `icon`, `confirmText` and `cancelText` are optional; the two
+answers fall back to the localized `popconfirm.yes` / `popconfirm.no` copy, and `danger` draws
+the icon and the confirm button in the destructive red. Only the confirm button runs
+`onConfirm`; cancelling, a click anywhere else, the close button and Escape all close the
+bubble without acting.
+
 Anything touching foreground-app collection, notifications, tray behavior or auto-start also needs a manual pass on real Windows hardware: switch between a few apps, leave the machine idle, lock the screen, and resume from sleep, then confirm the recorded events and durations look sane.
 
 ## Documentation
