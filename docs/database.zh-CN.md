@@ -88,7 +88,7 @@ app.manage(db);
 
 | 表 | 存放 | 关键列 |
 | --- | --- | --- |
-| `todos` | 用户维护的任务 | `title`、`completed`、`completed_at`、`created_at`、`updated_at`、`tag_ids`、`start_at`、`end_at` |
+| `todos` | 用户维护的任务 | `title`、`completed`、`completed_at`、`created_at`、`updated_at`、`tag_ids`、`start_at`、`end_at`、`starred_at` |
 | `pomodoro_sessions` | 一次专注或休息区间 | `phase`、`planned_seconds`、`actual_seconds`、`started_at`、`ended_at`、`todo_id` |
 | `app_events` | 前台应用活动 | `app_name`、`window_title`、`started_at`、`ended_at` |
 | `alarms` | 单次或每周提醒 | `label`、`hour`、`minute`、`repeat_days`、`enabled`、`created_at` |
@@ -235,25 +235,10 @@ app.manage(db);
 行映射器就是 `fn(&Row<'_>) -> ApiResult<T>`（`RowMapper<T>`），因此模型只需把映射函数作为
 关联函数暴露出来，各助手保持通用。
 
-## scripts/init_db.ps1
-
-不启动应用也能创建同一套表结构：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/init_db.ps1 [-DatabasePath <file>]
-```
-
-脚本需要 `PATH` 上有 `sqlite3`；没有时脚本会直接停止，并提示改用应用本身——应用首次启动也会
-建表。所有语句都带 `IF NOT EXISTS`，重复执行安全。默认文件名带着从 `Cargo.toml` 读出的版本号，
-和一次启动会创建的文件名一致。
-
-有一个测试会从脚本里抽出 SQL，在已建表的库上执行，断言两侧最终得到的表相同。
-
 ## 新增表或列
 
-1. 在 `db/schema.rs` 里加上 DDL。
-2. 在 `scripts/init_db.ps1` 里同步同样的 DDL（一样的 `IF NOT EXISTS`）。
-3. 跑 `cargo test`——两侧不一致时脚本检查会失败。
-4. 给每一列都配 `DEFAULT`（或者允许为 `NULL`），除非某一行没有它就写不下去：已有的库会在下次启动
+1. 在 `db/schema.rs` 里加上 DDL：它是表结构唯一的书写处。每条语句都保留 `IF NOT EXISTS`，这样一次
+   启动即使发现只建了一半，也能把剩下的补齐。
+2. 给每一列都配 `DEFAULT`（或者允许为 `NULL`），除非某一行没有它就写不下去：已有的库会在下次启动
    被自动带过来，而「`NOT NULL` 又没有默认值」会让整次复制失败——用户看到的是回退提示。除此之外
    什么都不用做——旧文件会留在原地，作为它装过什么的记录。

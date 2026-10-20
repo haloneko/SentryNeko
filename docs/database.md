@@ -100,7 +100,7 @@ The schema holds seven tables:
 
 | Table | Holds | Key columns |
 | --- | --- | --- |
-| `todos` | Tasks the user maintains | `title`, `completed`, `completed_at`, `created_at`, `updated_at`, `tag_ids`, `start_at`, `end_at` |
+| `todos` | Tasks the user maintains | `title`, `completed`, `completed_at`, `created_at`, `updated_at`, `tag_ids`, `start_at`, `end_at`, `starred_at` |
 | `pomodoro_sessions` | One focus or break interval | `phase`, `planned_seconds`, `actual_seconds`, `started_at`, `ended_at`, `todo_id` |
 | `app_events` | Foreground application activity | `app_name`, `window_title`, `started_at`, `ended_at` |
 | `alarms` | One-off or weekly reminders | `label`, `hour`, `minute`, `repeat_days`, `enabled`, `created_at` |
@@ -272,28 +272,12 @@ into this one's file the same way.
 Row mappers are plain `fn(&Row<'_>) -> ApiResult<T>` values (`RowMapper<T>`), so a model
 exposes its mapper as an associated function and every helper stays generic.
 
-## scripts/init_db.ps1
-
-Creates the same schema without starting the app:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/init_db.ps1 [-DatabasePath <file>]
-```
-
-It needs `sqlite3` on `PATH`; without it the script stops with a message pointing at the app,
-which creates the schema on first run either way. Every statement uses `IF NOT EXISTS`, so
-running it repeatedly is safe. The default file name carries the version read out of `Cargo.toml`,
-matching what a start would create.
-
-A test extracts the SQL from the script and runs it against a created database, asserting that
-both sides end up with the same tables.
-
 ## Adding a table or a column
 
-1. Add the DDL to `db/schema.rs`.
-2. Mirror it in `scripts/init_db.ps1`, with the same `IF NOT EXISTS` guards.
-3. Run `cargo test` — the script check fails while the two sides disagree.
-4. Give every column a `DEFAULT` (or make it nullable) unless the row can never be written without
+1. Add the DDL to `db/schema.rs`; it is the only place the schema is written. Every statement keeps
+   its `IF NOT EXISTS` guard, so a start that finds half of it already in place still ends up with
+   all of it.
+2. Give every column a `DEFAULT` (or make it nullable) unless the row can never be written without
    it: an existing database is carried forward on the next start, and a `NOT NULL` column with no
    default fails the copy outright — the user is asked to roll back instead. Nothing else is needed:
    the old file stays on disk as the record of what it held.

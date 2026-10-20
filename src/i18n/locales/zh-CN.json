@@ -398,6 +398,10 @@
       "invert": "反选",
       "item": "选择「{{title}}」"
     },
+    "star": {
+      "add": "标为星标",
+      "remove": "取消星标"
+    },
     "subtitle": "共 {{total}} 个任务 · 剩 {{remaining}} 项未完成",
     "tags": {
       "create": "新建标签",

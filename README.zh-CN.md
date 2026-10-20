@@ -237,7 +237,6 @@ SentryNeko/
 │   └── architecture.md               # 架构说明
 │
 ├── scripts/
-│   ├── init_db.ps1                   # 初始化数据库脚本（PowerShell）
 │   ├── dev.ps1                       # 一键启动开发环境（PowerShell）
 │   └── check_locales.mjs             # locale 键集合校验，由 `pnpm lint` 执行
 │
@@ -275,15 +274,12 @@ pnpm install
 # 2. 生成应用图标（图标为生成产物，仓库只保留 app-icon.svg 源文件）
 pnpm icons
 
-# 3. 初始化本地数据库（可选，首次运行会自动建表）
-powershell -ExecutionPolicy Bypass -File scripts/init_db.ps1
-
-# 4. 启动开发环境（前端热更新 + Rust 后端）
+# 3. 启动开发环境（前端热更新 + Rust 后端；首次运行会自动建表）
 pnpm tauri dev
 # 或使用一键脚本
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1
 
-# 5. 打包 Windows 安装包（msi / nsis）
+# 4. 打包 Windows 安装包（msi / nsis）
 pnpm tauri build
 ```
 
@@ -295,7 +291,7 @@ pnpm tauri build
 | --- | --- |
 | [docs/architecture.zh-CN.md](docs/architecture.zh-CN.md) | 分层架构、数据流与模块职责 |
 | [docs/commands.zh-CN.md](docs/commands.zh-CN.md) | Tauri 命令签名与返回格式 |
-| [docs/database.zh-CN.md](docs/database.zh-CN.md) | 表结构、迁移、连接池与 `scripts/init_db.ps1` |
+| [docs/database.zh-CN.md](docs/database.zh-CN.md) | 表结构、迁移与连接池 |
 | [docs/events.zh-CN.md](docs/events.zh-CN.md) | Tauri 事件定义与触发时机 |
 | [docs/i18n.zh-CN.md](docs/i18n.zh-CN.md) | 文案组织与新增语言步骤 |
 | [docs/tray.zh-CN.md](docs/tray.zh-CN.md) | 系统托盘：关闭即隐藏、菜单项与实时今日行 |

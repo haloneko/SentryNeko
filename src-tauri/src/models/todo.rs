@@ -9,7 +9,11 @@ use crate::utils::response::{ApiError, ApiResult};
 use crate::utils::{time, windows};
 
 /// Columns every query selects, in the order [`Todo::from_row`] reads them.
-const COLUMNS: &str = "id, title, completed, created_at, updated_at, tag_ids, start_at, end_at";
+const COLUMNS: &str =
+    "id, title, completed, created_at, updated_at, tag_ids, start_at, end_at, starred_at";
+
+/// Starred tasks first, the most recently starred on top; everything else keeps its old order.
+const ORDER: &str = "completed, starred_at IS NULL, starred_at DESC, id DESC";
 
 /// A task the user maintains.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -26,6 +30,8 @@ pub struct Todo {
     pub start_at: Option<i64>,
     /// When the task is planned to end, UTC epoch seconds; `None` when it has no end.
     pub end_at: Option<i64>,
+    /// When the task was pinned to the top of its group, UTC epoch seconds; `None` when it is not.
+    pub starred_at: Option<i64>,
 }
 
 /// Totals shown beside the list.
@@ -63,17 +69,19 @@ impl Todo {
             tag_ids: parse_tag_ids(&row.get::<_, String>(5)?)?,
             start_at: row.get(6)?,
             end_at: row.get(7)?,
+            starred_at: row.get(8)?,
         })
     }
 
-    /// Lists tasks, open ones first and newest first; `completed` narrows the result.
+    /// Lists tasks, open ones first and newest first, starred ones on top of either group;
+    /// `completed` narrows the result.
     pub fn list(db: &Db, completed: Option<bool>) -> ApiResult<Vec<Self>> {
         let condition = match completed {
             None => "",
             Some(false) => " WHERE completed = 0",
             Some(true) => " WHERE completed = 1",
         };
-        let sql = format!("SELECT {COLUMNS} FROM todos{condition} ORDER BY completed, id DESC");
+        let sql = format!("SELECT {COLUMNS} FROM todos{condition} ORDER BY {ORDER}");
 
         repository::query_all(db, &sql, [], Self::from_row)
     }
@@ -165,6 +173,22 @@ impl Todo {
         Self::find(db, id)
     }
 
+    /// Pins or unpins a task; a missing id is `NOT_FOUND`.
+    ///
+    /// The pin is stored as the moment it was made rather than as a flag, because the list puts the
+    /// most recently starred task on top: pinning again is a fresh pin and moves the task up.
+    pub fn set_starred(db: &Db, id: i64, starred: bool) -> ApiResult<Self> {
+        let now = time::now_seconds();
+        let changed = repository::execute(
+            db,
+            "UPDATE todos SET starred_at = ?1, updated_at = ?2 WHERE id = ?3",
+            params![starred.then_some(now), now, id],
+        )?;
+
+        require_changed(changed, id)?;
+        Self::find(db, id)
+    }
+
     /// Deletes a task; a missing id is `NOT_FOUND`.
     pub fn delete(db: &Db, id: i64) -> ApiResult<()> {
         let changed = repository::execute(db, "DELETE FROM todos WHERE id = ?1", [id])?;
@@ -218,7 +242,7 @@ impl Todo {
                 "SELECT {COLUMNS} FROM todos
                    INNER JOIN todo_tags ON todo_tags.todo_id = todos.id
                   WHERE todo_tags.tag_id = ?1
-                  ORDER BY completed, id DESC"
+                  ORDER BY {ORDER}"
             ),
             [tag_id],
             Self::from_row,
@@ -402,11 +426,84 @@ mod tests {
         for result in [
             Todo::rename(&db, 404, "x").map(|_| ()),
             Todo::set_completed(&db, 404, true).map(|_| ()),
+            Todo::set_starred(&db, 404, true).map(|_| ()),
             Todo::delete(&db, 404),
             Todo::find(&db, 404).map(|_| ()),
         ] {
             assert_eq!(result.expect_err("missing id").code(), ApiCode::NotFound);
         }
+    }
+
+    /// Titles in the order the list answers them, which is what the page draws.
+    fn titles(db: &Db, completed: Option<bool>) -> Vec<String> {
+        Todo::list(db, completed)
+            .expect("list")
+            .into_iter()
+            .map(|todo| todo.title)
+            .collect()
+    }
+
+    #[test]
+    fn starring_stamps_the_moment_and_unstarring_clears_it() {
+        let db = migrated();
+        let todo = Todo::add(&db, "important", None, None).expect("stored");
+
+        assert_eq!(todo.starred_at, None, "a new task is not starred");
+
+        let starred = Todo::set_starred(&db, todo.id, true).expect("starred");
+        let stamped = starred.starred_at.expect("starring writes a moment");
+        assert!(stamped > 0, "the moment is a real epoch second");
+        assert_eq!(
+            Todo::find(&db, todo.id).expect("found"),
+            starred,
+            "the answer is the stored row"
+        );
+
+        let cleared = Todo::set_starred(&db, todo.id, false).expect("unstarred");
+        assert_eq!(cleared.starred_at, None);
+        assert_eq!(
+            Todo::find(&db, todo.id).expect("found").starred_at,
+            None,
+            "unstarring is stored too"
+        );
+    }
+
+    #[test]
+    fn starred_tasks_sit_on_top_of_their_group_most_recent_first() {
+        let db = migrated();
+        let first = Todo::add(&db, "first", None, None).expect("stored");
+        let second = Todo::add(&db, "second", None, None).expect("stored");
+        let third = Todo::add(&db, "third", None, None).expect("stored");
+
+        // Nothing starred: newest id first, as before the pin existed.
+        assert_eq!(titles(&db, None), ["third", "second", "first"]);
+
+        // The stamps are written by hand so the order does not depend on how fast the test runs.
+        pin_at(&db, first.id, 1_800_000_100);
+        pin_at(&db, third.id, 1_800_000_200);
+
+        assert_eq!(
+            titles(&db, None),
+            ["third", "first", "second"],
+            "starred on top, the most recently starred first"
+        );
+
+        // A finished starred task still sits under the open ones: the groups are never mixed.
+        Todo::set_completed(&db, second.id, true).expect("completed");
+
+        assert_eq!(titles(&db, None), ["third", "first", "second"]);
+        assert_eq!(titles(&db, Some(false)), ["third", "first"]);
+        assert_eq!(titles(&db, Some(true)), ["second"]);
+    }
+
+    /// Writes a star stamp directly, so a fixture can choose the order it wants.
+    fn pin_at(db: &Db, id: i64, instant: i64) {
+        repository::execute(
+            db,
+            "UPDATE todos SET starred_at = ?1 WHERE id = ?2",
+            params![instant, id],
+        )
+        .expect("the pin is stored");
     }
 
     #[test]

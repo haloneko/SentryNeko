@@ -25,11 +25,23 @@ const now = Math.floor(Date.now() / 1000);
 
 /** The tasks the page lists. The mock mutates this list, so a bulk action can be seen to land. */
 const todos: Todo[] = [
-  { id: 1, title: "整理 SentryNeko 的批量选择交互", completed: false, createdAt: now - 300, updatedAt: now - 300, tagIds: [1], startAt: null, endAt: null },
-  { id: 2, title: "Review the pull request that adds the heatmap bucket rules", completed: true, createdAt: now - 7200, updatedAt: now - 600, tagIds: [1, 2], startAt: null, endAt: null },
-  { id: 3, title: "把仪表盘布局存进设置表", completed: false, createdAt: now - 86_400, updatedAt: now - 86_400, tagIds: [], startAt: null, endAt: null },
-  { id: 4, title: "写周报", completed: true, createdAt: now - 200_000, updatedAt: now - 100_000, tagIds: [], startAt: null, endAt: null },
+  { id: 1, title: "整理 SentryNeko 的批量选择交互", completed: false, createdAt: now - 300, updatedAt: now - 300, tagIds: [1], startAt: null, endAt: null, starredAt: null },
+  { id: 2, title: "Review the pull request that adds the heatmap bucket rules", completed: true, createdAt: now - 7200, updatedAt: now - 600, tagIds: [1, 2], startAt: null, endAt: null, starredAt: null },
+  { id: 3, title: "把仪表盘布局存进设置表", completed: false, createdAt: now - 86_400, updatedAt: now - 86_400, tagIds: [], startAt: null, endAt: null, starredAt: null },
+  { id: 4, title: "写周报", completed: true, createdAt: now - 200_000, updatedAt: now - 100_000, tagIds: [], startAt: null, endAt: null, starredAt: null },
 ];
+
+/**
+ * Star stamps handed out in order, so "most recently starred first" is never a tie: two clicks in
+ * the same second would otherwise be indistinguishable to the sort.
+ */
+let starClock = now;
+
+function nextStarMoment(): number {
+  starClock += 1;
+
+  return starClock;
+}
 
 /** Totals recomputed from the list, the way the backend answers `todo_counts`. */
 function counts(): TodoCounts {
@@ -79,6 +91,15 @@ mockIPC((command, payload) => {
 
     if (todo !== undefined) {
       todo[field] = typeof value === "number" ? value : null;
+      todo.updatedAt = Math.floor(Date.now() / 1000);
+    }
+
+    data = todo ?? null;
+  } else if (command === "set_todo_starred") {
+    const todo = todos.find((item) => item.id === Number(args.id));
+
+    if (todo !== undefined) {
+      todo.starredAt = args.starred === true ? nextStarMoment() : null;
       todo.updatedAt = Math.floor(Date.now() / 1000);
     }
 

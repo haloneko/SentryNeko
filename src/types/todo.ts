@@ -13,6 +13,12 @@ export interface Todo {
   startAt: number | null;
   /** UTC epoch seconds the task is planned to end, or `null` when it has no end. */
   endAt: number | null;
+  /**
+   * UTC epoch seconds the task was pinned to the top of its group, or `null` while it is not pinned.
+   *
+   * The moment rather than a flag, because the list puts the most recently starred task first.
+   */
+  starredAt: number | null;
 }
 
 /** Totals shown beside the list. */

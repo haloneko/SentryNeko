@@ -95,6 +95,7 @@ pub fn run() {
             todo_commands::set_todo_start_at,
             todo_commands::set_todo_end_at,
             todo_commands::set_todo_completed,
+            todo_commands::set_todo_starred,
             todo_commands::delete_todo,
             todo_commands::todo_counts,
             todo_commands::todo_completions,

@@ -29,7 +29,9 @@ CREATE TABLE IF NOT EXISTS todos (
     tag_ids      TEXT    NOT NULL DEFAULT '[]',
     -- Optional planning moments, both UTC epoch seconds.
     start_at     INTEGER,
-    end_at       INTEGER
+    end_at       INTEGER,
+    -- When the task was pinned to the top of its group, UTC epoch seconds; NULL while it is not.
+    starred_at   INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS pomodoro_sessions (
@@ -155,49 +157,4 @@ mod tests {
         assert_eq!(ApiError::from(error).code(), ApiCode::Database);
     }
 
-    fn maintenance_script() -> String {
-        std::fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../scripts/init_db.ps1"
-        ))
-        .expect("the maintenance script exists")
-    }
-
-    fn maintenance_script_sql(script: &str) -> String {
-        let start = script.find("@'").expect("the script holds a here-string") + 2;
-        let end = script[start..]
-            .find("'@")
-            .expect("the here-string is closed");
-
-        script[start..start + end].to_owned()
-    }
-
-    #[test]
-    fn maintenance_script_creates_the_same_schema() {
-        let script = maintenance_script();
-
-        let db = created();
-        let connection = db.connection().expect("connection");
-        connection
-            .execute_batch(&maintenance_script_sql(&script))
-            .expect("the script's statements run against a created database");
-
-        let mut expected = TABLES;
-        expected.sort_unstable();
-
-        let mut statement = connection
-            .prepare(
-                "SELECT name FROM sqlite_master
-                 WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
-                 ORDER BY name",
-            )
-            .expect("the query compiles");
-        let actual = statement
-            .query_map([], |row| row.get::<_, String>(0))
-            .expect("the query runs")
-            .collect::<Result<Vec<String>, _>>()
-            .expect("the rows are readable");
-
-        assert_eq!(actual, expected);
-    }
 }
