@@ -1,7 +1,7 @@
 //! Todo task model.
 
 use rusqlite::{params, Row};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::db::connection::Db;
 use crate::db::repository;
@@ -37,22 +37,18 @@ pub struct TodoCounts {
     pub completed: i64,
 }
 
-/// Tasks whose completion rate is measured.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum CompletionScope {
-    /// Every stored task, however old.
-    All,
-    /// Tasks created since local midnight.
-    Today,
-}
-
-/// Numerator and denominator of the completion rate; the caller renders the percentage.
+/// How many tasks are finished: today, and in total.
+///
+/// A task is a plan for later, so "three of five done" says nothing about the day. What the app
+/// shows instead is a count of finished tasks, dated by `completed_at`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TaskCompletion {
-    pub total: i64,
-    pub completed: i64,
+pub struct TodoCompletions {
+    /// Tasks finished since local midnight.
+    pub today: i64,
+    /// Every finished task still stored; a row finished before `completed_at` existed counts here
+    /// only, because there is no day to put it on.
+    pub all: i64,
 }
 
 impl Todo {
@@ -259,24 +255,23 @@ impl TodoCounts {
     }
 }
 
-impl TaskCompletion {
-    /// Counts the tasks of `scope`; `now` decides where "today" starts.
-    pub fn load(db: &Db, scope: CompletionScope, now: i64) -> ApiResult<Self> {
-        let from = match scope {
-            CompletionScope::All => None,
-            CompletionScope::Today => Some(windows::local_midnight(now).ok_or_else(|| {
-                ApiError::internal("the local day boundary could not be resolved")
-            })?),
-        };
+impl TodoCompletions {
+    /// Counts finished tasks; `now` decides where "today" starts.
+    pub fn load(db: &Db, now: i64) -> ApiResult<Self> {
+        let midnight = windows::local_midnight(now)
+            .ok_or_else(|| ApiError::internal("the local day boundary could not be resolved"))?;
 
         repository::query_one(
             db,
-            "SELECT COUNT(*), SUM(completed = 1) FROM todos WHERE ?1 IS NULL OR created_at >= ?1",
-            params![from],
+            "SELECT
+               COALESCE(SUM(completed = 1 AND completed_at >= ?1), 0),
+               COALESCE(SUM(completed = 1), 0)
+             FROM todos",
+            params![midnight],
             |row| {
                 Ok(Self {
-                    total: row.get(0)?,
-                    completed: row.get::<_, Option<i64>>(1)?.unwrap_or_default(),
+                    today: row.get(0)?,
+                    all: row.get(1)?,
                 })
             },
         )
@@ -451,18 +446,13 @@ mod tests {
         );
     }
 
-    /// Stores a task at a chosen instant, so a rate can be measured over a window.
-    fn stored_at(db: &Db, title: &str, created_at: i64, completed: bool) {
+    /// Stores a task that was finished (or opened) at a chosen instant.
+    fn stored_at(db: &Db, title: &str, instant: i64, completed: bool) {
         repository::insert(
             db,
             "INSERT INTO todos (title, completed, completed_at, created_at, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?4)",
-            params![
-                title,
-                completed,
-                completed.then_some(created_at),
-                created_at
-            ],
+            params![title, completed, completed.then_some(instant), instant],
         )
         .expect("the task is stored");
     }
@@ -473,50 +463,45 @@ mod tests {
     }
 
     #[test]
-    fn the_all_scope_counts_every_task() {
-        let db = migrated();
-        let now = today();
-
-        stored_at(&db, "old", now - 30 * 86_400, true);
-        stored_at(&db, "new", now + 60, false);
-
-        assert_eq!(
-            TaskCompletion::load(&db, CompletionScope::All, now).expect("rate"),
-            TaskCompletion {
-                total: 2,
-                completed: 1
-            }
-        );
-    }
-
-    #[test]
-    fn the_today_scope_starts_at_local_midnight() {
+    fn completions_count_today_and_every_finished_task() {
         let db = migrated();
         let now = today() + 3_600;
 
-        stored_at(&db, "yesterday", today() - 60, true);
-        stored_at(&db, "done", now + 60, true);
-        stored_at(&db, "open", now + 120, false);
+        stored_at(&db, "last month", today() - 30 * 86_400, true);
+        stored_at(&db, "this morning", now + 60, true);
+        stored_at(&db, "still open", now + 120, false);
 
         assert_eq!(
-            TaskCompletion::load(&db, CompletionScope::Today, now).expect("rate"),
-            TaskCompletion {
-                total: 2,
-                completed: 1
-            }
+            TodoCompletions::load(&db, now).expect("completions"),
+            TodoCompletions { today: 1, all: 2 }
         );
     }
 
     #[test]
-    fn an_empty_table_answers_zero_over_zero() {
+    fn a_finished_task_without_a_stamp_only_counts_in_the_total() {
+        let db = migrated();
+
+        repository::insert(
+            &db,
+            "INSERT INTO todos (title, completed, created_at, updated_at)
+             VALUES ('finished before the stamp existed', 1, 100, 100)",
+            [],
+        )
+        .expect("the legacy row is stored");
+
+        assert_eq!(
+            TodoCompletions::load(&db, today()).expect("completions"),
+            TodoCompletions { today: 0, all: 1 }
+        );
+    }
+
+    #[test]
+    fn an_empty_table_answers_zero_counts() {
         let db = migrated();
 
         assert_eq!(
-            TaskCompletion::load(&db, CompletionScope::All, today()).expect("rate"),
-            TaskCompletion {
-                total: 0,
-                completed: 0
-            }
+            TodoCompletions::load(&db, today()).expect("completions"),
+            TodoCompletions { today: 0, all: 0 }
         );
     }
 

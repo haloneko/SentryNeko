@@ -44,16 +44,11 @@
   },
   "analytics": {
     "completion": {
-      "counts": "{{total}} 个任务中已完成 {{completed}} 个",
-      "empty": "这个口径下还没有任务。",
-      "error": "完成率加载失败。",
-      "rate": "{{percent}}%",
-      "scope": {
-        "all": "含历史",
-        "label": "统计口径",
-        "today": "仅当日"
-      },
-      "title": "任务完成率"
+      "empty": "还没有完成过待办。",
+      "error": "完成情况加载失败。",
+      "title": "今日完成",
+      "total": "累计完成 {{count}} 个",
+      "unit": "个待办"
     },
     "loading": "加载中…",
     "range": {
@@ -125,6 +120,12 @@
       "open": "去统计",
       "title": "今日应用"
     },
+    "done": {
+      "empty": "今天还没有完成的事项。",
+      "title": "今日完成",
+      "total": "累计完成 {{count}} 个",
+      "unit": "个待办"
+    },
     "error": "仪表盘加载失败。",
     "focus": {
       "average": "近 7 天日均 {{value}}",
@@ -167,12 +168,6 @@
       "label": "最近 7 天的专注时长",
       "point": "{{day}} · {{minutes}} 分钟"
     },
-    "rate": {
-      "counts": "{{total}} 个任务中已完成 {{completed}} 个",
-      "empty": "今天还没有任务。",
-      "title": "今日完成率",
-      "value": "{{percent}}%"
-    },
     "todos": {
       "completed": "已完成 {{count}} 个",
       "open": "去待办",
@@ -181,7 +176,7 @@
     },
     "widget": {
       "alarm": "闹钟",
-      "completion": "完成率",
+      "completion": "今日完成",
       "focus": "专注",
       "move": "{{name}}面板",
       "pomodoro": "番茄钟",
@@ -347,6 +342,10 @@
       "deleteTask": "删除这个任务？"
     },
     "delete": "删除任务",
+    "done": {
+      "caption": "今天完成",
+      "label": "今天完成了 {{count}} 个待办"
+    },
     "due": {
       "add": "截止日期",
       "edit": "设置截止日期"
@@ -380,9 +379,6 @@
       "start": "开始",
       "startPanel": "选择开始时间",
       "until": "截止 {{time}}"
-    },
-    "progress": {
-      "label": "完成进度"
     },
     "remaining": "剩余 {{remaining}} 项",
     "search": {

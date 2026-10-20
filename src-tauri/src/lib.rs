@@ -97,7 +97,7 @@ pub fn run() {
             todo_commands::set_todo_completed,
             todo_commands::delete_todo,
             todo_commands::todo_counts,
-            todo_commands::completion_rate,
+            todo_commands::todo_completions,
             tag_commands::list_tags,
             tag_commands::add_tag,
             tag_commands::rename_tag,

@@ -44,16 +44,11 @@
   },
   "analytics": {
     "completion": {
-      "counts": "{{completed}} of {{total}} tasks done",
-      "empty": "No tasks in this scope yet.",
-      "error": "The completion rate could not be loaded.",
-      "rate": "{{percent}}%",
-      "scope": {
-        "all": "All time",
-        "label": "Scope",
-        "today": "Today"
-      },
-      "title": "Task completion"
+      "empty": "Nothing finished yet.",
+      "error": "The finished counts could not be loaded.",
+      "title": "Finished today",
+      "total": "{{count}} finished in total",
+      "unit": "tasks"
     },
     "loading": "Loading…",
     "range": {
@@ -125,6 +120,12 @@
       "open": "Open analytics",
       "title": "Apps today"
     },
+    "done": {
+      "empty": "Nothing finished yet today.",
+      "title": "Finished today",
+      "total": "{{count}} finished in total",
+      "unit": "tasks"
+    },
     "error": "The dashboard could not be loaded.",
     "focus": {
       "average": "7-day average {{value}}",
@@ -167,12 +168,6 @@
       "label": "Focus time of the last seven days",
       "point": "{{day}} · {{minutes}} min"
     },
-    "rate": {
-      "counts": "{{completed}} of {{total}} tasks done",
-      "empty": "No tasks yet today.",
-      "title": "Completion today",
-      "value": "{{percent}}%"
-    },
     "todos": {
       "completed": "{{count}} done",
       "open": "Open tasks",
@@ -181,7 +176,7 @@
     },
     "widget": {
       "alarm": "Alarm",
-      "completion": "Completion",
+      "completion": "Finished today",
       "focus": "Focus",
       "move": "{{name}} panel",
       "pomodoro": "Pomodoro",
@@ -347,6 +342,10 @@
       "deleteTask": "Delete this task?"
     },
     "delete": "Delete task",
+    "done": {
+      "caption": "Done today",
+      "label": "{{count}} tasks finished today"
+    },
     "due": {
       "add": "Due date",
       "edit": "Set due date"
@@ -380,9 +379,6 @@
       "start": "Starts",
       "startPanel": "Pick a start time",
       "until": "Due {{time}}"
-    },
-    "progress": {
-      "label": "Progress"
     },
     "remaining": "{{remaining}} left",
     "search": {

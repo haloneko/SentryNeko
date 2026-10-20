@@ -85,7 +85,7 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 `docs/database.md`。
 `emit_test_event` 是事件探针背后的诊断命令，它推送的事件定义在 `docs/events.md`。待办这一组
 就是清单本身：`list_todos` 按完成状态筛选，写操作都返回落库后的整行，`todo_counts` 供剩余
-计数使用，`completion_rate` 回答 `all` 或 `today` 口径下任务已完成的比例——统计规则写在
+计数使用，`todo_completions` 回答今天完成以及累计完成的数量——统计规则写在
 `docs/database.md`。标签这一组属于预留，目前没有页面调用：它维护名称索引，`set_todo_tags` 建立任务与
 标签的关联，并从两个方向读取关系（`todo_tags` 查某任务的标签，`todos_with_tag` 查某标签下的任务）。
 番茄钟这一组负责持久化：`start_pomodoro_session` 在阶段开始时插入一行，`finish_pomodoro_session`
@@ -141,7 +141,7 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 | `set_todo_completed` | `todo_commands` | `id: i64`、`completed: bool` | `Todo` | T10 |
 | `delete_todo` | `todo_commands` | `id: i64` | — | T10 |
 | `todo_counts` | `todo_commands` | — | `TodoCounts`（`{ total, remaining, completed }`） | T10 |
-| `completion_rate` | `todo_commands` | `scope: "all" \| "today"` | `TaskCompletion`（`{ total, completed }`） | T22 |
+| `todo_completions` | `todo_commands` | — | `TodoCompletions`（`{ today, all }`） | T36 |
 | `list_tags` | `tag_commands` | — | `Tag[]` | T33 |
 | `add_tag` | `tag_commands` | `name: String` | `Tag` | T33 |
 | `rename_tag` | `tag_commands` | `id: i64`、`name: String` | `Tag` | T33 |

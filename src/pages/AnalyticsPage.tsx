@@ -1,19 +1,17 @@
-/** Analytics page: app usage ranking, task completion rate and focus trend. */
+/** Analytics page: app usage ranking, finished task counts and focus trend. */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AnalyticsPanel } from "../components/AnalyticsPanel";
 import { FocusTrendChart } from "../components/FocusTrendChart";
 import { SegmentedControl } from "../components/ui/SegmentedControl";
 import { useAppUsage } from "../hooks/useAppEvents";
-import { useCompletionRate } from "../hooks/useCompletionRate";
 import { useFocusTrend } from "../hooks/useFocusTrend";
 import { useI18n } from "../hooks/useI18n";
+import { useTodos } from "../hooks/useTodos";
 import { USAGE_RANGES } from "../types/appEvent";
 import type { UsageRange } from "../types/appEvent";
 import type { HeatmapGranularity } from "../types/heatmap";
-import { COMPLETION_SCOPES } from "../types/todo";
-import type { CompletionScope } from "../types/todo";
 import { TREND_GRANULARITIES } from "../types/trend";
 
 /** The copy a duration is written with, so the usage ranking and the trend share one formatter. */
@@ -43,13 +41,13 @@ export function AnalyticsPage() {
   const { t } = useI18n();
   const [range, setRange] = useState<UsageRange>("today");
   const [granularity, setGranularity] = useState<HeatmapGranularity>("day");
-  const [scope, setScope] = useState<CompletionScope>("all");
   const { error, loading, usage } = useAppUsage(range);
   const {
-    completion,
-    error: completionError,
-    loading: completionLoading,
-  } = useCompletionRate(scope);
+    completions,
+    completionsError,
+    completionsLoading,
+    refreshCompletions,
+  } = useTodos();
   const {
     buckets,
     error: trendError,
@@ -57,8 +55,10 @@ export function AnalyticsPage() {
     totalSeconds,
   } = useFocusTrend(granularity);
   const peak = usage[0]?.seconds ?? 0;
-  const percent =
-    completion.total === 0 ? 0 : Math.round((completion.completed / completion.total) * 100);
+
+  useEffect(() => {
+    void refreshCompletions();
+  }, [refreshCompletions]);
 
   /** Hours are only shown once there are any, so a short span reads as plain minutes. */
   const duration = (seconds: number, keys: DurationKeys): string => {
@@ -106,39 +106,19 @@ export function AnalyticsPage() {
         )}
       </AnalyticsPanel>
       <AnalyticsPanel
-        action={
-          <SegmentedControl
-            label={t("analytics.completion.scope.label")}
-            onChange={setScope}
-            options={COMPLETION_SCOPES.map((value) => ({
-              label: t(`analytics.completion.scope.${value}`),
-              value,
-            }))}
-            value={scope}
-          />
-        }
-        error={completionError === null ? null : t("analytics.completion.error")}
-        loading={completionLoading}
+        error={completionsError === null ? null : t("analytics.completion.error")}
+        loading={completionsLoading}
         title={t("analytics.completion.title")}
       >
-        {completion.total === 0 ? (
+        {completions.all === 0 ? (
           <p className="muted">{t("analytics.completion.empty")}</p>
         ) : (
           <>
             <p className="completion-rate">
-              <span className="completion-value">
-                {t("analytics.completion.rate", { percent })}
-              </span>
-              <span className="muted">
-                {t("analytics.completion.counts", {
-                  completed: completion.completed,
-                  total: completion.total,
-                })}
-              </span>
+              <span className="completion-value">{completions.today}</span>
+              <span className="muted">{t("analytics.completion.unit")}</span>
             </p>
-            <span aria-hidden="true" className="meter">
-              <span style={{ width: `${percent}%` }} />
-            </span>
+            <p className="muted">{t("analytics.completion.total", { count: completions.all })}</p>
           </>
         )}
       </AnalyticsPanel>
