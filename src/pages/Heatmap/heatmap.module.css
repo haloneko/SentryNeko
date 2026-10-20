@@ -36,7 +36,9 @@
   grid-auto-flow: column;
   grid-template-rows: repeat(7, auto);
   gap: 3px;
-  overflow-x: auto;
+  /* Reserving the bar keeps the card's height fixed: a horizontal scrollbar that appeared on its
+   * own would add ten pixels to the page and could pull the window's scrollbar in and out. */
+  overflow-x: scroll;
 }
 
 .heatmap-calendar .heatmap-cell,

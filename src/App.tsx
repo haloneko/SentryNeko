@@ -223,6 +223,7 @@ function Shell() {
             <span
               aria-hidden="true"
               className={appStyles.navIndicator}
+              data-testid="nav-indicator"
               style={{ height: indicator.height, transform: `translateY(${indicator.top}px)` }}
             />
           ) : null}
@@ -279,8 +280,8 @@ function Shell() {
           {tooltip.label}
         </span>
       ) : null}
-      <main className={appStyles.content} ref={contentRef}>
-        <div className={appStyles.contentInner}>
+      <main className={appStyles.content} data-testid="content" ref={contentRef}>
+        <div className={appStyles.contentInner} data-testid="content-inner">
           <Outlet />
         </div>
       </main>

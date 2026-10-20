@@ -3,6 +3,7 @@
   max-height: calc(100dvh - 64px);
   padding: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
   border: 1px solid var(--border-strong);
   border-radius: 20px;
   background: var(--bg);
