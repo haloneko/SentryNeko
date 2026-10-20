@@ -94,6 +94,7 @@
   align-items: stretch;
   min-height: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 /*
@@ -107,6 +108,7 @@
   min-width: 0;
   padding: var(--space-4);
   overflow: auto;
+  scrollbar-gutter: stable;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background-image: radial-gradient(var(--border) 1px, transparent 1.5px);
@@ -209,6 +211,7 @@
   gap: var(--space-2);
   min-height: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 /* One parked panel: its drawing, its name and size, and a plus that reads "this can come back". */

@@ -285,6 +285,7 @@
   max-height: 204px;
   padding: 4px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);

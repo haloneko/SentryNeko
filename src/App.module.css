@@ -23,7 +23,10 @@
   grid-row: 1 / span 2;
   flex-direction: column;
   gap: var(--space-5);
-  overflow-y: auto;
+  /* The rail keeps its width whether or not it overflows: a scrollbar that comes and goes would
+   * shift every icon beside it. */
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
   padding: var(--space-5) var(--space-3);
   user-select: none;
 }
@@ -263,7 +266,10 @@
 .content {
   grid-column: 2;
   grid-row: 2;
-  overflow-y: auto;
+  /* Always a scrollbar, never a jump: zooming or a longer page must not narrow the reading column
+   * by ten pixels and shift everything that is centred in it. */
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
   padding: var(--space-6) 0 72px;
   /* The rounded inset joins the title bar and sidebar into one continuous frame. */
   border-top-left-radius: var(--radius-lg);
