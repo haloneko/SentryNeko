@@ -4018,3 +4018,117 @@ p {
 @keyframes sidebar-editor-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes sidebar-editor-out { to { opacity: 0; transform: translateY(8px) scale(0.98); } }
 @media (prefers-reduced-motion: reduce) { .sidebar-editor { animation: none; } .sidebar-editor-row { transition: none; } }
+
+/* Confirmation bubble: one question, placed against the action it guards. */
+
+/*
+ * Fixed and mounted on `body`, like the right-click menu: a row that clips its overflow cannot
+ * cut the bubble in half, and a page that scrolls can carry the trigger without taking it along.
+ * The mask is invisible — it is there to catch the click that means "never mind".
+ */
+.popconfirm-mask { position: fixed; z-index: 60; inset: 0; }
+.popconfirm {
+  position: fixed;
+  z-index: 61;
+  display: grid;
+  gap: 6px;
+  width: max-content;
+  min-width: 132px;
+  max-width: min(280px, calc(100vw - var(--space-4)));
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 14px 34px rgb(0 0 0 / 32%);
+  animation: popconfirm-in 120ms ease-out both;
+}
+/* The caret is a rotated square sharing the panel's border, so the two outlines read as one. */
+.popconfirm::before {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--surface);
+  transform: rotate(45deg);
+}
+/* `--caret` is the middle of the trigger; the square is drawn four pixels either side of it. */
+.popconfirm[data-placement="bottom"]::before {
+  top: -5px;
+  left: calc(var(--caret) - 4px);
+  border-top: 1px solid var(--border-strong);
+  border-left: 1px solid var(--border-strong);
+}
+.popconfirm[data-placement="top"]::before {
+  bottom: -5px;
+  left: calc(var(--caret) - 4px);
+  border-right: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+}
+/* The close button sits at the end of the heading row, whether or not there is a heading. */
+.popconfirm-head { display: flex; align-items: flex-start; gap: var(--space-2); }
+/* Aligned with the first line of the heading, not the middle of a wrapped one. */
+.popconfirm-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+  color: var(--accent-text);
+}
+.popconfirm-icon svg { width: 15px; height: 15px; }
+.popconfirm[data-danger] .popconfirm-icon { color: #e5534b; }
+.popconfirm-title {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.popconfirm-content {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.popconfirm-close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-inline-start: auto;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10px;
+  cursor: pointer;
+}
+.popconfirm-close:hover { background: var(--surface-hover); color: var(--text); }
+/* Both answers at the right, with enough air between them for a finger to land cleanly. */
+.popconfirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: 2px;
+}
+/* Small buttons: the bubble asks a question, it is not a page of its own. */
+.popconfirm-actions .btn { padding: 3px 10px; font-size: 12px; }
+.popconfirm-actions .popconfirm-confirm { border-color: var(--accent); background: var(--accent); color: #fff; }
+.popconfirm-actions .popconfirm-confirm:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  filter: brightness(1.1);
+}
+/* The destructive answer wears the same red as the button that opened it. */
+.popconfirm[data-danger] .popconfirm-confirm { border-color: #e5534b; background: #e5534b; }
+.popconfirm[data-danger] .popconfirm-confirm:hover { border-color: #f2555a; background: #f2555a; }
+@keyframes popconfirm-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .popconfirm { animation: none; } }

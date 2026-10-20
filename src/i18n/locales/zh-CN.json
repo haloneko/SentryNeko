@@ -302,6 +302,12 @@
       "running": "进行中"
     }
   },
+  "popconfirm": {
+    "close": "关闭",
+    "label": "确认操作",
+    "no": "否",
+    "yes": "是"
+  },
   "settings": {
     "alarm": {
       "hint": "改动即保存，新闹钟继承这里的响铃时长与通知方式。"

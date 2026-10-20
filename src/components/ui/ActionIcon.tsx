@@ -5,7 +5,16 @@
 
 import type { ReactNode } from "react";
 
-export type ActionIconName = "cancel" | "check" | "edit" | "grip" | "plus" | "remove" | "reset" | "undo";
+export type ActionIconName =
+  | "cancel"
+  | "check"
+  | "delete"
+  | "edit"
+  | "grip"
+  | "plus"
+  | "remove"
+  | "reset"
+  | "undo";
 
 const DRAWINGS: Record<ActionIconName, ReactNode> = {
   // Two columns of dots: the row itself is what moves, and the dots are filled rather than stroked.
@@ -31,6 +40,15 @@ const DRAWINGS: Record<ActionIconName, ReactNode> = {
     <>
       <path d="M20 12a8 8 0 1 1-2.7-6" />
       <path d="M20 3.5V9h-5.5" />
+    </>
+  ),
+  // Bin with a lid: the task is about to be thrown away.
+  delete: (
+    <>
+      <path d="M4 6.5h16" />
+      <path d="M9.5 6.5V4.8a1.3 1.3 0 0 1 1.3-1.3h2.4a1.3 1.3 0 0 1 1.3 1.3v1.7" />
+      <path d="M6.4 6.5l.7 12.6a1.6 1.6 0 0 0 1.6 1.4h6.6a1.6 1.6 0 0 0 1.6-1.4l.7-12.6" />
+      <path d="M10.2 10.5v6M13.8 10.5v6" />
     </>
   ),
   // Cross: leave without keeping the draft.

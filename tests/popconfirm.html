@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Popconfirm regression fixture</title>
+    <style>
+      .test-page { display: grid; justify-items: start; gap: 16px; padding: 24px; }
+      /* Room on both sides, so the preferred side is the one that wins. */
+      .test-middle { position: fixed; top: 55%; left: 32px; }
+      /* Against the right edge: the bubble has to be pulled back inside from there. */
+      .test-right { position: fixed; top: 40%; right: 48px; }
+      /* Pinned to the bottom edge, so there is no room left under it for the bubble. */
+      .test-bottom { position: fixed; bottom: 12px; left: 32px; }
+      output { font-family: ui-monospace, monospace; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/tests/popconfirm.tsx"></script>
+  </body>
+</html>

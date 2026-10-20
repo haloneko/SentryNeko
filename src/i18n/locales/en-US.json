@@ -302,6 +302,12 @@
       "running": "Running"
     }
   },
+  "popconfirm": {
+    "close": "Close",
+    "label": "Confirm action",
+    "no": "No",
+    "yes": "Yes"
+  },
   "settings": {
     "alarm": {
       "hint": "Changes save as you type; new alarms inherit them."
