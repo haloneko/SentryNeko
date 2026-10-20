@@ -217,7 +217,8 @@ SentryNeko/
 │   │   ├── appEventStore.ts          # Foreground app event state
 │   │   └── i18nStore.ts              # Language state
 │   ├── styles/
-│   │   └── app.css                   # Design tokens and the window shell styles
+│   │   ├── tokens.css                # Design tokens and the light theme
+│   │   └── global.css                # Reset and the classes that cross a module
 │   └── types/
 │       ├── index.ts                  # Global type definitions
 │       ├── todo.ts                   # Todo types

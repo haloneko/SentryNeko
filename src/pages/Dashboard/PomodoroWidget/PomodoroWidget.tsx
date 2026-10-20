@@ -7,6 +7,7 @@ import { useI18n } from "../../../hooks/useI18n";
 import { usePomodoro } from "../../../hooks/usePomodoro";
 import { phaseSeconds } from "../../../types/pomodoro";
 import { countdown } from "../format";
+import dashboardStyles from "../dashboard.module.css";
 
 /** The timer block, kept apart so its quarter-second tick re-renders only these lines. */
 export function PomodoroWidget() {
@@ -21,10 +22,10 @@ export function PomodoroWidget() {
   const done = total === 0 ? 0 : Math.min(100, Math.round(((total - remainingMs) / total) * 100));
 
   return (
-    <section className="dash-panel">
-      <p className="dash-kicker">{t("dashboard.pomodoro.title")}</p>
-      <p className="dash-timer">{countdown(remainingMs)}</p>
-      <p className="dash-note">
+    <section className={dashboardStyles.dashPanel} data-dash-panel>
+      <p className={dashboardStyles.dashKicker}>{t("dashboard.pomodoro.title")}</p>
+      <p className={dashboardStyles.dashTimer}>{countdown(remainingMs)}</p>
+      <p className={dashboardStyles.dashNote}>
         {t(`pomodoro.phase.${phase}`)}
         {" · "}
         {endsAt === null ? t("dashboard.pomodoro.idle") : t("dashboard.pomodoro.running")}
@@ -32,7 +33,7 @@ export function PomodoroWidget() {
       <span aria-hidden="true" className="meter">
         <span style={{ width: `${done}%` }} />
       </span>
-      <Link className="dash-link" to="/pomodoro">
+      <Link className={dashboardStyles.dashLink} to="/pomodoro">
         {t("dashboard.pomodoro.open")}
       </Link>
     </section>

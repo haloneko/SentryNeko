@@ -11,6 +11,7 @@ import type { Todo } from "../../types/todo";
 import { ageOf, planSummary, tagNamesOf } from "./todos";
 import { TodoPlanEditor } from "./TodoPlanEditor";
 import { TodoTagEditor } from "./TodoTagEditor";
+import todosStyles from "./todos.module.css";
 
 export interface TodoItemProps {
   /** True for a task the page has not shown before, which is the only one that fades in. */
@@ -91,27 +92,30 @@ export function TodoItem({
 
   return (
     <li
-      className="todo-row"
+      className={todosStyles.todoRow}
       data-leaving={leaving}
       data-selected={selecting && selected}
       data-selecting={selecting}
+      data-testid="todo-row"
       ref={(element) => {
         onRowRef(todo.id, element);
       }}
       style={{ "--row": rowIndex } as CSSProperties}
     >
       <div
-        className="todo-card"
+        className={todosStyles.todoCard}
         data-completed={todo.completed}
         data-enter={entering}
+        data-testid="todo-card"
         onClick={selecting ? handleCardClick : undefined}
       >
         {/* One slot for both marks: picking a task takes the place of ticking it off, never adds to it. */}
-        <span className="todo-mark">
+        <span className={todosStyles.todoMark}>
           <input
             aria-label={t("todo.toggle")}
             checked={todo.completed}
-            className="todo-check todo-check-done"
+            className={`${todosStyles.todoCheck} ${todosStyles.todoCheckDone}`}
+            data-testid="todo-check-done"
             disabled={selecting}
             onChange={() => {
               onToggle(todo);
@@ -122,7 +126,7 @@ export function TodoItem({
             <input
               aria-label={t("todo.select.item", { title: todo.title })}
               checked={selected}
-              className="todo-check todo-check-select"
+              className={`${todosStyles.todoCheck} ${todosStyles.todoCheckSelect}`}
               onChange={() => {
                 onSelect(todo.id);
               }}
@@ -130,10 +134,10 @@ export function TodoItem({
             />
           ) : null}
         </span>
-        <div className="todo-body">
+        <div className={todosStyles.todoBody}>
           {draft === null ? (
             <button
-              className="todo-title"
+              className={todosStyles.todoTitle}
               onClick={() => {
                 setDraft(todo.title);
               }}
@@ -146,7 +150,8 @@ export function TodoItem({
             <input
               aria-label={t("todo.edit")}
               autoFocus
-              className="todo-input todo-input-inline"
+              className={`${todosStyles.todoInput} ${todosStyles.todoInputInline}`}
+              data-testid="todo-input-inline"
               onBlur={commit}
               onChange={(event) => {
                 setDraft(event.target.value);
@@ -163,9 +168,9 @@ export function TodoItem({
               value={draft}
             />
           )}
-          <span className="todo-meta">
+          <span className={todosStyles.todoMeta}>
             {plan === null ? null : (
-              <span className="todo-plan" data-late={plan.late}>
+              <span className={todosStyles.todoPlan} data-late={plan.late}>
                 <svg aria-hidden="true" viewBox="0 0 16 16">
                   <circle cx="8" cy="8" r="6" />
                   <path d="M8 4.5V8l2.5 1.5" />
@@ -174,15 +179,15 @@ export function TodoItem({
               </span>
             )}
             {plan?.late === true ? (
-              <span className="todo-plan-late">{t("todo.plan.late")}</span>
+              <span className={todosStyles.todoPlanLate}>{t("todo.plan.late")}</span>
             ) : null}
-            <span className="todo-time">
+            <span className={todosStyles.todoTime}>
               {age.unit === "now"
                 ? t("todo.time.now")
                 : t(`todo.time.${age.unit}`, { count: age.count })}
             </span>
             {names.map((name) => (
-              <span className="todo-tag" key={name}>
+              <span className={todosStyles.todoTag} key={name}>
                 #{name}
               </span>
             ))}
@@ -215,10 +220,10 @@ export function TodoItem({
           ) : null}
         </div>
         {/* The row's own controls step aside while a pick is being made: one mode, one gesture. */}
-        <div className="todo-actions" inert={selecting}>
+        <div className={todosStyles.todoActions} inert={selecting}>
           <button
             aria-label={t("todo.edit")}
-            className="todo-action"
+            className={todosStyles.todoAction}
             onClick={() => {
               setDraft(todo.title);
             }}
@@ -232,7 +237,7 @@ export function TodoItem({
           <button
             aria-label={t("todo.plan.edit")}
             aria-pressed={planning}
-            className="todo-action"
+            className={todosStyles.todoAction}
             onClick={() => {
               setPlanning((open) => !open);
               setTagging(false);
@@ -248,7 +253,7 @@ export function TodoItem({
           <button
             aria-label={t("todo.tags.label")}
             aria-pressed={tagging}
-            className="todo-action"
+            className={todosStyles.todoAction}
             onClick={() => {
               setTagging((open) => !open);
               setPlanning(false);
@@ -274,7 +279,7 @@ export function TodoItem({
           >
             <button
               aria-label={t("todo.delete")}
-              className="todo-action todo-action-danger"
+              className={`${todosStyles.todoAction} ${todosStyles.todoActionDanger}`}
               title={t("todo.delete")}
               type="button"
             >

@@ -9,6 +9,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
+import contextMenuStyles from "./ContextMenu.module.css";
 
 export interface ContextMenuItem {
   label: string;
@@ -136,7 +137,7 @@ export function ContextMenu({ at, items, label, onClose }: ContextMenuProps) {
   return createPortal(
     <div
       aria-label={label}
-      className="context-menu"
+      className={contextMenuStyles.contextMenu}
       onContextMenu={(event) => {
         event.preventDefault();
       }}
@@ -145,13 +146,13 @@ export function ContextMenu({ at, items, label, onClose }: ContextMenuProps) {
       style={{ left: position.left, top: position.top }}
     >
       {label === undefined ? null : (
-        <p aria-hidden="true" className="context-menu-label">
+        <p aria-hidden="true" className={contextMenuStyles.contextMenuLabel}>
           {label}
         </p>
       )}
       {items.map((item) => (
         <button
-          className="context-menu-item"
+          className={contextMenuStyles.contextMenuItem}
           data-danger={item.danger === true ? "" : undefined}
           disabled={item.disabled === true}
           key={item.label}
@@ -163,12 +164,12 @@ export function ContextMenu({ at, items, label, onClose }: ContextMenuProps) {
           type="button"
         >
           {item.icon === undefined ? null : (
-            <span aria-hidden="true" className="context-menu-icon">
+            <span aria-hidden="true" className={contextMenuStyles.contextMenuIcon}>
               {item.icon}
             </span>
           )}
-          <span className="context-menu-text">{item.label}</span>
-          {item.hint === undefined ? null : <span className="context-menu-hint">{item.hint}</span>}
+          <span className={contextMenuStyles.contextMenuText}>{item.label}</span>
+          {item.hint === undefined ? null : <span className={contextMenuStyles.contextMenuHint}>{item.hint}</span>}
         </button>
       ))}
     </div>,

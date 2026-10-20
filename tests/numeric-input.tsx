@@ -9,7 +9,8 @@ import { NumericInput } from "../src/components/ui/NumericInput";
 import i18n from "../src/i18n";
 import type { AlarmDefaults } from "../src/types/alarm";
 import type { PomodoroDurations } from "../src/types/pomodoro";
-import "../src/styles/app.css";
+import "../src/styles/tokens.css";
+import "../src/styles/global.css";
 
 declare global {
   interface Window {

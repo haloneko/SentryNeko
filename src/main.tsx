@@ -10,7 +10,8 @@ import { loadLanguage } from "./stores/i18nStore";
 import { loadStranded } from "./stores/migrationStore";
 import { loadSidebarLayout } from "./stores/sidebarLayoutStore";
 import { loadVersion } from "./stores/versionStore";
-import "./styles/app.css";
+import "./styles/tokens.css";
+import "./styles/global.css";
 
 /** Mounts `ui` as the whole interface, language provider included. */
 function mount(ui: ReactNode): void {

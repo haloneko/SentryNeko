@@ -11,6 +11,7 @@ import { hideWidget, hiddenWidgets, showWidget, visibleWidgets } from "../../typ
 import type { DashboardWidgetId } from "../../types/dashboard";
 import { DASHBOARD_PANELS } from "./panels";
 import { addWidgetItems, removeWidgetItem } from "./widgetMenu";
+import dashboardStyles from "./dashboard.module.css";
 
 /** Where the right-click menu was opened, and what it was opened on. */
 interface WidgetMenu {
@@ -77,15 +78,15 @@ export function Dashboard() {
   return (
     <>
       <h1>{t("nav.dashboard")}</h1>
-      <div className="dash-grid">
+      <div className={dashboardStyles.dashGrid}>
         <div
-          className="dash-cells"
+          className={dashboardStyles.dashCells}
           onContextMenu={openGridMenu}
           style={{ "--dash-columns": layout.columns } as CSSProperties}
         >
           {visible.length === 0 ? (
             <div
-              className="dash-empty"
+              className={dashboardStyles.dashEmpty}
               onContextMenu={openGridMenu}
               style={{ gridColumn: "1 / -1", gridRow: "span 2" }}
             >
@@ -98,7 +99,7 @@ export function Dashboard() {
 
             return (
               <div
-                className="dash-slot"
+                className={dashboardStyles.dashSlot}
                 key={id}
                 onContextMenu={(event) => {
                   openPanelMenu(event, id);

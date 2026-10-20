@@ -6,6 +6,7 @@ import { useDashboardLayout } from "../../hooks/useDashboardLayout";
 import { useI18n } from "../../hooks/useI18n";
 import { ActionIcon } from "../ui/ActionIcon";
 import { DashboardLayoutEditor } from "./DashboardLayoutEditor";
+import dashboardLayoutEditorStyles from "../../pages/Dashboard/DashboardLayoutEditor.module.css";
 
 /** One line of context plus the edit button; the editor holds everything else. */
 export function DashboardLayoutSettings() {
@@ -14,8 +15,8 @@ export function DashboardLayoutSettings() {
   const [editing, setEditing] = useState(false);
 
   return (
-    <div className="layout-entry">
-      <span className="layout-summary">
+    <div className={dashboardLayoutEditorStyles.layoutEntry}>
+      <span className={dashboardLayoutEditorStyles.layoutSummary}>
         {t("dashboard.layout.summary", { columns: layout.columns })}
       </span>
       <button

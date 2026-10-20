@@ -7,6 +7,9 @@ import { usePomodoro } from "../hooks/usePomodoro";
 import { MAX_PHASE_SECONDS, MIN_PHASE_SECONDS } from "../types/pomodoro";
 import type { PomodoroDurations } from "../types/pomodoro";
 import { NumericInput } from "./ui/NumericInput";
+import pomodoroStyles from "../pages/Pomodoro/pomodoro.module.css";
+import settingsStyles from "../pages/Settings/settings.module.css";
+import todosStyles from "../pages/Todos/todos.module.css";
 
 /** Wait after the last keystroke, so typing `25` writes once. */
 const SAVE_DELAY_MS = 600;
@@ -91,14 +94,14 @@ export function PomodoroSettings() {
   };
 
   return (
-    <div className="settings-form">
-      <div className="phase-grid">
+    <div className={settingsStyles.settingsForm}>
+      <div className={pomodoroStyles.phaseGrid}>
         {phases.map((phase) => {
           const label = t(`pomodoro.settings.${phase.key}`);
           const id = `pomodoro-${phase.key}`;
 
           return (
-            <div className="set-field" key={phase.key}>
+            <div className={settingsStyles.setField} key={phase.key}>
               <label htmlFor={id}>{label}</label>
               <NumericInput
                 decreaseLabel={t("numericInput.decrease", { label })}
@@ -116,10 +119,10 @@ export function PomodoroSettings() {
         })}
       </div>
       {total > 0 ? (
-        <div aria-hidden="true" className="phase-bar">
+        <div aria-hidden="true" className={pomodoroStyles.phaseBar}>
           {phases.map((phase) => (
             <span
-              className="phase-slice"
+              className={pomodoroStyles.phaseSlice}
               data-phase={phase.key}
               key={phase.key}
               style={{ flexGrow: phase.value }}
@@ -127,28 +130,28 @@ export function PomodoroSettings() {
           ))}
         </div>
       ) : null}
-      <p className="phase-keys">
+      <p className={pomodoroStyles.phaseKeys}>
         {phases.map((phase) => {
           const name = t(`pomodoro.phase.${phase.key}`);
 
           return (
             <span
-              className="phase-key"
+              className={pomodoroStyles.phaseKey}
               data-phase={phase.key}
               key={phase.key}
               title={t("pomodoro.settings.slice", { minutes: phase.value, phase: name })}
             >
-              <span aria-hidden="true" className="phase-dot" />
+              <span aria-hidden="true" className={pomodoroStyles.phaseDot} />
               {name}
             </span>
           );
         })}
       </p>
       {!idle || error !== null || saved ? (
-        <p className="settings-status">
+        <p className={settingsStyles.settingsStatus}>
           {!idle ? <span className="muted">{t("pomodoro.settings.locked")}</span> : null}
           {idle && error !== null ? (
-            <span className="todo-error">{t("pomodoro.settings.error")}</span>
+            <span className={todosStyles.todoError}>{t("pomodoro.settings.error")}</span>
           ) : null}
           {idle && error === null && saved ? (
             <span className="muted">{t("pomodoro.settings.saved")}</span>

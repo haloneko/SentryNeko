@@ -2,6 +2,7 @@
 
 import { useI18n } from "../hooks/useI18n";
 import { useWindowControls } from "../hooks/useWindowControls";
+import appStyles from "../App.module.css";
 
 /** Replaces the system decorations: drag strip plus the three window buttons. */
 export function TitleBar() {
@@ -9,11 +10,11 @@ export function TitleBar() {
   const { maximized, minimize, toggleMaximize, close } = useWindowControls();
 
   return (
-    <header className="titlebar" data-tauri-drag-region>
-      <div className="titlebar-controls">
+    <header className={appStyles.titlebar} data-tauri-drag-region>
+      <div className={appStyles.titlebarControls}>
         <button
           aria-label={t("window.minimize")}
-          className="titlebar-button"
+          className={appStyles.titlebarButton}
           onClick={minimize}
           title={t("window.minimize")}
           type="button"
@@ -24,7 +25,7 @@ export function TitleBar() {
         </button>
         <button
           aria-label={maximized ? t("window.restore") : t("window.maximize")}
-          className="titlebar-button"
+          className={appStyles.titlebarButton}
           onClick={toggleMaximize}
           title={maximized ? t("window.restore") : t("window.maximize")}
           type="button"
@@ -42,7 +43,7 @@ export function TitleBar() {
         </button>
         <button
           aria-label={t("window.close")}
-          className="titlebar-button"
+          className={appStyles.titlebarButton}
           data-kind="close"
           onClick={close}
           title={t("window.close")}

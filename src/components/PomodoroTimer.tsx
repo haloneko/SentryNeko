@@ -6,6 +6,8 @@ import { useI18n } from "../hooks/useI18n";
 import { usePomodoro } from "../hooks/usePomodoro";
 import { PHASES_PER_CYCLE, POMODORO_PHASES, phaseAfter, phaseSeconds } from "../types/pomodoro";
 import { SegmentedControl } from "./ui/SegmentedControl";
+import pomodoroStyles from "../pages/Pomodoro/pomodoro.module.css";
+import todosStyles from "../pages/Todos/todos.module.css";
 
 /** Centre and reach of the tick ring inside its 240 × 240 viewBox. */
 const CENTER = 120;
@@ -45,11 +47,11 @@ export function PomodoroTimer() {
   const state = running ? "running" : sessionId === null ? "idle" : "paused";
 
   return (
-    <section className="pomo" data-state={state}>
-      <div className="pomo-stage">
-        <div className="pomo-dial">
-          <svg aria-hidden="true" className="pomo-ticks" viewBox="0 0 240 240">
-            <circle className="pomo-dial-line" cx={CENTER} cy={CENTER} r={84} />
+    <section className={pomodoroStyles.pomo} data-state={state}>
+      <div className={pomodoroStyles.pomoStage}>
+        <div className={pomodoroStyles.pomoDial}>
+          <svg aria-hidden="true" className={pomodoroStyles.pomoTicks} viewBox="0 0 240 240">
+            <circle className={pomodoroStyles.pomoDialLine} cx={CENTER} cy={CENTER} r={84} />
             {Array.from({ length: ticks }, (_, index) => {
               const angle = (index / ticks) * Math.PI * 2 - Math.PI / 2;
               const major = index % 5 === 0;
@@ -57,7 +59,7 @@ export function PomodoroTimer() {
 
               return (
                 <line
-                  className="pomo-tick"
+                  className={pomodoroStyles.pomoTick}
                   data-major={major}
                   data-spent={index < spent}
                   key={index}
@@ -69,16 +71,16 @@ export function PomodoroTimer() {
               );
             })}
           </svg>
-          <div className="pomo-face">
-            <p className="pomo-phase">{t(`pomodoro.phase.${phase}`)}</p>
-            <p className="pomo-clock" role="timer">
+          <div className={pomodoroStyles.pomoFace}>
+            <p className={pomodoroStyles.pomoPhase}>{t(`pomodoro.phase.${phase}`)}</p>
+            <p className={pomodoroStyles.pomoClock} role="timer">
               {formatClock(seconds)}
             </p>
-            <p className="pomo-state">{t(`pomodoro.state.${state}`)}</p>
+            <p className={pomodoroStyles.pomoState}>{t(`pomodoro.state.${state}`)}</p>
           </div>
         </div>
       </div>
-      <aside className="pomo-side">
+      <aside className={pomodoroStyles.pomoSide}>
         <SegmentedControl
           label={t("pomodoro.phase.label")}
           onChange={(next) => {
@@ -90,15 +92,15 @@ export function PomodoroTimer() {
           }))}
           value={phase}
         />
-        <div className="pomo-block">
-          <p className="pomo-kicker">{t("pomodoro.cycle.label")}</p>
-          <p className="pomo-value">
+        <div className={pomodoroStyles.pomoBlock}>
+          <p className={pomodoroStyles.pomoKicker}>{t("pomodoro.cycle.label")}</p>
+          <p className={pomodoroStyles.pomoValue}>
             {t("pomodoro.cycle.value", { done, total: PHASES_PER_CYCLE })}
           </p>
-          <span aria-hidden="true" className="pomo-marks">
+          <span aria-hidden="true" className={pomodoroStyles.pomoMarks}>
             {Array.from({ length: PHASES_PER_CYCLE }, (_, index) => (
               <span
-                className="pomo-mark"
+                className={pomodoroStyles.pomoMark}
                 data-active={phase === "focus" && index === done}
                 data-done={index < done}
                 key={index}
@@ -106,18 +108,18 @@ export function PomodoroTimer() {
             ))}
           </span>
         </div>
-        <div className="pomo-block">
-          <p className="pomo-kicker">{t("pomodoro.next.label")}</p>
-          <p className="pomo-value">
+        <div className={pomodoroStyles.pomoBlock}>
+          <p className={pomodoroStyles.pomoKicker}>{t("pomodoro.next.label")}</p>
+          <p className={pomodoroStyles.pomoValue}>
             {t("pomodoro.next.value", {
               minutes: nextMinutes,
               phase: t(`pomodoro.phase.${nextPhase}`),
             })}
           </p>
         </div>
-        <div className="pomo-controls">
+        <div className={pomodoroStyles.pomoControls}>
           <button
-            className="btn pomo-primary"
+            className={`btn ${pomodoroStyles.pomoPrimary}`}
             onClick={() => {
               if (running) {
                 pause();
@@ -139,10 +141,10 @@ export function PomodoroTimer() {
             {t("pomodoro.reset")}
           </button>
         </div>
-        <Link className="pomo-link" to="/settings">
+        <Link className={pomodoroStyles.pomoLink} to="/settings">
           {t("pomodoro.settings.link")}
         </Link>
-        {error !== null ? <p className="todo-error">{t("pomodoro.error")}</p> : null}
+        {error !== null ? <p className={todosStyles.todoError}>{t("pomodoro.error")}</p> : null}
       </aside>
     </section>
   );

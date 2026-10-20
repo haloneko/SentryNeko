@@ -7,6 +7,11 @@ const devHost = process.env.TAURI_DEV_HOST;
 export default defineConfig({
   plugins: [react()],
   clearScreen: false,
+  css: {
+    // Module classes are written in kebab case and read as camel case, e.g. `.todo-row` is
+    // `styles.todoRow` in a component.
+    modules: { localsConvention: "camelCase" },
+  },
   server: {
     port: 1420,
     strictPort: true,

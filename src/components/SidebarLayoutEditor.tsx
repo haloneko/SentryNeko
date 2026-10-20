@@ -7,6 +7,8 @@ import { defaultSidebarLayout, reorderSidebarLayout, SIDEBAR_PANELS } from "../t
 import type { SidebarLayout, SidebarPanelId } from "../types/sidebar";
 import { ActionIcon } from "./ui/ActionIcon";
 import { NavIcon } from "./ui/NavIcon";
+import sidebarLayoutEditorStyles from "./SidebarLayoutEditor.module.css";
+import todosStyles from "../pages/Todos/todos.module.css";
 
 interface Gesture {
   id: SidebarPanelId;
@@ -159,19 +161,19 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
   }, [draft]);
 
   return createPortal(<dialog aria-labelledby="sidebar-editor-title" aria-describedby="sidebar-editor-hint"
-    className="sidebar-editor" data-closing={closing} ref={dialog}
+    className={sidebarLayoutEditorStyles.sidebarEditor} data-closing={closing} ref={dialog}
     onCancel={(event) => { event.preventDefault(); close(); }}
     onClick={(event) => {
       const bounds = event.currentTarget.getBoundingClientRect();
       if (event.target === event.currentTarget && (event.clientX < bounds.left || event.clientX > bounds.right ||
         event.clientY < bounds.top || event.clientY > bounds.bottom)) close();
     }}>
-    <header className="sidebar-editor-header">
-      <div className="sidebar-editor-lead">
+    <header className={sidebarLayoutEditorStyles.sidebarEditorHeader}>
+      <div className={sidebarLayoutEditorStyles.sidebarEditorLead}>
         <h2 id="sidebar-editor-title">{t("sidebar.edit")}</h2>
         <p className="settings-hint" id="sidebar-editor-hint">{t("sidebar.editorHint")}</p>
       </div>
-      <div className="sidebar-editor-actions">
+      <div className={sidebarLayoutEditorStyles.sidebarEditorActions}>
         <button aria-label={t("sidebar.reset")} className="icon-btn" onClick={() => edit(defaultSidebarLayout())}
           title={t("sidebar.reset")} type="button">
           <ActionIcon name="reset" />
@@ -187,12 +189,12 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
       </div>
     </header>
     <p className="sr-only" id="sidebar-keyboard-hint">{t("sidebar.keyboardHint")}</p>
-    <ol aria-label={t("sidebar.title")} className="sidebar-editor-list">
+    <ol aria-label={t("sidebar.title")} className={sidebarLayoutEditorStyles.sidebarEditorList}>
       {draft.map(({ id, visible }, index) => {
         const label = t(SIDEBAR_PANELS[id].label);
-        return <li className="sidebar-editor-row" data-dragging={dragged === id} data-visible={visible} key={id}
+        return <li className={sidebarLayoutEditorStyles.sidebarEditorRow} data-dragging={dragged === id} data-testid="sidebar-editor-row" data-visible={visible} key={id}
           ref={(element) => { if (element) rows.current.set(id, element); else rows.current.delete(id); }}>
-          <button type="button" className="sidebar-drag-handle" aria-label={t("sidebar.drag", { panel: label })}
+          <button type="button" className={sidebarLayoutEditorStyles.sidebarDragHandle} aria-label={t("sidebar.drag", { panel: label })}
             aria-describedby="sidebar-keyboard-hint" aria-keyshortcuts="ArrowUp ArrowDown Home End"
             onPointerDown={(event) => {
               if (event.button !== 0 || !event.isPrimary || gesture.current) return;
@@ -214,7 +216,7 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
             }}>
             <ActionIcon name="grip" />
           </button>
-          <span className="sidebar-editor-panel"><NavIcon name={id} /><span>{label}</span></span>
+          <span className={sidebarLayoutEditorStyles.sidebarEditorPanel}><NavIcon name={id} /><span>{label}</span></span>
           <input role="switch" className="toggle" type="checkbox" checked={visible}
             aria-label={t("sidebar.show", { panel: label })}
             onChange={(event) => setVisible(id, event.currentTarget.checked)} />
@@ -222,9 +224,9 @@ export function SidebarLayoutEditor({ onClose }: { onClose: () => void }) {
       })}
     </ol>
     <p aria-live="polite" className="sr-only">{announcement}</p>
-    <footer className="sidebar-editor-footer">
+    <footer className={sidebarLayoutEditorStyles.sidebarEditorFooter}>
       <p className="settings-hint">{t("sidebar.settingsAlwaysVisible")}</p>
-      {persistenceError ? <p className="todo-error" role="alert">{t("sidebar.saveError")}</p> : null}
+      {persistenceError ? <p className={todosStyles.todoError} role="alert">{t("sidebar.saveError")}</p> : null}
     </footer>
   </dialog>, document.body);
 }

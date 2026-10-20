@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { useI18n } from "../../hooks/useI18n";
+import todosStyles from "./todos.module.css";
 
 export interface TodoSearchProps {
   /** What the user typed; the empty string matches everything. */
@@ -48,8 +49,8 @@ export function TodoSearch({ onChange, query }: TodoSearchProps) {
   }, []);
 
   return (
-    <div className="todo-search">
-      <span aria-hidden="true" className="todo-search-glyph">
+    <div className={todosStyles.todoSearch}>
+      <span aria-hidden="true" className={todosStyles.todoSearchGlyph}>
         <svg viewBox="0 0 16 16">
           <circle cx="7" cy="7" r="4.5" />
           <path d="M10.5 10.5 14 14" />
@@ -57,7 +58,7 @@ export function TodoSearch({ onChange, query }: TodoSearchProps) {
       </span>
       <input
         aria-label={t("todo.search.label")}
-        className="todo-input todo-search-input"
+        className={`${todosStyles.todoInput} ${todosStyles.todoSearchInput}`}
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
           onChange(event.target.value);
         }}
@@ -76,7 +77,7 @@ export function TodoSearch({ onChange, query }: TodoSearchProps) {
       {query === "" ? null : (
         <button
           aria-label={t("todo.search.clear")}
-          className="todo-search-clear"
+          className={todosStyles.todoSearchClear}
           onClick={() => {
             onChange("");
             inputRef.current?.focus();

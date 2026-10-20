@@ -1,0 +1,52 @@
+/* The rollback dialog shares the editor's shape: one panel, centred, over a dimmed app. */
+.stranded {
+  width: min(520px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 28px 100px rgb(0 0 0 / 40%);
+  animation: sidebar-editor-in 180ms ease-out both;
+}
+
+.stranded::backdrop { background: rgb(9 12 22 / 58%); backdrop-filter: blur(4px); }
+
+.stranded-lead { display: grid; gap: 8px; }
+
+.stranded-lead h2 { margin: 0; font-size: 19px; letter-spacing: -0.01em; }
+
+.stranded-lead p { margin: 0; color: var(--text-muted); font-size: 13.5px; line-height: 1.6; }
+
+.stranded-facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 14px;
+  margin: 18px 0 0;
+  font-size: 13px;
+}
+
+.stranded-facts dt { color: var(--text-muted); }
+
+.stranded-facts dd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+}
+
+.stranded-facts code {
+  overflow: auto;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.stranded-facts dd :global(.btn) { flex: none; padding: 4px 10px; font-size: 12px; }
+
+.stranded-hint { margin: 16px 0 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+
+.stranded-actions { display: flex; justify-content: flex-end; margin-top: 20px; }

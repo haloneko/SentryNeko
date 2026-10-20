@@ -1,0 +1,443 @@
+/* Shared controls: a control a page mounts, styled once for every host. *//*
+ * The due date panel, built like a small dialog: a header that reads the chosen day, three
+ * outlined fields that spell it out, and a footer that closes the pick. The fields are custom
+ * listboxes because a native select draws its popup in the operating system's own style, which
+ * would be the one surface on the page that does not belong to the app.
+ */
+.date-time-field {
+  position: relative;
+}
+
+.date-time-field > .due-date-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+}
+
+/* The field is one control: the box and its button share the outline, and the focus ring wraps both. */
+.date-time-row {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.date-time-row:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.date-time-field[data-invalid="true"] .date-time-row {
+  border-color: #e5534b;
+  box-shadow: 0 0 0 3px rgb(229 83 75 / 14%);
+}
+
+.date-time-input {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding-inline: 11px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+
+.date-time-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.75;
+}
+
+.date-time-trigger {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 34px;
+  border: 0;
+  border-inline-start: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.date-time-trigger:hover,
+.date-time-trigger[aria-expanded="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.date-time-trigger svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.date-time-error {
+  margin: 0;
+  color: #e5534b;
+  font-size: 11px;
+}
+
+.due-date-panel {
+  width: 332px;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow:
+    0 18px 44px rgb(8 10 18 / 22%),
+    0 2px 6px rgb(12 16 28 / 10%);
+  animation: due-date-in 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.due-date-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 14px 10px 12px 16px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 15px 15px 0 0;
+  background:
+    linear-gradient(var(--accent-soft), var(--accent-soft)),
+    var(--surface);
+}
+
+.due-date-eyebrow {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.due-date-title {
+  display: block;
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.due-date-panel[data-empty="true"] .due-date-title {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.due-date-weekday {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.due-date-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.due-date-close:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.due-date-close svg {
+  width: 9px;
+  height: 9px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.due-date-body {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.due-date-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 0.8fr;
+  gap: 10px;
+}
+
+/* The time row is the second line of the same sentence: an hour, then a minute. */
+.due-date-time {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.due-date-grid--time {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* The label sits on the outline, the way an outlined field reads in the rest of the app. */
+.due-date-field {
+  position: relative;
+}
+
+.due-date-field-name {
+  position: absolute;
+  top: -7px;
+  left: 9px;
+  z-index: 1;
+  padding-inline: 4px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.due-date-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  height: 42px;
+  padding-inline: 11px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.due-date-select:hover {
+  border-color: var(--text-muted);
+}
+
+.due-date-select:focus-visible,
+.due-date-select[aria-expanded="true"] {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.due-date-select > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.due-date-select svg {
+  flex: none;
+  width: 9px;
+  height: 6px;
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 140ms ease;
+}
+
+.due-date-select[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+/* The listbox drops over the panel instead of growing it: the fields stay where the eye left them. */
+.due-date-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 60;
+  max-height: 204px;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow:
+    0 12px 28px rgb(8 10 18 / 20%),
+    0 1px 3px rgb(12 16 28 / 10%);
+  animation: due-date-menu-in 120ms ease;
+}
+
+.due-date-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
+}
+
+.due-date-option:hover,
+.due-date-option:focus-visible {
+  outline: none;
+  background: var(--surface-hover);
+}
+
+.due-date-option[aria-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.due-date-option svg {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.due-date-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.due-date-chip {
+  height: 28px;
+  padding-inline: 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.due-date-chip:hover {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.due-date-chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.due-date-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.due-date-clear {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.due-date-clear:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.due-date-done {
+  margin-inline-start: auto;
+  padding: 7px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 120ms ease;
+}
+
+.due-date-done:hover {
+  filter: brightness(1.08);
+}
+
+@keyframes due-date-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes due-date-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .due-date-panel,
+  .due-date-menu {
+    animation: none;
+    transition: none;
+  }
+}

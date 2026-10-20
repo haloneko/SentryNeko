@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 
 import type { DashboardWidgetId } from "../../types/dashboard";
 import { NAV_DRAWINGS } from "./NavIcon";
+import dashboardStyles from "../../pages/Dashboard/dashboard.module.css";
 
 const DRAWINGS: Record<DashboardWidgetId, ReactNode> = {
   // Crosshairs: the block that reports where the day's attention went.
@@ -39,7 +40,7 @@ const DRAWINGS: Record<DashboardWidgetId, ReactNode> = {
 /** Draws the icon of one dashboard panel at the size the stylesheet picks for it. */
 export function WidgetIcon({ id }: { id: DashboardWidgetId }) {
   return (
-    <svg aria-hidden="true" className="widget-icon" viewBox="0 0 24 24">
+    <svg aria-hidden="true" className={dashboardStyles.widgetIcon} viewBox="0 0 24 24">
       {DRAWINGS[id]}
     </svg>
   );

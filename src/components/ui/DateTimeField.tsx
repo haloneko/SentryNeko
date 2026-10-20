@@ -16,6 +16,7 @@ import {
   todayDay,
 } from "./dueDate";
 import type { ClockTime } from "./dueDate";
+import dateTimeFieldStyles from "./DateTimeField.module.css";
 
 export type DateTimeMode = "date" | "datetime" | "time";
 
@@ -289,13 +290,13 @@ function DueSelect({ label, onChange, onStep, options, value }: DueSelectProps) 
   };
 
   return (
-    <div className="due-date-field" ref={field}>
-      <span className="due-date-field-name">{label}</span>
+    <div className={dateTimeFieldStyles.dueDateField} ref={field}>
+      <span className={dateTimeFieldStyles.dueDateFieldName}>{label}</span>
       <button
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-label={`${label} ${selected?.label ?? ""}`.trim()}
-        className="due-date-select"
+        className={dateTimeFieldStyles.dueDateSelect}
         onClick={() => {
           setOpen((current) => !current);
         }}
@@ -313,7 +314,7 @@ function DueSelect({ label, onChange, onStep, options, value }: DueSelectProps) 
       {open ? (
         <div
           aria-label={label}
-          className="due-date-menu"
+          className={dateTimeFieldStyles.dueDateMenu}
           onKeyDown={onMenuKeyDown}
           ref={menu}
           role="listbox"
@@ -321,7 +322,7 @@ function DueSelect({ label, onChange, onStep, options, value }: DueSelectProps) 
           {options.map((option) => (
             <button
               aria-selected={option.value === value}
-              className="due-date-option"
+              className={dateTimeFieldStyles.dueDateOption}
               key={option.value}
               onClick={() => {
                 choose(option.value);
@@ -530,12 +531,12 @@ export function DateTimeField({
     : null;
 
   return (
-    <div className="date-time-field" data-invalid={invalid} ref={root}>
-      <div className="date-time-row">
+    <div className={dateTimeFieldStyles.dateTimeField} data-invalid={invalid} ref={root}>
+      <div className={dateTimeFieldStyles.dateTimeRow}>
         <input
           aria-invalid={invalid}
           aria-label={label}
-          className="date-time-input"
+          className={dateTimeFieldStyles.dateTimeInput}
           inputMode={mode === "datetime" ? "text" : "numeric"}
           onBlur={commit}
           onChange={(event) => {
@@ -567,7 +568,7 @@ export function DateTimeField({
         <button
           aria-expanded={open}
           aria-label={t("dueDate.open")}
-          className="date-time-trigger"
+          className={dateTimeFieldStyles.dateTimeTrigger}
           onClick={() => {
             setOpen((current) => !current);
           }}
@@ -578,7 +579,7 @@ export function DateTimeField({
       </div>
 
       {invalid ? (
-        <p className="date-time-error" role="alert">
+        <p className={dateTimeFieldStyles.dateTimeError} role="alert">
           {t("dueDate.invalid")}
         </p>
       ) : null}
@@ -586,19 +587,19 @@ export function DateTimeField({
       {open ? (
         <div
           aria-label={heading}
-          className="due-date-panel"
+          className={dateTimeFieldStyles.dueDatePanel}
           data-empty={value === null}
           role="group"
         >
-          <div className="due-date-head">
+          <div className={dateTimeFieldStyles.dueDateHead}>
             <div>
-              <span className="due-date-eyebrow">{heading}</span>
-              <span className="due-date-title">{title}</span>
-              {weekday === null ? null : <span className="due-date-weekday">{weekday}</span>}
+              <span className={dateTimeFieldStyles.dueDateEyebrow}>{heading}</span>
+              <span className={dateTimeFieldStyles.dueDateTitle}>{title}</span>
+              {weekday === null ? null : <span className={dateTimeFieldStyles.dueDateWeekday}>{weekday}</span>}
             </div>
             <button
               aria-label={t("dueDate.close")}
-              className="due-date-close"
+              className={dateTimeFieldStyles.dueDateClose}
               onClick={() => {
                 setOpen(false);
               }}
@@ -610,9 +611,9 @@ export function DateTimeField({
             </button>
           </div>
 
-          <div className="due-date-body">
+          <div className={dateTimeFieldStyles.dueDateBody}>
             {withDate ? (
-              <div className="due-date-grid">
+              <div className={dateTimeFieldStyles.dueDateGrid}>
                 <DueSelect
                   label={t("dueDate.year")}
                   onChange={(year) => {
@@ -667,8 +668,8 @@ export function DateTimeField({
             ) : null}
 
             {withTime ? (
-              <div className="due-date-time">
-                <div className="due-date-grid due-date-grid--time">
+              <div className={dateTimeFieldStyles.dueDateTime}>
+                <div className={`${dateTimeFieldStyles.dueDateGrid} ${dateTimeFieldStyles.dueDateGridTime}`}>
                   <DueSelect
                     label={t("dueDate.hour")}
                     onChange={(hour) => {
@@ -707,7 +708,7 @@ export function DateTimeField({
               </div>
             ) : null}
 
-            <div className="due-date-quick">
+            <div className={dateTimeFieldStyles.dueDateQuick}>
               {withDate
                 ? [
                     { day: todayDay(), label: t("dueDate.today") },
@@ -718,7 +719,7 @@ export function DateTimeField({
                     return (
                       <button
                         aria-pressed={pickedDay === quick.day}
-                        className="due-date-chip"
+                        className={dateTimeFieldStyles.dueDateChip}
                         key={quick.label}
                         onClick={() => {
                           if (parts !== null) {
@@ -735,7 +736,7 @@ export function DateTimeField({
                   })
                 : (
                     <button
-                      className="due-date-chip"
+                      className={dateTimeFieldStyles.dueDateChip}
                       onClick={() => {
                         apply(Math.floor(Date.now() / 60_000) * 60);
                         setOpen(false);
@@ -748,10 +749,10 @@ export function DateTimeField({
             </div>
           </div>
 
-          <div className="due-date-foot">
+          <div className={dateTimeFieldStyles.dueDateFoot}>
             {value === null ? null : (
               <button
-                className="due-date-clear"
+                className={dateTimeFieldStyles.dueDateClear}
                 onClick={() => {
                   apply(null);
                   setOpen(false);
@@ -762,7 +763,7 @@ export function DateTimeField({
               </button>
             )}
             <button
-              className="due-date-done"
+              className={dateTimeFieldStyles.dueDateDone}
               onClick={() => {
                 setOpen(false);
               }}

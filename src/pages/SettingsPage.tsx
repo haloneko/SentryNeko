@@ -12,6 +12,7 @@ import { PomodoroSettings } from "../components/PomodoroSettings";
 import { SidebarLayoutSettings } from "../components/SidebarLayoutSettings";
 import { useI18n } from "../hooks/useI18n";
 import { usePomodoro } from "../hooks/usePomodoro";
+import settingsStyles from "./Settings/settings.module.css";
 
 interface SettingsRowProps {
   /** Two-digit ordinal shown above the title, so the page reads as one list. */
@@ -25,13 +26,13 @@ interface SettingsRowProps {
 /** One numbered row: the label sits in a rail, the controls stand beside it. */
 function SettingsRow({ children, hint, index, title }: SettingsRowProps) {
   return (
-    <section className="settings-row">
-      <div className="settings-lead">
-        <span className="settings-index">{index}</span>
+    <section className={settingsStyles.settingsRow}>
+      <div className={settingsStyles.settingsLead}>
+        <span className={settingsStyles.settingsIndex}>{index}</span>
         <h2>{title}</h2>
         <p className="settings-hint">{hint}</p>
       </div>
-      <div className="settings-body">{children}</div>
+      <div className={settingsStyles.settingsBody}>{children}</div>
     </section>
   );
 }
@@ -49,7 +50,7 @@ export function SettingsPage() {
   return (
     <>
       <h1>{t("nav.settings")}</h1>
-      <div className="settings">
+      <div className={settingsStyles.settings}>
         <SettingsRow hint={t("appearance.hint")} index="01" title={t("appearance.title")}>
           <AppearanceSettings />
         </SettingsRow>

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "../hooks/useI18n";
 import { BACKEND_EVENTS, useTauriEvent } from "../hooks/useTauriEvent";
 import type { NotificationFallbackPayload, NotificationKind } from "../types";
+import toastStyles from "./ui/Toast.module.css";
 
 interface Toast {
   id: number;
@@ -54,13 +55,13 @@ export function ToastHost() {
   }
 
   return (
-    <div className="toast-stack" role="status">
+    <div className={toastStyles.toastStack} role="status">
       {toasts.map((toast) => (
-        <div className="toast" key={toast.id} title={toast.reason}>
+        <div className={toastStyles.toast} key={toast.id} title={toast.reason}>
           <p>{t(`notification.fallback.${toast.kind}`)}</p>
           <button
             aria-label={t("notification.dismiss")}
-            className="toast-dismiss"
+            className={toastStyles.toastDismiss}
             onClick={() => {
               dismiss(toast.id);
             }}

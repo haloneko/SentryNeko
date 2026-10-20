@@ -217,7 +217,8 @@ SentryNeko/
 │   │   ├── appEventStore.ts          # 前台应用事件状态
 │   │   └── i18nStore.ts              # 语言状态管理
 │   ├── styles/
-│   │   └── app.css                   # 设计令牌与窗口外壳样式
+│   │   ├── tokens.css                # 设计令牌与浅色主题
+│   │   └── global.css                # reset 与跨模块共用的类
 │   └── types/
 │       ├── index.ts                  # 全局类型定义
 │       ├── todo.ts                   # 待办类型

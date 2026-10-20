@@ -32,6 +32,7 @@ import { useSidebarLayoutStore } from "./stores/sidebarLayoutStore";
 import { useVersionStore, versionLabel } from "./stores/versionStore";
 import type { AppEvent } from "./types/appEvent";
 import { SIDEBAR_PANELS, SIDEBAR_PANEL_IDS } from "./types/sidebar";
+import appStyles from "./App.module.css";
 
 /**
  * All routes stay registered even when their navigation entries are hidden. This keeps links
@@ -200,35 +201,36 @@ function Shell() {
   }
 
   return (
-    <div className="app-shell" data-collapsed={collapsed ? "true" : "false"}>
+    <div className={appStyles.appShell} data-collapsed={collapsed ? "true" : "false"}>
       <TitleBar />
       <aside
-        className="sidebar"
+        className={appStyles.sidebar}
         data-tauri-drag-region="deep"
         id="app-sidebar"
         onScroll={hideTooltip}
         ref={sidebarRef}
       >
-        <div className="brand">
-          <span className="brand-mark">
-            <span aria-hidden="true" className="brand-dot" />
-            <span className="brand-name">{t("app.name")}</span>
-            <span className="brand-version">{versionLabel(version)}</span>
+        <div className={appStyles.brand} data-testid="brand">
+          <span className={appStyles.brandMark}>
+            <span aria-hidden="true" className={appStyles.brandDot} />
+            <span className={appStyles.brandName} data-testid="brand-name">{t("app.name")}</span>
+            <span className={appStyles.brandVersion} data-testid="brand-version">{versionLabel(version)}</span>
           </span>
-          <p className="brand-tagline">{t("app.tagline")}</p>
+          <p className={appStyles.brandTagline} data-testid="brand-tagline">{t("app.tagline")}</p>
         </div>
-        <nav className="nav" ref={navRef}>
+        <nav className={appStyles.nav} data-testid="nav" ref={navRef}>
           {indicator ? (
             <span
               aria-hidden="true"
-              className="nav-indicator"
+              className={appStyles.navIndicator}
               style={{ height: indicator.height, transform: `translateY(${indicator.top}px)` }}
             />
           ) : null}
           {visiblePages.map(({ path, label, icon }) => (
             <NavLink
               aria-label={t(label)}
-              className="nav-link"
+              className={appStyles.navLink}
+              data-testid="nav-link"
               end={path === "/"}
               key={path}
               onBlur={hideTooltip}
@@ -238,17 +240,17 @@ function Shell() {
               to={path}
             >
               <NavIcon name={icon} />
-              <span className="nav-label">{t(label)}</span>
+              <span className={appStyles.navLabel}>{t(label)}</span>
             </NavLink>
           ))}
         </nav>
         {narrow ? null : (
-          <div className="sidebar-footer">
+          <div className={appStyles.sidebarFooter}>
             <button
               aria-controls="app-sidebar"
               aria-expanded={!collapsed}
               aria-label={t(collapsed ? "nav.expand" : "nav.collapse")}
-              className="sidebar-toggle"
+              className={appStyles.sidebarToggle}
               onClick={toggleSidebar}
               onBlur={hideTooltip}
               onFocus={(event) =>
@@ -271,14 +273,14 @@ function Shell() {
       {tooltip ? (
         <span
           aria-hidden="true"
-          className="nav-tooltip"
+          className={appStyles.navTooltip}
           style={{ left: tooltip.left, top: tooltip.top }}
         >
           {tooltip.label}
         </span>
       ) : null}
-      <main className="content" ref={contentRef}>
-        <div className="content-inner">
+      <main className={appStyles.content} ref={contentRef}>
+        <div className={appStyles.contentInner}>
           <Outlet />
         </div>
       </main>

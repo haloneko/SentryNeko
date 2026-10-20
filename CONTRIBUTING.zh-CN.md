@@ -86,7 +86,8 @@ test(heatmap): cover week boundary aggregation
 - 事件监听复用 `hooks/useTauriEvent.ts`，不要直接 `listen`，以保证卸载时正确清理订阅。
 - 倒计时与时长必须以时间戳推算，不依赖 `setInterval` 累加。
 - 图表需处理加载中、空数据与错误三种状态。
-- 样式集中在 `src/styles/app.css`：设计令牌写在 `:root`，其后是外壳与共享基础类。只有来自状态的值（例如测量出的位置）才写行内样式。
+- 样式用 CSS Modules。`src/styles/tokens.css` 写设计令牌与浅色主题；`src/styles/global.css` 只放 reset 与少数需要跨模块的类（`btn`、`switch`、`segmented`、`sr-only`、`muted`、`card`）；其余样式放在所属组件或页面旁边的 `*.module.css` 里，用 `styles.todoRow` 读取（样式表里写 kebab，代码里用 camel）。先找 `var(--space-3)` 再考虑新值，先加模块类再考虑全局类——`pnpm lint` 会检查组件读取的每个 `styles.*` 确实被导出。只有来自状态的值（例如测量出的位置）才写行内样式。
+- 测试用 `data-testid` 选元素，不要用类名：模块类名会被哈希。
 - 可复用、与具体功能无关的控件放 `src/components/ui/`，文案由调用方以 props 传入；只有一个页面用到的组件留在 `src/components/`。
 
 ## 测试

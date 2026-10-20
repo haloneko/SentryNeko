@@ -9,7 +9,8 @@ import type { DateTimeMode } from "../src/components/ui/DateTimeField";
 import { isoDay } from "../src/components/ui/dueDate";
 import i18n from "../src/i18n";
 import { useI18nStore } from "../src/stores/i18nStore";
-import "../src/styles/app.css";
+import "../src/styles/tokens.css";
+import "../src/styles/global.css";
 
 const params = new URLSearchParams(window.location.search);
 const theme = params.get("theme") === "light" ? "light" : "dark";

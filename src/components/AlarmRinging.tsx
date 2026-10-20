@@ -6,6 +6,7 @@ import { useI18n } from "../hooks/useI18n";
 import { BACKEND_EVENTS, useTauriEvent } from "../hooks/useTauriEvent";
 import { clockTime } from "../types/alarm";
 import type { Alarm } from "../types/alarm";
+import alarmsStyles from "../pages/Alarms/alarms.module.css";
 
 /** How long the banner stays when nobody dismisses it. */
 const RING_LIFETIME_MS = 60_000;
@@ -37,9 +38,9 @@ export function AlarmRinging() {
   }
 
   return (
-    <div className="alarm-ringing" role="alert">
-      <span className="alarm-ringing-clock">{clockTime(ringing.hour, ringing.minute)}</span>
-      <span className="alarm-ringing-body">
+    <div className={alarmsStyles.alarmRinging} role="alert">
+      <span className={alarmsStyles.alarmRingingClock}>{clockTime(ringing.hour, ringing.minute)}</span>
+      <span className={alarmsStyles.alarmRingingBody}>
         <strong>{t("alarm.ringing.title")}</strong>
         <span>{ringing.label === "" ? t("alarm.untitled") : ringing.label}</span>
       </span>

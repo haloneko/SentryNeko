@@ -3,6 +3,7 @@
 import { DateTimeField } from "../../components/ui/DateTimeField";
 import { useI18n } from "../../hooks/useI18n";
 import type { Todo } from "../../types/todo";
+import todosStyles from "./todos.module.css";
 
 export interface TodoPlanEditorProps {
   /** Closes the editor without touching the task. */
@@ -27,8 +28,8 @@ export function TodoPlanEditor({ onClose, onEndChange, onStartChange, todo }: To
   const backwards = todo.startAt !== null && todo.endAt !== null && todo.endAt < todo.startAt;
 
   return (
-    <div className="todo-plan-editor">
-      <div className="todo-plan-fields">
+    <div className={todosStyles.todoPlanEditor}>
+      <div className={todosStyles.todoPlanFields}>
         <DateTimeField
           label={t("todo.plan.start")}
           onChange={onStartChange}
@@ -43,12 +44,12 @@ export function TodoPlanEditor({ onClose, onEndChange, onStartChange, todo }: To
         />
       </div>
       {backwards ? (
-        <p className="todo-plan-warning" role="status">
+        <p className={todosStyles.todoPlanWarning} role="status">
           {t("todo.plan.order")}
         </p>
       ) : null}
-      <div className="todo-plan-foot">
-        <span className="todo-plan-hint">{t("todo.plan.hint")}</span>
+      <div className={todosStyles.todoPlanFoot}>
+        <span className={todosStyles.todoPlanHint}>{t("todo.plan.hint")}</span>
         <button className="btn btn-quiet" onClick={onClose} type="button">
           {t("todo.plan.done")}
         </button>

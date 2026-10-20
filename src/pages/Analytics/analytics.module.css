@@ -1,0 +1,75 @@
+/* Analytics */
+.analytics-section {
+  display: grid;
+  gap: var(--space-4);
+  /* Wide enough to use the reading column, short enough that a figure never floats in empty space. */
+  max-width: 960px;
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+/* A page may stack more than one card, e.g. the ranking and the trend. */
+.analytics-section + .analytics-section {
+  margin-top: var(--space-5);
+}
+
+.analytics-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.analytics-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.trend {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.trend-peak {
+  font-size: 12px;
+}
+
+.trend-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.trend-area {
+  fill: var(--accent-soft);
+}
+
+.trend-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.trend-point {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.trend-ticks {
+  position: relative;
+  height: 18px;
+  font-size: 11px;
+}
+
+.trend-ticks span {
+  position: absolute;
+  top: 0;
+  white-space: nowrap;
+}

@@ -2,6 +2,7 @@
 
 import { useI18n } from "../hooks/useI18n";
 import type { HeatmapBucket, HeatmapGranularity } from "../types/heatmap";
+import heatmapStyles from "../pages/Heatmap/heatmap.module.css";
 
 /** Shade steps above an empty cell. */
 const LEVELS = 4;
@@ -29,7 +30,9 @@ interface HeatmapCellProps {
 
 /** One shaded square; the tooltip carries the numbers, because the cell cannot show them. */
 function HeatmapCell({ level, title }: HeatmapCellProps) {
-  return <span className={`heatmap-cell level-${level}`} title={title} />;
+  const shade = heatmapStyles[`level${level}`] ?? "";
+
+  return <span className={`${heatmapStyles.heatmapCell} ${shade}`.trim()} title={title} />;
 }
 
 interface HeatmapChartProps {
@@ -67,10 +70,10 @@ export function HeatmapChart({ buckets, granularity }: HeatmapChartProps) {
   );
 
   const legend = (
-    <div className="heatmap-legend">
+    <div className={heatmapStyles.heatmapLegend}>
       <span className="muted">{t("heatmap.legend.less")}</span>
       {Array.from({ length: LEVELS + 1 }, (_, step) => (
-        <span className={`heatmap-cell level-${step}`} key={step} />
+        <span className={`${heatmapStyles.heatmapCell} ${heatmapStyles[`level${step}`] ?? ""}`.trim()} key={step} />
       ))}
       <span className="muted">{t("heatmap.legend.more")}</span>
     </div>
@@ -83,9 +86,9 @@ export function HeatmapChart({ buckets, granularity }: HeatmapChartProps) {
 
     return (
       <>
-        <div className="heatmap-calendar">
+        <div className={heatmapStyles.heatmapCalendar}>
           {Array.from({ length: leading }, (_, blank) => (
-            <span className="heatmap-blank" key={`blank-${blank}`} />
+            <span className={heatmapStyles.heatmapBlank} key={`blank-${blank}`} />
           ))}
           {buckets.map(cell)}
         </div>
@@ -96,11 +99,11 @@ export function HeatmapChart({ buckets, granularity }: HeatmapChartProps) {
 
   return (
     <>
-      <ol className="heatmap-strip">
+      <ol className={heatmapStyles.heatmapStrip}>
         {buckets.map((bucket) => (
           <li key={bucket.start}>
             {cell(bucket)}
-            <span className="heatmap-tick">
+            <span className={heatmapStyles.heatmapTick}>
               {new Date(bucket.start * 1000).toLocaleDateString(
                 language,
                 granularity === "month"

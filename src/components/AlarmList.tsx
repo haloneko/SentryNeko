@@ -5,6 +5,8 @@ import type { TFunction } from "i18next";
 import { useI18n } from "../hooks/useI18n";
 import { ALL_DAYS, clockTime, isOneOff, maskDays } from "../types/alarm";
 import type { Alarm } from "../types/alarm";
+import alarmsStyles from "../pages/Alarms/alarms.module.css";
+import todosStyles from "../pages/Todos/todos.module.css";
 
 export interface AlarmListProps {
   alarms: readonly Alarm[];
@@ -41,20 +43,20 @@ export function AlarmList({ alarms, onDelete, onEdit, onToggle }: AlarmListProps
   }
 
   return (
-    <ul className="alarm-list">
+    <ul className={alarmsStyles.alarmList}>
       {alarms.map((alarm) => (
-        <li className="alarm-item" data-enabled={alarm.enabled} key={alarm.id}>
-          <span className="alarm-clock">{clockTime(alarm.hour, alarm.minute)}</span>
-          <span className="alarm-body">
-            <span className="alarm-label">
+        <li className={alarmsStyles.alarmItem} data-enabled={alarm.enabled} key={alarm.id}>
+          <span className={alarmsStyles.alarmClock}>{clockTime(alarm.hour, alarm.minute)}</span>
+          <span className={alarmsStyles.alarmBody}>
+            <span className={alarmsStyles.alarmLabel}>
               {alarm.label === "" ? t("alarm.untitled") : alarm.label}
             </span>
-            <span className="alarm-repeat">{repeatCopy(alarm, t)}</span>
+            <span className={alarmsStyles.alarmRepeat}>{repeatCopy(alarm, t)}</span>
           </span>
           <input
             aria-label={t("alarm.toggle")}
             checked={alarm.enabled}
-            className="todo-check"
+            className={todosStyles.todoCheck}
             onChange={() => {
               onToggle(alarm, !alarm.enabled);
             }}
@@ -62,7 +64,7 @@ export function AlarmList({ alarms, onDelete, onEdit, onToggle }: AlarmListProps
           />
           <button
             aria-label={t("alarm.edit")}
-            className="alarm-action"
+            className={alarmsStyles.alarmAction}
             onClick={() => {
               onEdit(alarm);
             }}
