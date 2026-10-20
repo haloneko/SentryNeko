@@ -26,14 +26,15 @@ SQLite，驱动为 `rusqlite`，连接由 `r2d2` 池管理；表结构由一份�
 | --- | --- |
 | `db/connection.rs` | `Db` 句柄、连接池参数、连接 PRAGMA、`ApiError` 映射 |
 | `db/schema.rs` | 完整的 DDL，每次启动幂等执行 |
+| `db/upgrade.rs` | 打开本构建的数据库，名字不一致时把旧文件带过来 |
 | `db/repository.rs` | 所有模型共用的通用 CRUD 助手 |
 
 启动时 `Db` 被托管进 Tauri 状态，命令通过 `State<Db>` 取用：
 
 ```rust
 let directory = app.path().app_data_dir()?;
-let db = Db::open(directory.join(DATABASE_FILE_NAME))?;
-schema::ensure(&db)?;
+let config = Config::open(&directory)?;
+let db = upgrade::open(&config)?;
 app.manage(db);
 ```
 
@@ -41,7 +42,7 @@ app.manage(db);
 
 | 项 | 取值 |
 | --- | --- |
-| 文件 | `<应用数据目录>/sentryneko.db`（即 `%APPDATA%\com.sentryneko.desktop\sentryneko.db`），除非 `config.json` 另指路径 |
+| 文件 | `<应用数据目录>/sentryneko-<版本>.db`（即 `%APPDATA%\com.sentryneko.desktop\sentryneko-0.0.1.db`），除非 `config.json` 另指路径 |
 | 连接池 | 4 条连接，取用超时 5 秒 |
 | 每条连接 | `foreign_keys = ON`、`journal_mode = WAL`、`synchronous = NORMAL`、`busy_timeout = 5000 ms` |
 | 时间戳 | UTC 纪元秒 |
@@ -53,7 +54,7 @@ app.manage(db);
 
 ```json
 {
-  "databasePath": "C:\\Users\\you\\AppData\\Roaming\\com.sentryneko.desktop\\sentryneko.db",
+  "databasePath": "C:\\Users\\you\\AppData\\Roaming\\com.sentryneko.desktop\\sentryneko-0.0.1.db",
   "language": "en-US",
   "colorMode": "system"
 }
@@ -61,7 +62,7 @@ app.manage(db);
 
 | 字段 | 含义 | 默认值 |
 | --- | --- | --- |
-| `databasePath` | 应用打开的 SQLite 文件 | `<应用数据目录>/sentryneko.db` |
+| `databasePath` | 应用打开的 SQLite 文件 | `<应用数据目录>/sentryneko-<版本>.db` |
 | `language` | 语言标签，见 `docs/i18n.md` | 检测到的系统语言，兜底为 `en-US` |
 | `colorMode` | `dark`、`light` 或 `system`；`system` 跟随操作系统 | `system` |
 
@@ -178,7 +179,44 @@ app.manage(db);
 ## 建表
 
 `ensure` 每次启动都在事务里执行整份脚本：缺的表和索引会建出来，已存在的保持原样，重复执行什么也
-不改。这里不做版本管理——应用尚未发布，改表结构就是本地重建，而不是写迁移。
+不改。它是唯一负责建表的地方——无论文件是全新的，还是刚刚才被带过来的。
+
+## 一个版本一个数据库文件
+
+数据库属于哪个版本，写在它的文件名里——`sentryneko-0.0.1.db`；`config.json` 只记路径。每次启动，
+`db/upgrade.rs` 读出这个名字，和编译进二进制的版本比对：
+
+| 记下的文件名是 | 会发生什么 |
+| --- | --- |
+| 本构建的版本 | 原样打开这个文件，除了建表检查什么都不写 |
+| 任何别的版本，或者干脆没有版本 | 在旁边建一个以本构建命名的文件，把数据搬过去，然后才把 `config.json` 改写到新路径 |
+
+搬运是刻意做得机械的：两张文件都认识的表按列逐一复制——列取「旧文件有的」和「本构建表声明了的」
+交集，所以行保留自己的 id，行与行之间的引用因此继续成立；而本构建新加的列干脆不出现在插入里，
+由 schema 自己的默认值补上。搬完之后 `sqlite_sequence` 会被抬到已复制的最大 id 之上，下一个新行
+不会复用旧 id。
+
+落到实际效果上：
+
+- 本构建**新增的表**从空开始，和全新安装时一模一样。
+- 本构建**新增的列**取它在 DDL 里的 `DEFAULT`；没有默认值就保持 `NULL`。
+- **旧文件既不被写、也不被删**。它留在原地。
+
+### 复制失败时
+
+复制是全有或全无的：一个事务，里面任何一步出错——形状差得太远、某一行过不了新约束——整体回滚。
+然后：
+
+- `config.json` **不动**。它仍然指着上一个版本的文件，所以「回退」不过是把那个版本重新跑起来。
+- 半份新文件被**删掉**。留着它，下次启动就会把它当成本构建的文件原样打开，而一个空数据库比没有
+  更糟。
+- 一切读数据库的东西都不启动——没有采集器、没有调度器、没有托盘。窗口打开时显示的是回退对话框，
+  而不是应用本身；关掉窗口，进程就此结束。
+
+下次启动会从同一个旧文件重新走同一条路，所以手工修好文件、或者回退之后再找机会试，都能接着上次
+的地方继续。
+
+降级走同一条路：来自更新构建的文件同样算「不是本构建的」，按同样的方式搬进本构建的文件。
 
 ## 仓储助手
 
@@ -205,7 +243,8 @@ powershell -ExecutionPolicy Bypass -File scripts/init_db.ps1 [-DatabasePath <fil
 ```
 
 脚本需要 `PATH` 上有 `sqlite3`；没有时脚本会直接停止，并提示改用应用本身——应用首次启动也会
-建表。所有语句都带 `IF NOT EXISTS`，重复执行安全。
+建表。所有语句都带 `IF NOT EXISTS`，重复执行安全。默认文件名带着从 `Cargo.toml` 读出的版本号，
+和一次启动会创建的文件名一致。
 
 有一个测试会从脚本里抽出 SQL，在已建表的库上执行，断言两侧最终得到的表相同。
 
@@ -214,5 +253,6 @@ powershell -ExecutionPolicy Bypass -File scripts/init_db.ps1 [-DatabasePath <fil
 1. 在 `db/schema.rs` 里加上 DDL。
 2. 在 `scripts/init_db.ps1` 里同步同样的 DDL（一样的 `IF NOT EXISTS`）。
 3. 跑 `cargo test`——两侧不一致时脚本检查会失败。
-4. 重建本地库：对空文件跑 `scripts/init_db.ps1`，或直接删掉旧库。已存在的库不会被升级，因为
-   还没有发布过版本。
+4. 给每一列都配 `DEFAULT`（或者允许为 `NULL`），除非某一行没有它就写不下去：已有的库会在下次启动
+   被自动带过来，而「`NOT NULL` 又没有默认值」会让整次复制失败——用户看到的是回退提示。除此之外
+   什么都不用做——旧文件会留在原地，作为它装过什么的记录。

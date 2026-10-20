@@ -5,7 +5,16 @@
 
 [CmdletBinding()]
 param(
-    [string]$DatabasePath = (Join-Path $env:APPDATA 'com.sentryneko.desktop\sentryneko.db')
+    # The app's own database files are named for the version that writes them, so the default here
+    # reads the version out of Cargo.toml and matches what a start would create.
+    [string]$DatabasePath = (
+        Join-Path $env:APPDATA ("com.sentryneko.desktop\sentryneko-{0}.db" -f $(
+            [regex]::Match(
+                [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot '../src-tauri/Cargo.toml')),
+                '(?m)^version\s*=\s*"([^"]+)"'
+            ).Groups[1].Value
+        ))
+    )
 )
 
 $ErrorActionPreference = 'Stop'

@@ -79,7 +79,10 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 `config.json` 中的标签，`set_language` 对 `Language::ALL` 之外的标签返回 `INVALID_INPUT`。
 外观这一对同理：`get_color_mode` 读回已存的 `dark` / `light` / `system`，`set_color_mode`
 拒绝其余取值并返回 `INVALID_INPUT`。`get_version` 返回编译进二进制的程序版本（来自
-`Cargo.toml`），不读取任何别的来源；前端只负责显示。
+`Cargo.toml`），不读取任何别的来源；前端只负责显示。迁移这一对属于「没打开数据库」的启动：
+`get_stranded` 回答是什么挡住了这次启动——打开成功了就返回 `null`，因为平常情况无需回答——
+`roll_back` 则结束进程，这就是回退的全部：配置还指着上一个版本的文件。两者的完整规则写在
+`docs/database.md`。
 `emit_test_event` 是事件探针背后的诊断命令，它推送的事件定义在 `docs/events.md`。待办这一组
 就是清单本身：`list_todos` 按完成状态筛选，写操作都返回落库后的整行，`todo_counts` 供剩余
 计数使用，`completion_rate` 回答 `all` 或 `today` 口径下任务已完成的比例——统计规则写在
@@ -127,6 +130,8 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 | `get_color_mode` | `settings_commands` | — | `String`（`dark`、`light` 或 `system`） | — |
 | `set_color_mode` | `settings_commands` | `mode: String` | `String`（生效后的模式） | — |
 | `get_version` | `settings_commands` | — | `String`（本构建的版本号） | — |
+| `get_stranded` | `migration_commands` | — | `Stranded`（`{ path, reason }`）或 `null` | — |
+| `roll_back` | `migration_commands` | — | — | — |
 | `emit_test_event` | `event_commands` | — | `TestEvent`（`{ sequence }`） | T08 |
 | `list_todos` | `todo_commands` | `completed: bool?` | `Todo[]` | T10 |
 | `add_todo` | `todo_commands` | `title: String`、`start_at: i64?`、`end_at: i64?` | `Todo` | T10 |

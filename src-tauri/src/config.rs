@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
 
-use crate::db::connection::DATABASE_FILE_NAME;
+use crate::db::connection::database_file_name;
 use crate::services::i18n::Language;
 use crate::services::theme::ColorMode;
 use crate::utils::response::{ApiCode, ApiError, ApiResult};
@@ -107,6 +107,25 @@ impl Config {
         Ok(self.snapshot()?.database_path)
     }
 
+    /// Records `path` as the database file the application opens.
+    ///
+    /// Called once a database of another version has been carried into this build's file, so the
+    /// next start finds a name that matches and opens it directly instead of carrying it again.
+    pub fn set_database_path(&self, path: &Path) -> ApiResult<()> {
+        let mut current = self.current.write().map_err(|_| lock_error("write"))?;
+
+        if current.database_path != path {
+            let updated = AppConfig {
+                database_path: path.to_owned(),
+                ..current.clone()
+            };
+            self.persist(&updated)?;
+            *current = updated;
+        }
+
+        Ok(())
+    }
+
     /// Language in force.
     pub fn language(&self) -> ApiResult<Language> {
         Ok(self.snapshot()?.language)
@@ -195,7 +214,7 @@ impl StoredConfig {
         let database_path = match self.database_path {
             Some(path) if path.is_absolute() => path,
             Some(path) => directory.join(path),
-            None => directory.join(DATABASE_FILE_NAME),
+            None => directory.join(database_file_name()),
         };
 
         AppConfig {
@@ -237,7 +256,7 @@ fn lock_error(action: &str) -> ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::connection::DATABASE_FILE_NAME;
+    use crate::db::connection::database_file_name;
     use tempfile::TempDir;
 
     fn temporary_directory() -> TempDir {
@@ -260,7 +279,7 @@ mod tests {
         assert_eq!(config.path(), directory.path().join(CONFIG_FILE_NAME));
         assert_eq!(
             config.database_path().expect("database path"),
-            directory.path().join(DATABASE_FILE_NAME)
+            directory.path().join(database_file_name())
         );
         assert_eq!(config.language().expect("language"), Language::DEFAULT);
 
@@ -271,7 +290,10 @@ mod tests {
 
         assert_eq!(
             stored["databasePath"],
-            serde_json::json!(directory.path().join(DATABASE_FILE_NAME).to_string_lossy())
+            serde_json::json!(directory
+                .path()
+                .join(database_file_name())
+                .to_string_lossy())
         );
         assert_eq!(stored["language"], serde_json::json!("en-US"));
         assert_eq!(stored["colorMode"], serde_json::json!("system"));
@@ -386,7 +408,7 @@ mod tests {
         assert_eq!(config.color_mode().expect("color mode"), ColorMode::DEFAULT);
         assert_eq!(
             config.database_path().expect("database path"),
-            directory.path().join(DATABASE_FILE_NAME)
+            directory.path().join(database_file_name())
         );
 
         let saved: serde_json::Value = serde_json::from_str(
@@ -551,7 +573,7 @@ mod tests {
         assert_eq!(config.language().expect("language"), Language::DEFAULT);
         assert_eq!(
             config.database_path().expect("database path"),
-            directory.path().join(DATABASE_FILE_NAME)
+            directory.path().join(database_file_name())
         );
         assert_eq!(
             std::fs::read_to_string(config.path()).expect("the configuration is readable"),
