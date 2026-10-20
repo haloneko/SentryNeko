@@ -10,7 +10,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use crate::db::connection::Db;
-use crate::models::app_event::AppEvent;
+use crate::models::app_event::{AppEvent, AppUsage};
 use crate::services::event_bus::EventBus;
 use crate::utils::response::{ApiError, ApiResult};
 use crate::utils::time;
@@ -27,6 +27,18 @@ pub const POLL_INTERVAL: Duration = Duration::from_secs(1);
 /// Five minutes covers a phone call or a read of the printed page without charging that time to
 /// whichever window happened to be open.
 pub const IDLE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
+
+/// Longest gap one observation may charge to a bucket.
+///
+/// A machine that sleeps leaves the same window in front, and the loop resumes an hour later; only
+/// the part that could have been watched is claimed, so a nap does not fill the hour it happened in.
+const MAX_CHARGED_GAP: i64 = 60;
+
+/// How much time may wait in memory before it is written.
+///
+/// The buckets are the only account of usage, so they are written sooner than a switch would force:
+/// a process that dies loses at most this much instead of the whole stretch it was in the middle of.
+const FLUSH_SECONDS: i64 = 30;
 
 /// What the collector saw, already stripped of the windows it ignores.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,11 +60,24 @@ enum Change {
     Switch,
 }
 
-/// Keeps exactly one `app_events` row open for the app in front of the user.
+/// Seconds of one application in one hour, gathered until they are worth writing.
+#[derive(Debug)]
+struct Pending {
+    app_name: String,
+    hour_start: i64,
+    seconds: i64,
+}
+
+/// Keeps exactly one `app_events` row open for the app in front of the user, and adds the time it
+/// holds to the bucket of the hour it happened in.
 pub struct ForegroundCollector {
     db: Db,
     bus: EventBus,
     open: Option<AppEvent>,
+    /// Time seen since the last write, waiting for the bucket it belongs to.
+    pending: Option<Pending>,
+    /// The instant of the previous observation, so the gap is charged to the app that held it.
+    last: Option<i64>,
 }
 
 impl ForegroundCollector {
@@ -63,6 +88,8 @@ impl ForegroundCollector {
             db,
             bus,
             open: None,
+            pending: None,
+            last: None,
         }
     }
 
@@ -71,6 +98,9 @@ impl ForegroundCollector {
     /// An unchanged window writes nothing, so polling the same switch every second cannot
     /// duplicate rows; a new app closes the open row exactly on the switch.
     pub fn observe(&mut self, sample: Option<Sample>, now: i64) -> ApiResult<()> {
+        self.charge(now)?;
+        self.last = Some(now);
+
         let Some(sample) = sample else {
             return self.close(now);
         };
@@ -104,13 +134,75 @@ impl ForegroundCollector {
     /// Ends the open row; nothing is written when no row is open.
     pub fn close(&mut self, now: i64) -> ApiResult<()> {
         let Some(open) = self.open.take() else {
-            return Ok(());
+            return self.flush();
         };
 
         // A clock that steps backwards must not produce an end before the start.
         AppEvent::close(&self.db, open.id, now.max(open.started_at))?;
 
+        // The stretch is over, so what it earned is written now rather than at the next flush.
+        self.flush()
+    }
+
+    /// Credits the time since the previous observation to the app that was in front of it.
+    fn charge(&mut self, now: i64) -> ApiResult<()> {
+        let Some(last) = self.last else {
+            return Ok(());
+        };
+        let Some(open) = &self.open else {
+            return Ok(());
+        };
+
+        let gap = (now - last).clamp(0, MAX_CHARGED_GAP);
+
+        if gap == 0 {
+            return Ok(());
+        }
+
+        let app_name = open.app_name.clone();
+        self.add(&app_name, last, gap)
+    }
+
+    /// Adds `seconds` to the bucket of `app_name` for the hour `from` belongs to.
+    fn add(&mut self, app_name: &str, from: i64, seconds: i64) -> ApiResult<()> {
+        let hour_start = AppUsage::hour_of(from);
+        let same = self.pending.as_ref().is_some_and(|pending| {
+            pending.app_name == app_name && pending.hour_start == hour_start
+        });
+
+        if same {
+            if let Some(pending) = self.pending.as_mut() {
+                pending.seconds += seconds;
+            }
+        } else {
+            // Another hour or another app: what was gathered belongs to the bucket it was gathered
+            // for, so it goes out before the next one starts.
+            self.flush()?;
+            self.pending = Some(Pending {
+                app_name: app_name.to_owned(),
+                hour_start,
+                seconds,
+            });
+        }
+
+        if self
+            .pending
+            .as_ref()
+            .is_some_and(|pending| pending.seconds >= FLUSH_SECONDS)
+        {
+            self.flush()?;
+        }
+
         Ok(())
+    }
+
+    /// Writes the gathered seconds; nothing waits in memory after it.
+    fn flush(&mut self) -> ApiResult<()> {
+        let Some(pending) = self.pending.take() else {
+            return Ok(());
+        };
+
+        AppUsage::record(&self.db, &pending.app_name, pending.hour_start, pending.seconds)
     }
 
     fn change_for(&self, sample: &Sample) -> Change {
@@ -236,6 +328,16 @@ mod tests {
         .expect("the rows are readable")
     }
 
+    fn buckets(db: &Db) -> Vec<(String, i64, i64)> {
+        repository::query_all(
+            db,
+            "SELECT app_name, hour_start, seconds FROM app_usage_hours ORDER BY hour_start, app_name",
+            [],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?)),
+        )
+        .expect("the buckets are readable")
+    }
+
     fn seen(app_name: &str, window_title: Option<&str>) -> Option<Sample> {
         Some(Sample {
             app_name: app_name.to_owned(),
@@ -263,6 +365,81 @@ mod tests {
         assert_eq!(stored[0].app_name, "code");
         assert_eq!(stored[0].started_at, 100);
         assert_eq!(stored[0].ended_at, None);
+    }
+
+    #[test]
+    fn a_switch_writes_the_seconds_of_the_app_it_leaves() {
+        let db = created();
+        let mut collector = new_collector(&db);
+
+        collector
+            .observe(seen("code", Some("main.rs")), 100)
+            .expect("first app");
+        for now in 101..=104 {
+            collector
+                .observe(seen("code", Some("main.rs")), now)
+                .expect("same window");
+        }
+        collector
+            .observe(seen("chrome", Some("docs")), 105)
+            .expect("second app");
+
+        assert_eq!(
+            buckets(&db),
+            [("code".to_owned(), 0, 5)],
+            "the five seconds code held belong to code"
+        );
+    }
+
+    #[test]
+    fn an_hour_boundary_splits_the_seconds_into_two_buckets() {
+        let db = created();
+        let mut collector = new_collector(&db);
+
+        for now in [3_598, 3_599, 3_600, 3_601] {
+            collector.observe(seen("code", None), now).expect("observed");
+        }
+        collector.close(3_602).expect("closed");
+
+        assert_eq!(
+            buckets(&db),
+            [("code".to_owned(), 0, 2), ("code".to_owned(), 3_600, 1)],
+            "the seconds on either side of the boundary go to the hour they happened in"
+        );
+    }
+
+    #[test]
+    fn a_gap_longer_than_a_minute_is_not_charged() {
+        let db = created();
+        let mut collector = new_collector(&db);
+
+        collector.observe(seen("code", None), 100).expect("opened");
+        // The machine slept for two hours: the sample is the same window, but only the part the loop
+        // could have watched is claimed.
+        collector.observe(seen("code", None), 7_300).expect("woke up");
+        collector.close(7_301).expect("closed");
+
+        assert_eq!(buckets(&db), [("code".to_owned(), 0, 60)]);
+    }
+
+    #[test]
+    fn the_seconds_are_written_before_the_stretch_ends() {
+        let db = created();
+        let mut collector = new_collector(&db);
+
+        collector.observe(seen("code", None), 100).expect("opened");
+        for now in 101..=140 {
+            collector.observe(seen("code", None), now).expect("observed");
+        }
+
+        assert_eq!(
+            buckets(&db),
+            [("code".to_owned(), 0, 30)],
+            "a process that dies now loses the ten seconds still in memory, not the thirty before"
+        );
+
+        collector.close(141).expect("closed");
+        assert_eq!(buckets(&db), [("code".to_owned(), 0, 40)]);
     }
 
     #[test]

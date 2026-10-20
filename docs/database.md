@@ -103,6 +103,7 @@ The schema holds seven tables:
 | `todos` | Tasks the user maintains | `title`, `completed`, `completed_at`, `created_at`, `updated_at`, `tag_ids`, `start_at`, `end_at`, `starred_at`, `extra`, `notes` |
 | `pomodoro_sessions` | One focus or break interval | `phase`, `planned_seconds`, `actual_seconds`, `started_at`, `ended_at`, `todo_id` |
 | `app_events` | Foreground application activity | `app_name`, `window_title`, `started_at`, `ended_at` |
+| `app_usage_hours` | Seconds one app held the foreground inside one hour | `app_name` + `hour_start` (primary key), `seconds` (0–3600) |
 | `alarms` | One-off or weekly reminders | `label`, `hour`, `minute`, `repeat_days`, `enabled`, `created_at` |
 | `settings` | Application settings, one row per key and grouped by category | `id`, `key` (unique), `value`, `category`, `updated_at` |
 | `tags` | Tag names a task can carry | `name` (unique, case-insensitive), `created_at` |
@@ -175,10 +176,17 @@ the foreground window once a second:
 - A sample that finds nothing to attribute — no foreground window, a locked screen, a process that
   cannot be opened — closes the open row the same way.
 
-`AppEvent::usage` reads that table for the ranking: it clips every row to the window it was asked
-about, sums the rows of one app (an app revisited later in the window is merged with its earlier
-stretch instead of appearing twice), counts a row without `ended_at` up to the end of the window,
-and drops `LockApp` / `LogonUI` so locked time is not attributed to anybody.
+`app_usage_hours` is written from the same samples: the collector holds the seconds since it last
+looked and adds them to the row of the app and the hour they belong to, flushing at every switch, at
+every hour boundary, and after thirty seconds at the latest. The shape is what keeps the ranking
+honest — one row per app per hour, cut at 3600 — so no number of rows a killed process left open can
+turn a working day into hundreds of hours.
+
+`AppUsage::ranking` reads that table: the window is counted in whole hours (the hour `from` falls in
+counts in full, which is exact for the presets because all of them start at local midnight), the rows
+of one app are summed, and `LockApp` / `LogonUI` are dropped so locked time is not attributed to
+anybody. `AppUsage::backfill` folds the events stored before the buckets existed into them, once, and
+only while the buckets are still empty.
 
 The heatmap (`models/heatmap.rs`) rolls `pomodoro_sessions` and `todos` up into buckets:
 

@@ -24,9 +24,9 @@ pub fn list_app_events(
 }
 
 fn usage(db: &Db, from: i64, to: i64, limit: i64) -> ApiResult<Vec<AppUsage>> {
-    // A window reaching into the future would charge the open row for time that has not happened
-    // yet, so the end is cut at the present.
-    AppEvent::usage(db, from, to.min(time::now_seconds()), limit)
+    // A window reaching into the future would count hours that have not happened yet, so the end is
+    // cut at the present.
+    AppUsage::ranking(db, from, to.min(time::now_seconds()), limit)
 }
 
 #[cfg(test)]
@@ -45,12 +45,13 @@ mod tests {
     fn the_window_is_cut_at_the_present() {
         let db = created();
         let now = time::now_seconds();
-        AppEvent::open(&db, "code", None, now - 60).expect("opened");
+        let next_hour = AppUsage::hour_of(now) + crate::models::app_event::HOUR_SECONDS;
+        AppUsage::record(&db, "code", next_hour, 600).expect("recorded");
 
-        let usage = usage(&db, now - 3_600, now + 3_600, 10).expect("ranking");
+        let usage = usage(&db, now - 3_600, next_hour + 3_600, 10).expect("ranking");
 
-        // Without the cut the open row would answer an hour plus the hour still to come.
-        assert!(usage[0].seconds <= 61, "{usage:?}");
+        // Without the cut the bucket of the hour still to come would be answered as usage.
+        assert!(usage.is_empty(), "{usage:?}");
     }
 
     #[test]

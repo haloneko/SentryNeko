@@ -91,6 +91,7 @@ app.manage(db);
 | `todos` | 用户维护的任务 | `title`、`completed`、`completed_at`、`created_at`、`updated_at`、`tag_ids`、`start_at`、`end_at`、`starred_at`、`extra`、`notes` |
 | `pomodoro_sessions` | 一次专注或休息区间 | `phase`、`planned_seconds`、`actual_seconds`、`started_at`、`ended_at`、`todo_id` |
 | `app_events` | 前台应用活动 | `app_name`、`window_title`、`started_at`、`ended_at` |
+| `app_usage_hours` | 某个应用在一小时内占据前台的秒数 | `app_name` + `hour_start`（联合主键）、`seconds`（0–3600） |
 | `alarms` | 单次或每周提醒 | `label`、`hour`、`minute`、`repeat_days`、`enabled`、`created_at` |
 | `settings` | 应用设置：一行一个键，按类别分组 | `id`、`key`（唯一）、`value`、`category`、`updated_at` |
 | `tags` | 任务可携带的标签名 | `name`（唯一、大小写不敏感）、`created_at` |
@@ -149,9 +150,15 @@ app.manage(db);
   前台没人操作的应用不会继续累计时间。
 - 采不到可归因对象时（没有前台窗口、锁屏、进程打不开），同样把打开的行关掉。
 
-`AppEvent::usage` 读取这张表生成排行：把每一行裁到所问的时间窗内，按应用把多行相加（窗口中
-再次出现的应用与之前那段时间合并，而不是出现两次），没有 `ended_at` 的行计到窗口结束，并丢掉
-`LockApp` / `LogonUI`，让锁屏时间不归到任何应用头上。
+`app_usage_hours` 由同一批采样写入：采集器在内存里攒着「距上次观察过了多少秒」，加到对应应用、
+对应小时的那一行上；切换应用时、跨整点时、以及最多三十秒后落盘。表的结构本身就是排行的保证——
+一个应用一小时只有一行、秒数封顶 3600——所以无论被杀的进程留下多少条未关闭的行，都不会把一个
+工作日算成几百小时。
+
+`AppUsage::ranking` 读取这张表生成排行：时间窗按整小时计（`from` 所在的那个小时整个计入，这对页面
+的预设是精确的，因为它们都从本地零点起算），按应用把各行相加，并丢掉 `LockApp` / `LogonUI`，让锁屏
+时间不归到任何应用头上。`AppUsage::backfill` 把「桶出现之前」存下的事件一次性折算进来，且只在桶还
+是空的时候做。
 
 热力图（`models/heatmap.rs`）把 `pomodoro_sessions` 与 `todos` 汇总成桶：
 

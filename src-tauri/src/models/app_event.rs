@@ -1,5 +1,7 @@
 //! Foreground application event model: one continuous stretch of one app in the foreground.
 
+use std::collections::BTreeMap;
+
 use rusqlite::{params, Row};
 use serde::Serialize;
 
@@ -15,6 +17,9 @@ const LOCK_SHELLS: [&str; 2] = ["LockApp", "LogonUI"];
 
 /// Longest ranking the usage query answers with.
 const MAX_RANKING: i64 = 50;
+
+/// Seconds one hour holds, which is also the most a bucket may hold.
+pub const HOUR_SECONDS: i64 = 3_600;
 
 /// Longest page the stream answers with.
 const MAX_PAGE: i64 = 100;
@@ -102,48 +107,6 @@ impl AppEvent {
         Self::find(db, id)
     }
 
-    /// Ranks applications by the seconds they held the foreground inside `[from, to)`.
-    ///
-    /// The rules, in one place:
-    ///
-    /// - Every row is clipped to the window, so a stretch that began yesterday only counts the
-    ///   part that is inside it.
-    /// - Rows of the same application are summed, so an app revisited later in the window is
-    ///   merged with its earlier stretch instead of appearing twice.
-    /// - A row without `ended_at` is still running and counts up to `to`.
-    /// - The lock and sign-in shells are dropped: locked time belongs to nobody.
-    /// - The answer is ordered by seconds, longest first, and cut at `limit`.
-    pub fn usage(db: &Db, from: i64, to: i64, limit: i64) -> ApiResult<Vec<AppUsage>> {
-        if to <= from {
-            return Err(ApiError::invalid_input("to must be after from")
-                .with_details(format!("received from = {from}, to = {to}")));
-        }
-
-        let limit = limit.clamp(1, MAX_RANKING);
-
-        repository::query_all(
-            db,
-            &format!(
-                "SELECT app_name, SUM(MIN(COALESCE(ended_at, ?2), ?2) - MAX(started_at, ?1)) AS seconds
-                 FROM app_events
-                 WHERE started_at < ?2
-                   AND COALESCE(ended_at, ?2) > ?1
-                   AND app_name NOT IN (?3, ?4)
-                 GROUP BY app_name
-                 HAVING seconds > 0
-                 ORDER BY seconds DESC, app_name ASC
-                 LIMIT {limit}"
-            ),
-            params![from, to, LOCK_SHELLS[0], LOCK_SHELLS[1]],
-            |row| {
-                Ok(AppUsage {
-                    app_name: row.get(0)?,
-                    seconds: row.get(1)?,
-                })
-            },
-        )
-    }
-
     /// One page of the stream, newest first; `before` is the id the previous page ended at.
     ///
     /// Paging on the id rather than an offset keeps the next page stable while the collector
@@ -194,6 +157,127 @@ pub struct AppUsage {
     pub app_name: String,
     /// Seconds inside the window, merged over every row of that app.
     pub seconds: i64,
+}
+
+impl AppUsage {
+    /// The hour `instant` falls in, as UTC epoch seconds.
+    #[must_use]
+    pub fn hour_of(instant: i64) -> i64 {
+        instant - instant.rem_euclid(HOUR_SECONDS)
+    }
+
+    /// Adds `seconds` to the bucket of `app_name` in the hour starting at `hour_start`.
+    ///
+    /// The stored sum is cut at [`HOUR_SECONDS`]: an hour cannot hold more seconds than it has, so a
+    /// clock that jumps or a stretch charged twice cannot push a row past its own length.
+    pub fn record(db: &Db, app_name: &str, hour_start: i64, seconds: i64) -> ApiResult<()> {
+        if seconds <= 0 {
+            return Ok(());
+        }
+
+        repository::execute(
+            db,
+            "INSERT INTO app_usage_hours (app_name, hour_start, seconds) VALUES (?1, ?2, MIN(?3, ?4))
+             ON CONFLICT (app_name, hour_start) DO UPDATE
+                SET seconds = MIN(?4, seconds + excluded.seconds)",
+            params![app_name, hour_start, seconds, HOUR_SECONDS],
+        )?;
+
+        Ok(())
+    }
+
+    /// Ranks applications by the seconds recorded in the buckets inside `[from, to)`.
+    ///
+    /// A window is counted in whole hours: the hour `from` falls in counts in full. That is exact for
+    /// the presets the page asks for, which all start at local midnight, and off by at most the part
+    /// of an hour for anything else.
+    pub fn ranking(db: &Db, from: i64, to: i64, limit: i64) -> ApiResult<Vec<Self>> {
+        if to <= from {
+            return Err(ApiError::invalid_input("to must be after from")
+                .with_details(format!("received from = {from}, to = {to}")));
+        }
+
+        let limit = limit.clamp(1, MAX_RANKING);
+
+        repository::query_all(
+            db,
+            &format!(
+                "SELECT app_name, SUM(seconds) AS seconds
+                 FROM app_usage_hours
+                 WHERE hour_start >= ?1 AND hour_start < ?2
+                   AND app_name NOT IN (?3, ?4)
+                 GROUP BY app_name
+                 HAVING seconds > 0
+                 ORDER BY seconds DESC, app_name ASC
+                 LIMIT {limit}"
+            ),
+            params![Self::hour_of(from), to, LOCK_SHELLS[0], LOCK_SHELLS[1]],
+            |row| {
+                Ok(Self {
+                    app_name: row.get(0)?,
+                    seconds: row.get(1)?,
+                })
+            },
+        )
+    }
+
+    /// Folds the stored events into buckets, once, for a database that predates them.
+    ///
+    /// Only a database whose buckets are still empty is folded into: running this again would add the
+    /// same seconds twice, so the emptiness is what keeps it a one-time move. Rows without an end are
+    /// left out — an unclosed row is what a killed process leaves behind, and guessing it ran until
+    /// now is the mistake the buckets exist to stop repeating.
+    pub fn backfill(db: &Db, now: i64) -> ApiResult<usize> {
+        let recorded: i64 =
+            repository::query_one(db, "SELECT COUNT(*) FROM app_usage_hours", [], |row| {
+                Ok(row.get(0)?)
+            })?;
+
+        if recorded > 0 {
+            return Ok(0);
+        }
+
+        let events = repository::query_all(
+            db,
+            "SELECT app_name, started_at, ended_at FROM app_events
+             WHERE ended_at IS NOT NULL AND ended_at > started_at",
+            [],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            },
+        )?;
+
+        let mut buckets: BTreeMap<(String, i64), i64> = BTreeMap::new();
+
+        for (app_name, started_at, ended_at) in events {
+            if LOCK_SHELLS.contains(&app_name.as_str()) {
+                continue;
+            }
+
+            let end = ended_at.min(now);
+            let mut cursor = started_at;
+
+            while cursor < end {
+                let hour_start = Self::hour_of(cursor);
+                let slice_end = (hour_start + HOUR_SECONDS).min(end);
+
+                *buckets.entry((app_name.clone(), hour_start)).or_insert(0) += slice_end - cursor;
+                cursor = slice_end;
+            }
+        }
+
+        let written = buckets.len();
+
+        for ((app_name, hour_start), seconds) in buckets {
+            Self::record(db, &app_name, hour_start, seconds)?;
+        }
+
+        Ok(written)
+    }
 }
 
 /// One page of the stream and whether older rows remain.
@@ -294,67 +378,77 @@ mod tests {
         }
     }
 
-    #[test]
-    fn usage_is_clipped_to_the_asked_window() {
-        let db = created();
-        episode(&db, "code", 0, Some(1_000));
-        episode(&db, "chrome", 1_000, Some(2_000));
+    /// Stores seconds in the bucket of `app_name` for the hour holding `instant`.
+    fn bucket(db: &Db, app_name: &str, instant: i64, seconds: i64) {
+        AppUsage::record(db, app_name, AppUsage::hour_of(instant), seconds).expect("recorded");
+    }
 
-        let usage = AppEvent::usage(&db, 1_500, 2_500, 10).expect("ranking");
+    #[test]
+    fn usage_adds_up_the_hours_inside_the_window() {
+        let db = created();
+        bucket(&db, "code", 100, 600);
+        bucket(&db, "code", 4_000, 300);
+        bucket(&db, "chrome", 7_600, 900);
+
+        let usage = AppUsage::ranking(&db, 0, 3_600, 10).expect("ranking");
 
         assert_eq!(
             usage,
             [AppUsage {
-                app_name: "chrome".to_owned(),
-                seconds: 500,
+                app_name: "code".to_owned(),
+                seconds: 600,
             }],
-            "code ended before the window and chrome only overlaps half of it"
+            "only the hour that starts inside the window counts"
         );
     }
 
     #[test]
-    fn a_revisited_app_is_merged_with_its_earlier_stretch() {
+    fn a_revisited_app_is_added_up_across_its_hours() {
         let db = created();
-        episode(&db, "code", 0, Some(100));
-        episode(&db, "chrome", 100, Some(200));
-        episode(&db, "code", 200, Some(300));
+        bucket(&db, "code", 100, 100);
+        bucket(&db, "chrome", 4_000, 200);
+        bucket(&db, "code", 8_000, 50);
 
-        let usage = AppEvent::usage(&db, 0, 1_000, 10).expect("ranking");
+        let usage = AppUsage::ranking(&db, 0, 10_800, 10).expect("ranking");
 
         assert_eq!(
             usage,
             [
                 AppUsage {
-                    app_name: "code".to_owned(),
+                    app_name: "chrome".to_owned(),
                     seconds: 200,
                 },
                 AppUsage {
-                    app_name: "chrome".to_owned(),
-                    seconds: 100,
+                    app_name: "code".to_owned(),
+                    seconds: 150,
                 },
             ]
         );
     }
 
     #[test]
-    fn an_open_row_counts_up_to_the_end_of_the_window() {
+    fn an_hour_never_holds_more_than_its_own_seconds() {
         let db = created();
-        episode(&db, "code", 0, None);
+        bucket(&db, "code", 100, 4_000);
+        bucket(&db, "code", 100, 4_000);
 
-        let usage = AppEvent::usage(&db, 0, 500, 10).expect("ranking");
+        let usage = AppUsage::ranking(&db, 0, 3_600, 10).expect("ranking");
 
-        assert_eq!(usage[0].seconds, 500);
+        assert_eq!(
+            usage[0].seconds, 3_600,
+            "an hour cannot answer with more time than it has"
+        );
     }
 
     #[test]
     fn the_lock_and_sign_in_shells_are_dropped() {
         let db = created();
         for shell in LOCK_SHELLS {
-            episode(&db, shell, 0, Some(1_000));
+            bucket(&db, shell, 100, 600);
         }
-        episode(&db, "code", 0, Some(400));
+        bucket(&db, "code", 100, 400);
 
-        let usage = AppEvent::usage(&db, 0, 1_000, 10).expect("ranking");
+        let usage = AppUsage::ranking(&db, 0, 3_600, 10).expect("ranking");
 
         assert_eq!(
             usage,
@@ -368,11 +462,11 @@ mod tests {
     #[test]
     fn the_ranking_is_ordered_and_cut_at_the_limit() {
         let db = created();
-        episode(&db, "short", 0, Some(100));
-        episode(&db, "long", 0, Some(900));
-        episode(&db, "middle", 0, Some(500));
+        bucket(&db, "short", 100, 100);
+        bucket(&db, "long", 100, 900);
+        bucket(&db, "middle", 100, 500);
 
-        let usage = AppEvent::usage(&db, 0, 1_000, 2).expect("ranking");
+        let usage = AppUsage::ranking(&db, 0, 3_600, 2).expect("ranking");
 
         assert_eq!(
             usage
@@ -381,6 +475,40 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["long", "middle"]
         );
+    }
+
+    #[test]
+    fn backfill_folds_the_events_into_hours_once() {
+        let db = created();
+        // Two hours of code with a break, and a row a killed process left open.
+        episode(&db, "code", 3_500, Some(3_700));
+        episode(&db, "chrome", 3_700, Some(4_000));
+        episode(&db, "code", 4_000, Some(4_500));
+        episode(&db, "ghost", 5_000, None);
+
+        let written = AppUsage::backfill(&db, 10_000).expect("backfilled");
+
+        assert_eq!(written, 3, "one bucket for code in each hour, one for chrome");
+        let usage = AppUsage::ranking(&db, 0, 7_200, 10).expect("ranking");
+
+        assert_eq!(
+            usage,
+            [
+                AppUsage {
+                    app_name: "code".to_owned(),
+                    seconds: 700,
+                },
+                AppUsage {
+                    app_name: "chrome".to_owned(),
+                    seconds: 300,
+                },
+            ],
+            "an unclosed row is not guessed into a duration"
+        );
+
+        // A second pass has nothing to do: folding the same events again would double them.
+        assert_eq!(AppUsage::backfill(&db, 10_000).expect("again"), 0);
+        assert_eq!(AppUsage::ranking(&db, 0, 7_200, 10).expect("ranking"), usage);
     }
 
     #[test]
@@ -429,7 +557,7 @@ mod tests {
     fn a_window_that_ends_before_it_starts_is_refused() {
         let db = created();
 
-        let error = AppEvent::usage(&db, 500, 500, 10).expect_err("empty window");
+        let error = AppUsage::ranking(&db, 500, 500, 10).expect_err("empty window");
         assert_eq!(error.code(), ApiCode::InvalidInput);
     }
 }
