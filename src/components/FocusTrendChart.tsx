@@ -2,6 +2,7 @@
 
 import { useI18n } from "../hooks/useI18n";
 import type { HeatmapBucket, HeatmapGranularity } from "../types/heatmap";
+import analyticsStyles from "../pages/Analytics/analytics.module.css";
 
 /** Drawing box the SVG scales from, so the chart stays sharp at any width. */
 const WIDTH = 600;
@@ -46,21 +47,21 @@ export function FocusTrendChart({ buckets, granularity }: FocusTrendChartProps) 
     );
 
   return (
-    <figure className="trend">
-      <figcaption className="trend-peak muted">
+    <figure className={analyticsStyles.trend}>
+      <figcaption className={`${analyticsStyles.trendPeak} muted`}>
         {t("analytics.trend.peak", { minutes: minutes(peak) })}
       </figcaption>
       <svg
         aria-label={t("analytics.trend.title")}
-        className="trend-chart"
+        className={analyticsStyles.trendChart}
         role="img"
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       >
-        <polygon className="trend-area" points={area} />
-        <polyline className="trend-line" points={line} />
+        <polygon className={analyticsStyles.trendArea} points={area} />
+        <polyline className={analyticsStyles.trendLine} points={line} />
         {buckets.map((bucket, index) => (
           <circle
-            className="trend-point"
+            className={analyticsStyles.trendPoint}
             cx={x(index)}
             cy={y(bucket.focusSeconds)}
             key={bucket.start}
@@ -75,7 +76,7 @@ export function FocusTrendChart({ buckets, granularity }: FocusTrendChartProps) 
           </circle>
         ))}
       </svg>
-      <div className="trend-ticks">
+      <div className={analyticsStyles.trendTicks}>
         {buckets.map((bucket, index) => {
           const isLast = index === buckets.length - 1;
 

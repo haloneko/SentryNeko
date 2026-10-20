@@ -3,6 +3,7 @@
 import { useFocusTrend } from "../../../hooks/useFocusTrend";
 import { useI18n } from "../../../hooks/useI18n";
 import { formatSpan, weekday } from "../format";
+import dashboardStyles from "../dashboard.module.css";
 
 /** Today's focus at a glance, with the shape of the week behind it. */
 export function FocusWidget() {
@@ -21,32 +22,32 @@ export function FocusWidget() {
   const minutes = Math.floor((focusSeconds % 3_600) / 60);
 
   return (
-    <section className="dash-panel dash-hero">
-      <p className="dash-kicker">{t("dashboard.focus.title")}</p>
-      {loading ? <p className="dash-muted">{t("dashboard.loading")}</p> : null}
+    <section className={`${dashboardStyles.dashPanel} ${dashboardStyles.dashHero}`} data-dash-panel>
+      <p className={dashboardStyles.dashKicker}>{t("dashboard.focus.title")}</p>
+      {loading ? <p className={dashboardStyles.dashMuted}>{t("dashboard.loading")}</p> : null}
       {error !== null ? <p className="error">{t("dashboard.error")}</p> : null}
       {!loading && error === null && today !== undefined ? (
         <>
-          <p className="dash-clock">
+          <p className={dashboardStyles.dashClock}>
             {hours > 0 ? (
               <>
                 <span>{hours}</span>
-                <span className="dash-unit">{t("dashboard.hours")}</span>
+                <span className={dashboardStyles.dashUnit}>{t("dashboard.hours")}</span>
               </>
             ) : null}
             <span>{minutes}</span>
-            <span className="dash-unit">{t("dashboard.minutes")}</span>
+            <span className={dashboardStyles.dashUnit}>{t("dashboard.minutes")}</span>
           </p>
-          <p className="dash-note">
+          <p className={dashboardStyles.dashNote}>
             {t("dashboard.focus.completed", { count: today.completedTasks })}
           </p>
-          <p className="dash-note">
+          <p className={dashboardStyles.dashNote}>
             {t("dashboard.focus.average", { value: formatSpan(average, t) })}
           </p>
-          <div aria-label={t("dashboard.pulse.label")} className="dash-pulse" role="img">
+          <div aria-label={t("dashboard.pulse.label")} className={dashboardStyles.dashPulse} role="img">
             {week.map((bucket) => (
               <span
-                className="dash-day"
+                className={dashboardStyles.dashDay}
                 data-today={bucket.start === today.start}
                 key={bucket.start}
                 title={t("dashboard.pulse.point", {
@@ -54,9 +55,9 @@ export function FocusWidget() {
                   minutes: Math.round(bucket.focusSeconds / 60),
                 })}
               >
-                <span className="dash-day-track">
+                <span className={dashboardStyles.dashDayTrack}>
                   <span
-                    className="dash-day-bar"
+                    className={dashboardStyles.dashDayBar}
                     style={{
                       height: `${Math.max(
                         2,
@@ -65,7 +66,7 @@ export function FocusWidget() {
                     }}
                   />
                 </span>
-                <span className="dash-day-label">{weekday(bucket.start, language)}</span>
+                <span className={dashboardStyles.dashDayLabel}>{weekday(bucket.start, language)}</span>
               </span>
             ))}
           </div>

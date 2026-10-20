@@ -8,6 +8,7 @@ import { useHeatmap } from "../hooks/useHeatmap";
 import { useI18n } from "../hooks/useI18n";
 import { HEATMAP_GRANULARITIES } from "../types/heatmap";
 import type { HeatmapGranularity } from "../types/heatmap";
+import heatmapStyles from "./Heatmap/heatmap.module.css";
 
 /** Renders the heatmap with its granularity switch and the totals of the window. */
 export function HeatmapPage() {
@@ -30,8 +31,8 @@ export function HeatmapPage() {
   return (
     <>
       <h1>{t("nav.heatmap")}</h1>
-      <section className="heatmap-section">
-        <div className="heatmap-head">
+      <section className={heatmapStyles.heatmapSection}>
+        <div className={heatmapStyles.heatmapHead}>
           <h2>{t("heatmap.title")}</h2>
           <SegmentedControl
             label={t("heatmap.granularity.label")}

@@ -8,6 +8,7 @@ import type { CSSProperties, HTMLAttributes, ReactElement, ReactNode } from "rea
 import { createPortal } from "react-dom";
 
 import { useI18n } from "../../hooks/useI18n";
+import popconfirmStyles from "./Popconfirm.module.css";
 
 /** Bubble geometry, in viewport pixels: window edge, gap under the trigger, caret inset, right overhang. */
 const EDGE = 8;
@@ -212,12 +213,12 @@ function PopconfirmPanel({
   return createPortal(
     <>
       {/* Invisible: it only catches the click that means "never mind". */}
-      <div aria-hidden="true" className="popconfirm-mask" onClick={onCancel} />
+      <div aria-hidden="true" className={popconfirmStyles.popconfirmMask} onClick={onCancel} />
       <div
         aria-describedby={content === undefined ? undefined : contentId}
         aria-label={title === undefined ? t("popconfirm.label") : undefined}
         aria-labelledby={title === undefined ? undefined : titleId}
-        className="popconfirm"
+        className={popconfirmStyles.popconfirm}
         data-danger={danger ? "" : undefined}
         data-placement={placement?.side}
         ref={bubble}
@@ -232,20 +233,20 @@ function PopconfirmPanel({
               } as CSSProperties)
         }
       >
-        <div className="popconfirm-head">
+        <div className={popconfirmStyles.popconfirmHead}>
           {icon === undefined ? null : (
-            <span aria-hidden="true" className="popconfirm-icon">
+            <span aria-hidden="true" className={popconfirmStyles.popconfirmIcon} data-testid="popconfirm-icon">
               {icon}
             </span>
           )}
           {title === undefined ? null : (
-            <h2 className="popconfirm-title" id={titleId}>
+            <h2 className={popconfirmStyles.popconfirmTitle} id={titleId}>
               {title}
             </h2>
           )}
           <button
             aria-label={t("popconfirm.close")}
-            className="popconfirm-close"
+            className={popconfirmStyles.popconfirmClose}
             onClick={onCancel}
             type="button"
           >
@@ -253,15 +254,15 @@ function PopconfirmPanel({
           </button>
         </div>
         {content === undefined ? null : (
-          <p className="popconfirm-content" id={contentId}>
+          <p className={popconfirmStyles.popconfirmContent} data-testid="popconfirm-content" id={contentId}>
             {content}
           </p>
         )}
-        <div className="popconfirm-actions">
+        <div className={popconfirmStyles.popconfirmActions}>
           <button className="btn btn-quiet" onClick={onCancel} ref={cancelButton} type="button">
             {cancelText}
           </button>
-          <button className="btn popconfirm-confirm" onClick={onConfirm} type="button">
+          <button className={`btn ${popconfirmStyles.popconfirmConfirm}`} onClick={onConfirm} type="button">
             {confirmText}
           </button>
         </div>

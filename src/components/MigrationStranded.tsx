@@ -11,6 +11,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import { useI18n } from "../hooks/useI18n";
 import type { Stranded } from "../types/migration";
+import migrationStrandedStyles from "./MigrationStranded.module.css";
 
 export function MigrationStranded({ stranded }: { stranded: Stranded }) {
   const { t } = useI18n();
@@ -39,17 +40,17 @@ export function MigrationStranded({ stranded }: { stranded: Stranded }) {
   return (
     <dialog
       ref={dialog}
-      className="stranded"
+      className={migrationStrandedStyles.stranded}
       aria-labelledby="stranded-title"
       // Escape closes a dialog by default; here there is nothing to close back into.
       onCancel={(event) => event.preventDefault()}
     >
-      <div className="stranded-lead">
+      <div className={migrationStrandedStyles.strandedLead}>
         <h2 id="stranded-title">{t("migration.title")}</h2>
         <p>{t("migration.body")}</p>
       </div>
 
-      <dl className="stranded-facts">
+      <dl className={migrationStrandedStyles.strandedFacts}>
         <dt>{t("migration.file")}</dt>
         <dd>
           <code>{stranded.path}</code>
@@ -62,9 +63,9 @@ export function MigrationStranded({ stranded }: { stranded: Stranded }) {
         <dd>{stranded.reason}</dd>
       </dl>
 
-      <p className="stranded-hint">{t("migration.hint")}</p>
+      <p className={migrationStrandedStyles.strandedHint}>{t("migration.hint")}</p>
 
-      <div className="stranded-actions">
+      <div className={migrationStrandedStyles.strandedActions}>
         <button type="button" className="btn" onClick={rollBack}>
           {t("migration.rollBack")}
         </button>

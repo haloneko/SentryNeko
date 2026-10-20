@@ -13,6 +13,7 @@ import { USAGE_RANGES } from "../types/appEvent";
 import type { UsageRange } from "../types/appEvent";
 import type { HeatmapGranularity } from "../types/heatmap";
 import { TREND_GRANULARITIES } from "../types/trend";
+import dashboardStyles from "./Dashboard/dashboard.module.css";
 
 /** The copy a duration is written with, so the usage ranking and the trend share one formatter. */
 interface DurationKeys {
@@ -90,16 +91,16 @@ export function AnalyticsPage() {
         {usage.length === 0 ? (
           <p className="muted">{t("analytics.usage.empty")}</p>
         ) : (
-          <ul className="usage-list">
+          <ul className={dashboardStyles.usageList}>
             {usage.map((entry) => (
-              <li className="usage-row" key={entry.appName}>
-                <span className="usage-app" title={entry.appName}>
+              <li className={dashboardStyles.usageRow} key={entry.appName}>
+                <span className={dashboardStyles.usageApp} title={entry.appName}>
                   {entry.appName}
                 </span>
                 <span className="meter">
                   <span style={{ width: `${Math.round((entry.seconds / peak) * 100)}%` }} />
                 </span>
-                <span className="usage-time">{duration(entry.seconds, USAGE_DURATION)}</span>
+                <span className={dashboardStyles.usageTime}>{duration(entry.seconds, USAGE_DURATION)}</span>
               </li>
             ))}
           </ul>
@@ -114,8 +115,8 @@ export function AnalyticsPage() {
           <p className="muted">{t("analytics.completion.empty")}</p>
         ) : (
           <>
-            <p className="completion-rate">
-              <span className="completion-value">{completions.today}</span>
+            <p className={dashboardStyles.completionRate}>
+              <span className={dashboardStyles.completionValue}>{completions.today}</span>
               <span className="muted">{t("analytics.completion.unit")}</span>
             </p>
             <p className="muted">{t("analytics.completion.total", { count: completions.all })}</p>

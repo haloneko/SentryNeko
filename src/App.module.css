@@ -1,0 +1,291 @@
+/* Shell */
+.app-shell {
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  grid-template-rows: 38px minmax(0, 1fr);
+  height: 100%;
+  background: var(--bg-sidebar);
+  transition: grid-template-columns 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/*
+ * Collapsed rail. The width is the expanded left inset doubled around one icon
+ * (`12px` sidebar + `12px` link padding + `18px` icon + `12px` + `12px`), so the icons keep the
+ * exact same x position in both modes: only the labels are clipped away, nothing shifts.
+ */
+.app-shell[data-collapsed="true"] {
+  grid-template-columns: 66px minmax(0, 1fr);
+}
+
+.sidebar {
+  display: flex;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  flex-direction: column;
+  gap: var(--space-5);
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-3);
+  user-select: none;
+}
+
+.brand {
+  display: grid;
+  gap: var(--space-1);
+  padding: 0 var(--space-3) var(--space-2);
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* The mark keeps one icon slot in both modes, so the dot lands on the icon column. */
+.app-shell[data-collapsed="true"] .brand-mark {
+  width: 18px;
+  gap: 0;
+  justify-content: center;
+}
+
+/* Zero basis instead of a shrunk text box: the dot needs the whole slot to centre itself. */
+.app-shell[data-collapsed="true"] .brand-name {
+  flex: 0 0 0;
+}
+
+.brand-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.brand-name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.brand-tagline {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.brand-version {
+  align-self: flex-end;
+  margin-inline-start: auto;
+  padding-block-end: 1px;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.app-shell[data-collapsed="true"] .brand-version {
+  display: none;
+}
+
+/*
+ * Labels are clipped, never re-wrapped: the rail animates its width, and `nowrap` plus hidden
+ * overflow turns that into a wipe. Text keeps its line box, so rows never change height and the
+ * items below never move. The fade is timed per direction: gone before the rail narrows, back only
+ * once the rail has almost reached its full width.
+ */
+.brand-name,
+.brand-tagline,
+.nav-label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 140ms ease 80ms;
+}
+
+.app-shell[data-collapsed="true"] .brand-name,
+.app-shell[data-collapsed="true"] .brand-tagline,
+.app-shell[data-collapsed="true"] .nav-label {
+  opacity: 0;
+  transition: opacity 90ms ease;
+}
+
+.nav {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.nav-indicator {
+  position: absolute;
+  top: 0;
+  inset-inline: 0;
+  border-radius: var(--radius-sm);
+  background: var(--nav-active-bg);
+  box-shadow: var(--nav-active-shadow);
+  pointer-events: none;
+  transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1), height 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.nav-link {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  padding: 8px var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13.5px;
+  text-decoration: none;
+  transition: color 120ms ease;
+}
+
+.nav-link:hover {
+  color: var(--text);
+}
+
+.nav-link[aria-current="page"] {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* Footer: the switch between the labelled rail and the icon-only one. */
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+/*
+ * Icon-only: the label lives in `title`/`aria-label`. Sizing it to its own content keeps the icon on
+ * the same column as the navigation glyphs (12px inset + 9px half glyph), in both rail widths.
+ */
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.sidebar-toggle:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* Fixed, because the rail scrolls and an in-flow label would be clipped at its edge. */
+.nav-tooltip {
+  position: fixed;
+  z-index: 30;
+  transform: translateY(-50%);
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 22%);
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: nav-tooltip-in 120ms ease 200ms both;
+}
+
+@keyframes nav-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translate(-3px, -50%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+}
+
+/* Title bar: replaces the system decorations */
+.titlebar {
+  display: flex;
+  grid-column: 2;
+  grid-row: 1;
+  justify-content: flex-end;
+  user-select: none;
+}
+
+.titlebar-controls {
+  display: flex;
+}
+
+.titlebar-button {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.titlebar-button:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.titlebar-button[data-kind="close"]:hover {
+  background: #d64545;
+  color: #ffffff;
+}
+
+.titlebar-button svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+/* Content *//*
+ * The scroll container fills the whole column, so the scrollbar tracks the window edge instead of
+ * ending where the reading column does. The cap and the centring live on the inner box: extra
+ * width becomes an even margin on both sides rather than one wide empty strip on the right.
+ */
+.content {
+  grid-column: 2;
+  grid-row: 2;
+  overflow-y: auto;
+  padding: var(--space-6) 0 72px;
+  /* The rounded inset joins the title bar and sidebar into one continuous frame. */
+  border-top-left-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+.content-inner {
+  width: min(100%, var(--page-base-width));
+  margin-inline: auto;
+  padding-inline: var(--space-7);
+  zoom: var(--page-zoom, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-tooltip{
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell,
+  .nav-indicator {
+    transition: none;
+  }
+}

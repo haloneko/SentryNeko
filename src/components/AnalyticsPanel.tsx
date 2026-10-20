@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { useI18n } from "../hooks/useI18n";
+import analyticsStyles from "../pages/Analytics/analytics.module.css";
 
 interface AnalyticsPanelProps {
   /** Already translated heading. */
@@ -20,8 +21,8 @@ export function AnalyticsPanel({ action, children, error, loading, title }: Anal
   const { t } = useI18n();
 
   return (
-    <section className="analytics-section">
-      <div className="analytics-head">
+    <section className={analyticsStyles.analyticsSection}>
+      <div className={analyticsStyles.analyticsHead}>
         <h2>{title}</h2>
         {action}
       </div>

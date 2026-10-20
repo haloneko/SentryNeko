@@ -10,7 +10,7 @@ test("sidebar editor drags with animation, persists hidden panels and restores f
   await edit.click();
   const editor = page.getByRole("dialog", { name: "Edit sidebar" });
   await expect(editor).toBeVisible();
-  const rows = editor.locator(".sidebar-editor-row");
+  const rows = editor.locator('[data-testid="sidebar-editor-row"]');
   await editor.getByRole("switch", { name: "Show Todos" }).uncheck();
   const first = await editor.getByRole("button", { name: "Reorder Dashboard" }).boundingBox();
   const third = await rows.nth(2).boundingBox();
@@ -24,12 +24,12 @@ test("sidebar editor drags with animation, persists hidden panels and restores f
   await page.mouse.up();
   await expect(rows.first()).toContainText("Todos");
   // A draft: neither the rail nor storage moves before the arrangement is applied.
-  await expect(page.locator(".nav a[href='#/todos']")).toHaveCount(1);
+  await expect(page.locator('[data-testid="nav"] a[href="#/todos"]')).toHaveCount(1);
   await page.screenshot({ path: test.info().outputPath("sidebar-editor.png") });
   await expect(editor.getByRole("button", { name: "Close", exact: true })).toBeVisible();
   await editor.getByRole("button", { name: "Done", exact: true }).click();
   await expect(editor).toHaveCount(0);
-  await expect(page.locator(".nav a[href='#/todos']")).toHaveCount(0);
+  await expect(page.locator('[data-testid="nav"] a[href="#/todos"]')).toHaveCount(0);
   await expect(edit).toBeFocused();
   await page.reload();
   await edit.click();
@@ -41,7 +41,7 @@ test("sidebar editor drags with animation, persists hidden panels and restores f
   await page.keyboard.press("Escape");
   await expect(editor).toHaveCount(0);
   // Escape drops the restored defaults with the draft, so the rail keeps the applied layout.
-  await expect(page.locator(".nav a[href='#/todos']")).toHaveCount(0);
+  await expect(page.locator('[data-testid="nav"] a[href="#/todos"]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -52,13 +52,13 @@ test("keyboard controls move hidden panels and retain Settings when every panel 
   const handle = editor.getByRole("button", { name: "Reorder Todos" });
   await handle.focus();
   await handle.press("End");
-  await expect(editor.locator(".sidebar-editor-row").last()).toContainText("Todos");
+  await expect(editor.locator('[data-testid="sidebar-editor-row"]').last()).toContainText("Todos");
   await handle.press("Home");
-  await expect(editor.locator(".sidebar-editor-row").first()).toContainText("Todos");
+  await expect(editor.locator('[data-testid="sidebar-editor-row"]').first()).toContainText("Todos");
   for (const toggle of await editor.getByRole("switch").all()) await toggle.uncheck();
   await editor.getByRole("button", { name: "Done", exact: true }).click();
-  await expect(page.locator(".nav .nav-link")).toHaveCount(1);
-  await expect(page.locator(".nav .nav-link")).toHaveAttribute("href", "#/settings");
+  await expect(page.locator('[data-testid="nav-link"]')).toHaveCount(1);
+  await expect(page.locator('[data-testid="nav-link"]')).toHaveAttribute("href", "#/settings");
 });
 
 test("reduced motion and Chinese copy fit the minimum window", async ({ page }) => {

@@ -1,0 +1,222 @@
+/* Alarms */
+.alarm-form {
+  display: grid;
+  gap: var(--space-4);
+  /* Kept in proportion to the wider reading column instead of at its old absolute width. */
+  max-width: 780px;
+  margin-bottom: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.alarm-fields {
+  display: flex;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.alarm-field {
+  display: grid;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.alarm-field-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.alarm-field input {
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+}
+
+.alarm-field input:focus-visible {
+  border-color: var(--accent);
+}
+
+.alarm-days {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.alarm-days legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.alarm-day {
+  padding: 5px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.alarm-day:hover {
+  color: var(--text);
+}
+
+.alarm-day[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.alarm-hint {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.alarm-form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.alarm-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alarm-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.alarm-item[data-enabled="false"] .alarm-clock,
+.alarm-item[data-enabled="false"] .alarm-body {
+  opacity: 0.45;
+}
+
+.alarm-clock {
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.alarm-body {
+  display: grid;
+  flex: 1;
+  gap: 1px;
+  min-width: 0;
+}
+
+.alarm-label {
+  overflow: hidden;
+  font-size: 13.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alarm-repeat {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.alarm-action {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.alarm-action:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.alarm-action svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+
+.alarm-ringing {
+  position: fixed;
+  top: calc(38px + var(--space-4));
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 32%);
+  transform: translateX(-50%);
+  animation: alarm-ring 900ms ease-in-out infinite alternate;
+}
+
+.alarm-ringing-clock {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.alarm-ringing-body {
+  display: grid;
+  gap: 2px;
+}
+
+.alarm-ringing-body strong {
+  font-size: 13px;
+}
+
+.alarm-ringing-body span {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+@keyframes alarm-ring {
+  from {
+    border-color: var(--accent);
+  }
+
+  to {
+    border-color: var(--accent-text);
+    box-shadow: 0 16px 40px rgb(139 124 246 / 26%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alarm-ringing{
+    animation: none;
+  }
+}

@@ -2,6 +2,7 @@
 
 import { useAutostart } from "../hooks/useAutostart";
 import { useI18n } from "../hooks/useI18n";
+import settingsStyles from "../pages/Settings/settings.module.css";
 
 /** One switch and the explanation of what it registers. */
 export function AutostartSettings() {
@@ -9,7 +10,7 @@ export function AutostartSettings() {
   const { enabled, error, loading, setEnabled } = useAutostart();
 
   return (
-    <div className="autostart">
+    <div className={settingsStyles.autostart}>
       <label className="switch">
         <input
           checked={enabled}

@@ -1,0 +1,98 @@
+/* Settings */
+.settings {
+  display: grid;
+  /*
+   * The cap grew with the reading column, in the same proportion it used to sit at, so a wide window
+   * shows the same settings page a little larger rather than a page with a long empty side.
+   */
+  max-width: 1170px;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: var(--space-6);
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+}
+
+.settings-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.settings-row:last-child {
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-lead {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.settings-index {
+  color: var(--accent-text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.18em;
+}
+
+.settings-lead h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.settings-body {
+  min-width: 0;
+}
+
+.settings-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.settings-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+  gap: var(--space-4);
+  align-items: end;
+}
+
+.set-field {
+  display: grid;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.set-field :global(.segmented) {
+  justify-self: start;
+}
+
+.settings-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  font-size: 12px;
+}
+
+.autostart {
+  display: grid;
+  gap: var(--space-2);
+}
+
+@media (max-width: 760px) {
+  .settings-row{
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+}
+
+@media (max-width: 560px) {
+  .settings-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,0 +1,898 @@
+/* Todo *//* The page sits in a reading column of its own: tasks read best without stretching wall to wall. */
+.todo-page {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 880px;
+  margin-inline: auto;
+}
+
+/* Page head: how many tasks were finished today, beside the title and the subtitle. */
+.todo-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.todo-done {
+  display: grid;
+  flex: none;
+  justify-items: center;
+  gap: 2px;
+  min-width: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.todo-done b {
+  color: var(--text);
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.todo-done span {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.todo-head-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.todo-headline {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.todo-subtitle {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The composer: the first thing on the page, drawn as one inviting card. */
+.todo-composer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 6px 6px var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(12 16 28 / 12%);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.todo-composer:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.todo-composer-glyph {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.todo-composer-glyph svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.todo-composer-input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.todo-composer-input:focus {
+  outline: none;
+}
+
+.todo-composer-input::placeholder {
+  color: var(--text-muted);
+}
+
+.todo-composer-add {
+  flex: none;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 120ms ease, opacity 120ms ease;
+}
+
+.todo-composer-add:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.todo-composer-add:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* The fields the rest of the page still uses. */
+.todo-input {
+  min-width: 0;
+  padding: 9px var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+}
+
+.todo-input::placeholder {
+  color: var(--text-muted);
+}
+
+.todo-input:focus-visible {
+  border-color: var(--accent);
+}
+
+/* The title turns into this field while it is being renamed. */
+.todo-input-inline {
+  width: 100%;
+  padding: 4px var(--space-3);
+  font-size: 14.5px;
+}
+
+/*
+ * Spacing lives on the items rather than between the tracks. A folded bulk bar keeps its place in
+ * the grid as a zero-height row, and a gap would still be drawn on either side of it — the page
+ * would hold two empty gaps where the bar is waiting. On the items, a folded bar takes its margin
+ * with it and leaves nothing behind.
+ */
+.todo-panel {
+  display: grid;
+  gap: 0;
+}
+
+.todo-panel > * + * {
+  margin-block-start: var(--space-4);
+}
+
+/* Search, the status filter, the selection switch and the count. */
+.todo-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.todo-search {
+  position: relative;
+  flex: 1;
+  min-width: 190px;
+}
+
+.todo-search-input {
+  width: 100%;
+  padding-block: 9px;
+  padding-inline: 34px var(--space-6);
+  border-radius: 12px;
+}
+
+.todo-search-glyph {
+  position: absolute;
+  top: 50%;
+  left: 11px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.todo-search-glyph svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.todo-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.todo-search-clear:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.todo-search-clear svg {
+  width: 9px;
+  height: 9px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+}
+
+.todo-count {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* How many tasks the minute has left behind, beside the count of what is still open. */
+.todo-overdue {
+  padding: 2px 9px;
+  border: 1px solid rgb(229 83 75 / 35%);
+  border-radius: 999px;
+  background: rgb(229 83 75 / 12%);
+  color: #e5534b;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The switch that turns the mode on keeps the accent while it is on, so the page says so. */
+.todo-select-toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+/*
+ * The bulk bar. It is in the flow all along and only unfolds, so switching modes is one move: the
+ * rows below are pushed down by the grid row growing instead of jumping when a node appears.
+ */
+.todo-bulk {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-block-start: 0;
+  opacity: 0;
+  transition:
+    grid-template-rows 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin-block-start 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 160ms ease;
+}
+
+.todo-bulk[data-open="true"] {
+  grid-template-rows: 1fr;
+  margin-block-start: var(--space-4);
+  opacity: 1;
+}
+
+/* The clip that lets the row collapse, and the frame the bar is drawn in. */
+.todo-bulk-body {
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility 0s linear 260ms;
+}
+
+.todo-bulk[data-open="true"] .todo-bulk-body {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.todo-bulk-surface {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 10px 8px var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background:
+    linear-gradient(var(--accent-soft), var(--accent-soft)),
+    var(--surface);
+  box-shadow: 0 1px 2px rgb(12 16 28 / 10%);
+  transform: translateY(-4px);
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.todo-bulk[data-open="true"] .todo-bulk-surface {
+  transform: none;
+}
+
+.todo-bulk-count {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.todo-bulk-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+}
+
+/* Wide buttons would out-size the bar; the count already carries the emphasis. */
+.todo-bulk-quiet {
+  padding: 6px 10px;
+}
+
+/* The quiet pair sits with the count; what acts on the pick is pushed to the far end. */
+.todo-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-inline-start: auto;
+}
+
+/* Empty state: a soft card rather than a dashed hole. */
+.todo-empty {
+  gap: var(--space-3);
+  min-height: 220px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.todo-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.todo-empty-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Groups */
+.todo-groups {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.todo-group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.todo-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding-inline: var(--space-1);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.todo-group-head::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.todo-group-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-hover);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Rows */
+.todo-list {
+  /* A leaving row is pinned against the list, so the list is what it is pinned to. */
+  position: relative;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * A leaving row is lifted out of the flow and pinned where it already stood. That is what lets the
+ * two halves of the exit run at once: the card fades on the spot while the rows below close the gap
+ * it left, and the flip in TodoList carries them there. Holding the row in the flow until it faded,
+ * or collapsing its track, would make the list wait and then move afterwards — two separate moves
+ * where the eye expects one.
+ */
+.todo-row[data-leaving="true"] {
+  position: absolute;
+  top: var(--exit-top);
+  left: var(--exit-left, 0);
+  width: var(--exit-width, 100%);
+  /* The row is on its way out; a second click would queue a second action. */
+  pointer-events: none;
+}
+
+.todo-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgb(12 16 28 / 10%);
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease,
+    opacity 140ms ease,
+    transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/*
+ * Only a task the page has not shown before fades in. A task that is moving between groups is
+ * already on screen: it keeps its own node's worth of presence and is carried by the slide alone,
+ * because fading it back in halfway down would read as a fresh arrival rather than a move.
+ * The stagger is measured down the list, so a whole group arrives as a wave rather than a wall.
+ */
+.todo-card[data-enter="true"] {
+  animation: todo-enter 200ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(min(var(--row, 0), 10) * 18ms);
+}
+
+.todo-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 4px 14px rgb(12 16 28 / 16%);
+  transform: translateY(-1px);
+}
+
+/* Nothing clips it any more: the card shrinks in place, and the row it sits in holds its height. */
+.todo-row[data-leaving="true"] .todo-card {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+}
+
+/*
+ * A picked task is washed in the accent rather than repainted with it. The soft colour is
+ * translucent, so it is laid over the card's own surface: on the page background it would read as a
+ * darker panel in the dark theme and as a tinted one in the light theme.
+ */
+.todo-row[data-selected="true"] .todo-card {
+  border-color: var(--accent);
+  background:
+    linear-gradient(var(--accent-soft), var(--accent-soft)),
+    var(--surface);
+}
+
+/*
+ * A task that just changed group stays lit for a moment. It is a ring rather than a fill, so the
+ * completed styling underneath it is not painted over on the way down.
+ */
+.todo-row[data-settled="true"] .todo-card {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+@keyframes todo-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * The box is drawn rather than native, so the tick can pop when a task is completed and the two
+ * marks — a round one for done, a rounded square for picked — can be told apart at a glance.
+ */
+.todo-mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+}
+
+/* Both marks share the one cell: a mode swaps them instead of widening the row. */
+.todo-mark > .todo-check {
+  grid-area: 1 / 1;
+}
+
+.todo-mark > .todo-check-select {
+  z-index: 1;
+}
+
+.todo-check {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    opacity 120ms ease,
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.todo-check:hover {
+  border-color: var(--accent);
+}
+
+/* A pick is a rounded square over a faint well: the shape a checkbox reads as everywhere else. */
+.todo-check-select {
+  border-radius: 6px;
+  background-color: var(--surface-hover);
+  animation: todo-mark-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.todo-check:checked {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 6.5 5 9l4.5-5.5'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 11px;
+  animation: todo-pop 240ms ease;
+}
+
+/* Ticking a task off steps aside while a pick is being made: one gesture per row, one mark. */
+.todo-row[data-selecting="true"] .todo-check-done {
+  opacity: 0;
+  transform: scale(0.72);
+}
+
+@keyframes todo-mark-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes todo-pop {
+  0% {
+    transform: scale(1);
+  }
+
+  45% {
+    transform: scale(1.18);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.todo-body {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.todo-title {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 500;
+  text-align: start;
+  overflow-wrap: anywhere;
+  cursor: text;
+  transition: color 160ms ease;
+}
+
+.todo-card[data-completed="true"] .todo-title {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-muted);
+}
+
+.todo-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.todo-time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The planned window, and the flag once the moment it was planned for has gone by. */
+.todo-plan {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.todo-plan svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.todo-plan[data-late="true"] {
+  color: #e5534b;
+}
+
+.todo-plan-late {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(229 83 75 / 14%);
+  color: #e5534b;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.todo-tag {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* Quick actions: faint until the row is pointed at or focused, never out of reach. */
+.todo-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.5;
+  transition: opacity 120ms ease;
+}
+
+.todo-card:hover .todo-actions,
+.todo-card:focus-within .todo-actions {
+  opacity: 1;
+}
+
+/*
+ * While a pick is being made the row is the target: its own controls step aside and the whole card
+ * answers the click, so a stray click edits nothing. The tag panel is hidden for the same reason —
+ * it would sit inside a row that no longer takes input.
+ */
+.todo-row[data-selecting="true"] .todo-card {
+  cursor: pointer;
+}
+
+.todo-row[data-selecting="true"] .todo-actions {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.todo-row[data-selecting="true"] .todo-title,
+.todo-row[data-selecting="true"] .todo-meta {
+  pointer-events: none;
+}
+
+.todo-row[data-selecting="true"] .todo-title {
+  /* The card is the target now, so the title stops advertising a text cursor. */
+  cursor: inherit;
+}
+
+.todo-row[data-selecting="true"] .todo-tag-editor,
+.todo-row[data-selecting="true"] .todo-plan-editor {
+  display: none;
+}
+
+.todo-action {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.todo-action:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.todo-action[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.todo-action-danger:hover {
+  color: #f2555a;
+}
+
+.todo-action svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The inline tag picker, opened under the title. */
+.todo-tag-editor,
+.todo-plan-editor {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  padding: var(--space-3);
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.todo-tag-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.todo-tag-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.todo-tag-choice {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.todo-tag-choice:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.todo-tag-choice[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.todo-tag-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.todo-tag-new {
+  display: flex;
+  flex: 1;
+  min-width: 160px;
+  gap: var(--space-2);
+}
+
+.todo-tag-new .todo-input {
+  padding-block: 6px;
+  font-size: 12.5px;
+}
+
+/* The two ends of a plan sit side by side, and stack once the row is too narrow for both. */
+.todo-plan-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  gap: var(--space-2);
+}
+
+.todo-plan-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.todo-plan-hint {
+  flex: 1;
+  min-width: 160px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.todo-plan-warning {
+  margin: 0;
+  color: #e5534b;
+  font-size: 11.5px;
+}
+
+.todo-error {
+  color: #f2555a;
+  font-size: 13px;
+}
+
+/* Nobody asked for a show: the list simply appears. */
+@media (prefers-reduced-motion: reduce) {
+  .todo-card,
+  .todo-card[data-enter="true"],
+  .todo-bulk,
+  .todo-bulk-surface,
+  .todo-check,
+  .todo-check:checked,
+  .todo-check-select,
+  .todo-ring-value {
+    animation: none;
+    transition: none;
+  }
+}

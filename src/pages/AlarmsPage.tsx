@@ -19,6 +19,7 @@ import {
   toggleDay,
 } from "../types/alarm";
 import type { Alarm, AlarmDraft, Weekday } from "../types/alarm";
+import alarmsStyles from "./Alarms/alarms.module.css";
 
 /** Renders the form, then the alarms it maintains. */
 export function AlarmsPage() {
@@ -74,13 +75,13 @@ export function AlarmsPage() {
     <>
       <h1>{t("nav.alarms")}</h1>
       <form
-        className="alarm-form"
+        className={alarmsStyles.alarmForm}
         onSubmit={(event) => {
           void submit(event);
         }}
       >
-        <div className="alarm-fields">
-          <label className="alarm-field">
+        <div className={alarmsStyles.alarmFields}>
+          <label className={alarmsStyles.alarmField}>
             <span>{t("alarm.time")}</span>
             <input
               onChange={(event) => {
@@ -91,7 +92,7 @@ export function AlarmsPage() {
               value={time}
             />
           </label>
-          <label className="alarm-field alarm-field-grow">
+          <label className={`${alarmsStyles.alarmField} ${alarmsStyles.alarmFieldGrow}`}>
             <span>{t("alarm.label")}</span>
             <input
               onChange={(event) => {
@@ -103,12 +104,12 @@ export function AlarmsPage() {
             />
           </label>
         </div>
-        <fieldset className="alarm-days">
+        <fieldset className={alarmsStyles.alarmDays}>
           <legend>{t("alarm.repeat.label")}</legend>
           {WEEKDAYS.map((day) => (
             <button
               aria-pressed={days.includes(day)}
-              className="alarm-day"
+              className={alarmsStyles.alarmDay}
               key={day}
               onClick={() => {
                 setDays(toggleDay(days, day));
@@ -119,10 +120,10 @@ export function AlarmsPage() {
             </button>
           ))}
           {days.length === 0 ? (
-            <span className="alarm-hint">{t("alarm.repeat.once")}</span>
+            <span className={alarmsStyles.alarmHint}>{t("alarm.repeat.once")}</span>
           ) : null}
         </fieldset>
-        <div className="alarm-form-actions">
+        <div className={alarmsStyles.alarmFormActions}>
           <button
             className="btn pomodoro-primary"
             disabled={draft === null || saving}
@@ -138,7 +139,7 @@ export function AlarmsPage() {
         </div>
       </form>
 
-      <p className="alarm-hint">
+      <p className={alarmsStyles.alarmHint}>
         {t("alarm.inherits", {
           method: t(METHOD_LABELS[defaults.method]),
           seconds: defaults.ringSeconds,

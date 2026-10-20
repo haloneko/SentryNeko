@@ -7,6 +7,7 @@ import { useTags } from "../../hooks/useTags";
 import { useTodos } from "../../hooks/useTodos";
 import { AddTodoForm } from "./AddTodoForm";
 import { TodoList } from "./TodoList";
+import todosStyles from "./todos.module.css";
 
 /** Renders the page head with today's finished count, the composer and the tasks. */
 export function TodosPage() {
@@ -26,19 +27,20 @@ export function TodosPage() {
   }, [refreshTags]);
 
   return (
-    <div className="todo-page">
-      <header className="todo-head">
+    <div className={todosStyles.todoPage}>
+      <header className={todosStyles.todoHead}>
         <div
           aria-label={t("todo.done.label", { count: completions.today })}
-          className="todo-done"
+          className={todosStyles.todoDone}
+          data-testid="todo-done"
           role="img"
         >
           <b aria-hidden="true">{completions.today}</b>
           <span aria-hidden="true">{t("todo.done.caption")}</span>
         </div>
-        <div className="todo-head-text">
-          <h1 className="todo-headline">{t("nav.todos")}</h1>
-          <p className="todo-subtitle">
+        <div className={todosStyles.todoHeadText}>
+          <h1 className={todosStyles.todoHeadline}>{t("nav.todos")}</h1>
+          <p className={todosStyles.todoSubtitle}>
             {t("todo.subtitle", { remaining: counts.remaining, total: counts.total })}
           </p>
         </div>

@@ -13,6 +13,7 @@ import type { Todo, TodoFilter } from "../../types/todo";
 import { groupTodos, overdueCount, searchTodos } from "./todos";
 import { TodoItem } from "./TodoItem";
 import { TodoSearch } from "./TodoSearch";
+import todosStyles from "./todos.module.css";
 
 const FILTERS: readonly TodoFilter[] = ["all", "active", "completed"];
 
@@ -413,8 +414,8 @@ export function TodoList() {
       : t("todo.search.empty", { query });
 
   return (
-    <section className="todo-panel">
-      <div className="todo-toolbar">
+    <section className={todosStyles.todoPanel}>
+      <div className={todosStyles.todoToolbar}>
         <TodoSearch onChange={setQuery} query={query} />
         <SegmentedControl
           label={t("todo.filter.label")}
@@ -424,7 +425,8 @@ export function TodoList() {
         />
         <button
           aria-pressed={selecting}
-          className="btn btn-quiet todo-select-toggle"
+          className={`btn btn-quiet ${todosStyles.todoSelectToggle}`}
+          data-testid="todo-select-toggle"
           onClick={() => {
             if (selecting) {
               exitSelecting();
@@ -437,9 +439,9 @@ export function TodoList() {
           {selecting ? t("todo.select.exit") : t("todo.select.enter")}
         </button>
         {overdue > 0 ? (
-          <span className="todo-overdue">{t("todo.overdue", { count: overdue })}</span>
+          <span className={todosStyles.todoOverdue}>{t("todo.overdue", { count: overdue })}</span>
         ) : null}
-        <span className="todo-count">
+        <span className={todosStyles.todoCount}>
           {query === ""
             ? t("todo.remaining", { remaining: counts.remaining })
             : t("todo.search.results", { count: visible.length })}
@@ -450,20 +452,26 @@ export function TodoList() {
         The bar is always mounted and animated open: a mode that appears out of nowhere costs the
         eye a jump, and the rows below it would slide down in one frame.
       */}
-      <div aria-label={t("todo.select.enter")} className="todo-bulk" data-open={selecting} role="region">
-        <div className="todo-bulk-body" inert={!selecting}>
-          <div className="todo-bulk-surface">
-            <span aria-live="polite" className="todo-bulk-count">
+      <div
+        aria-label={t("todo.select.enter")}
+        className={todosStyles.todoBulk}
+        data-open={selecting}
+        data-testid="todo-bulk"
+        role="region"
+      >
+        <div className={todosStyles.todoBulkBody} inert={!selecting}>
+          <div className={todosStyles.todoBulkSurface}>
+            <span aria-live="polite" className={todosStyles.todoBulkCount}>
               {t("todo.select.count", { count: selected.size })}
             </span>
-            <span aria-hidden="true" className="todo-bulk-sep" />
-            <button className="btn btn-quiet todo-bulk-quiet" onClick={selectEveryVisible} type="button">
+            <span aria-hidden="true" className={todosStyles.todoBulkSep} />
+            <button className={`btn btn-quiet ${todosStyles.todoBulkQuiet}`} onClick={selectEveryVisible} type="button">
               {t("todo.select.all")}
             </button>
-            <button className="btn btn-quiet todo-bulk-quiet" onClick={invertSelection} type="button">
+            <button className={`btn btn-quiet ${todosStyles.todoBulkQuiet}`} onClick={invertSelection} type="button">
               {t("todo.select.invert")}
             </button>
-            <div className="todo-bulk-actions">
+            <div className={todosStyles.todoBulkActions}>
               <button
                 className="btn"
                 disabled={selected.size === 0}
@@ -489,13 +497,13 @@ export function TodoList() {
         </div>
       </div>
 
-      {error !== null ? <p className="todo-error">{t("todo.error")}</p> : null}
+      {error !== null ? <p className={todosStyles.todoError}>{t("todo.error")}</p> : null}
 
       {loading ? (
         <p className="muted">{t("todo.loading")}</p>
       ) : visible.length === 0 ? (
-        <div className="empty todo-empty">
-          <span aria-hidden="true" className="todo-empty-icon">
+        <div className={`empty ${todosStyles.todoEmpty}`}>
+          <span aria-hidden="true" className={todosStyles.todoEmptyIcon}>
             <svg viewBox="0 0 24 24">
               <path d="M9 5h6M7 5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z" />
               <path d="m9.5 12 2 2 3.5-4" />
@@ -504,7 +512,7 @@ export function TodoList() {
           <p>{emptyMessage}</p>
         </div>
       ) : (
-        <div className="todo-groups">
+        <div className={todosStyles.todoGroups}>
           {GROUPS.map((group) => {
             const rows = groups[group];
 
@@ -513,12 +521,12 @@ export function TodoList() {
             }
 
             return (
-              <section className="todo-group" key={group}>
-                <h2 className="todo-group-head">
+              <section className={todosStyles.todoGroup} data-testid="todo-group" key={group}>
+                <h2 className={todosStyles.todoGroupHead} data-testid="todo-group-head">
                   {t(`todo.group.${group}`)}
-                  <span className="todo-group-count">{rows.length}</span>
+                  <span className={todosStyles.todoGroupCount} data-testid="todo-group-count">{rows.length}</span>
                 </h2>
-                <ul className="todo-list">
+                <ul className={todosStyles.todoList}>
                   {rows.map((todo, index) => (
                     <TodoItem
                       key={todo.id}

@@ -30,6 +30,9 @@ import { SegmentedControl } from "../ui/SegmentedControl";
 import { WidgetIcon } from "../ui/WidgetIcon";
 import { useCanvasScale } from "./useCanvasScale";
 import { useDraftLayout } from "./useDraftLayout";
+import dashboardStyles from "../../pages/Dashboard/dashboard.module.css";
+import dashboardLayoutEditorStyles from "../../pages/Dashboard/DashboardLayoutEditor.module.css";
+import todosStyles from "../../pages/Todos/todos.module.css";
 
 interface DashboardLayoutEditorProps {
   onClose: () => void;
@@ -598,22 +601,22 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
   }, [preview]);
 
   return createPortal(
-    <div className="editor-overlay">
+    <div className={dashboardLayoutEditorStyles.editorOverlay}>
       <div
         aria-label={t("dashboard.layout.title")}
         aria-modal="true"
-        className="editor-dialog"
+        className={dashboardLayoutEditorStyles.editorDialog}
         ref={dialogRef}
         role="dialog"
         tabIndex={-1}
       >
-        <header className="editor-head">
-          <div className="editor-lead">
+        <header className={dashboardLayoutEditorStyles.editorHead}>
+          <div className={dashboardLayoutEditorStyles.editorLead}>
             <h2>{t("dashboard.layout.title")}</h2>
-            <p className="editor-sub">{t("dashboard.layout.rowHint")}</p>
+            <p className={dashboardLayoutEditorStyles.editorSub}>{t("dashboard.layout.rowHint")}</p>
           </div>
-          <div className="editor-columns">
-            <span className="layout-label">{t("dashboard.layout.columns")}</span>
+          <div className={dashboardLayoutEditorStyles.editorColumns}>
+            <span className={dashboardLayoutEditorStyles.layoutLabel}>{t("dashboard.layout.columns")}</span>
             <SegmentedControl
               label={t("dashboard.layout.columns")}
               onChange={(next) => {
@@ -626,7 +629,7 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
               value={String(layout.columns)}
             />
           </div>
-          <div className="editor-actions">
+          <div className={dashboardLayoutEditorStyles.editorActions}>
             <button
               aria-label={t("dashboard.layout.undo")}
               className="icon-btn"
@@ -669,23 +672,23 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
           </div>
         </header>
 
-        <div className="editor-body">
-          <div className="editor-canvas">
+        <div className={dashboardLayoutEditorStyles.editorBody}>
+          <div className={dashboardLayoutEditorStyles.editorCanvas}>
             {visible.length === 0 ? (
-              <div className="editor-empty">{t("dashboard.layout.empty")}</div>
+              <div className={dashboardLayoutEditorStyles.editorEmpty}>{t("dashboard.layout.empty")}</div>
             ) : null}
             <div
-              className="dash-canvas"
+              className={dashboardStyles.dashCanvas}
               ref={frameRef}
               style={{ height: metrics.height * metrics.scale }}
             >
               <div
-                className="dash-canvas-stage"
+                className={dashboardStyles.dashCanvasStage}
                 style={{ "--canvas-scale": metrics.scale } as CSSProperties}
               >
               <div
                 aria-label={t("dashboard.layout.canvas")}
-                className="dash-cells"
+                className={dashboardStyles.dashCells}
                 onContextMenu={openCanvasMenu}
                 ref={gridRef}
                 style={{ "--dash-columns": layout.columns } as CSSProperties}
@@ -693,12 +696,12 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
                 {ghost === null ? null : (
                   <span
                     aria-hidden="true"
-                    className="editor-ghost"
+                    className={dashboardLayoutEditorStyles.editorGhost}
                     ref={ghostRef}
                     style={{ height: ghost.height, width: ghost.width }}
                   >
                     {ghostLabel === null ? null : (
-                      <span className="editor-ghost-label">{t(`dashboard.widget.${ghostLabel}`)}</span>
+                      <span className={dashboardLayoutEditorStyles.editorGhostLabel}>{t(`dashboard.widget.${ghostLabel}`)}</span>
                     )}
                   </span>
                 )}
@@ -707,7 +710,7 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
 
                   return (
                     <div
-                      className="dash-slot editor-slot"
+                      className={`${dashboardStyles.dashSlot} ${dashboardLayoutEditorStyles.editorSlot}`}
                       data-dragging={dragging === id}
                       key={id}
                       onContextMenu={(event) => {
@@ -726,7 +729,7 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
                         aria-label={t("dashboard.widget.move", {
                           name: t(`dashboard.widget.${id}`),
                         })}
-                        className="editor-mask"
+                        className={dashboardLayoutEditorStyles.editorMask}
                         onKeyDown={(event) => {
                           handleKeyDown(event, id);
                         }}
@@ -743,7 +746,7 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
                         aria-label={t("dashboard.layout.remove", {
                           name: t(`dashboard.widget.${id}`),
                         })}
-                        className="editor-remove"
+                        className={dashboardLayoutEditorStyles.editorRemove}
                         onClick={(event) => {
                           event.stopPropagation();
                           draft.remove(id);
@@ -757,7 +760,7 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
                       </button>
                       <span
                         aria-hidden="true"
-                        className="editor-grip"
+                        className={dashboardLayoutEditorStyles.editorGrip}
                         onPointerCancel={endDrag}
                         onPointerDown={(event) => {
                           beginDrag(event, id, "resize");
@@ -772,23 +775,23 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
               </div>
             </div>
           </div>
-          <aside className="editor-library" aria-label={t("dashboard.layout.library")}>
-            <header className="editor-library-head">
+          <aside className={dashboardLayoutEditorStyles.editorLibrary} aria-label={t("dashboard.layout.library")}>
+            <header className={dashboardLayoutEditorStyles.editorLibraryHead}>
               <h3>{t("dashboard.layout.library")}</h3>
-              <span className="editor-library-count" aria-hidden="true">
+              <span className={dashboardLayoutEditorStyles.editorLibraryCount} aria-hidden="true">
                 {visible.length}/{visible.length + parked.length}
               </span>
             </header>
             {parked.length === 0 ? (
-              <p className="editor-library-empty">{t("dashboard.layout.libraryAll")}</p>
+              <p className={dashboardLayoutEditorStyles.editorLibraryEmpty}>{t("dashboard.layout.libraryAll")}</p>
             ) : (
-              <div className="editor-library-list">
+              <div className={dashboardLayoutEditorStyles.editorLibraryList}>
                 {parked.map((id) => (
                   <button
                     aria-label={t("dashboard.layout.add", {
                       name: t(`dashboard.widget.${id}`),
                     })}
-                    className="library-card"
+                    className={dashboardLayoutEditorStyles.libraryCard}
                     key={id}
                     onClick={() => {
                       draft.add(id);
@@ -804,35 +807,35 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
                     })}
                     type="button"
                   >
-                    <span className="library-glyph" aria-hidden="true">
+                    <span className={dashboardLayoutEditorStyles.libraryGlyph} aria-hidden="true">
                       <WidgetIcon id={id} />
                     </span>
-                    <span className="library-meta">
-                      <span className="library-name">{t(`dashboard.widget.${id}`)}</span>
-                      <span className="library-size">
+                    <span className={dashboardLayoutEditorStyles.libraryMeta}>
+                      <span className={dashboardLayoutEditorStyles.libraryName}>{t(`dashboard.widget.${id}`)}</span>
+                      <span className={dashboardLayoutEditorStyles.librarySize}>
                         {t("dashboard.widget.size", {
                           h: wantedPlacement(id, layout.columns).h,
                           w: wantedPlacement(id, layout.columns).w,
                         })}
                       </span>
                     </span>
-                    <span className="library-plus" aria-hidden="true">
+                    <span className={dashboardLayoutEditorStyles.libraryPlus} aria-hidden="true">
                       <ActionIcon name="plus" />
                     </span>
                   </button>
                 ))}
               </div>
             )}
-            <p className="editor-library-note">{t("dashboard.layout.libraryEmpty")}</p>
+            <p className={dashboardLayoutEditorStyles.editorLibraryNote}>{t("dashboard.layout.libraryEmpty")}</p>
           </aside>
         </div>
 
-        <footer className="editor-foot">
+        <footer className={dashboardLayoutEditorStyles.editorFoot}>
           <span className="editor-note">{t("dashboard.layout.hint")}</span>
           {persistenceError ? (
-            <p className="todo-error" role="alert">{t("dashboard.layout.saveError")}</p>
+            <p className={todosStyles.todoError} role="alert">{t("dashboard.layout.saveError")}</p>
           ) : null}
-          <span className="editor-shortcuts">{t("dashboard.layout.shortcuts")}</span>
+          <span className={dashboardLayoutEditorStyles.editorShortcuts}>{t("dashboard.layout.shortcuts")}</span>
         </footer>
       </div>
       {menu === null ? null : (

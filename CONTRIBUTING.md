@@ -86,7 +86,8 @@ A change is ready for review when every box is ticked:
 - Share the Tauri event listener wrapper from `hooks/useTauriEvent.ts` instead of calling `listen` directly, so subscriptions are cleaned up on unmount.
 - Countdowns and durations are derived from timestamps, never from accumulated `setInterval` ticks.
 - Charts must handle loading, empty and error states.
-- Styles live in `src/styles/app.css`: design tokens on `:root`, then the shell and the shared primitives. Inline styles only for values that come from state, such as a measured position.
+- Styles are CSS Modules. `src/styles/tokens.css` holds the design tokens on `:root` and the light theme; `src/styles/global.css` holds the reset and the few classes that cross a module (`btn`, `switch`, `segmented`, `sr-only`, `muted`, `card`); everything else lives in a `*.module.css` next to the component or page that owns it and is read as `styles.todoRow` (kebab case in the sheet, camel case in the code). Reach for `var(--space-3)` before a new value, and for a module class before a new global one — `pnpm lint` checks that every `styles.*` a component reads is actually exported. Inline styles only for values that come from state, such as a measured position.
+- Tests select elements by `data-testid`, never by a class name: module classes are hashed.
 - A reusable, feature-agnostic control belongs in `src/components/ui/` and takes its copy as props; a component only one page uses stays in `src/components/`.
 
 ## Testing

@@ -1,0 +1,60 @@
+/* Design tokens and the window shell: the stylesheet every page inherits. */:root{
+  color-scheme: dark;
+
+  --bg: #0e1015;
+  --bg-sidebar: #141821;
+  --surface: #1a1f2a;
+  --surface-hover: #222835;
+  --border: #272e3c;
+  --border-strong: #38414f;
+  --text: #e9ecf3;
+  --text-muted: #98a1b4;
+  --accent: #8b7cf6;
+  --accent-soft: rgb(139 124 246 / 14%);
+  --accent-text: #b9b0ff;
+  --nav-active-bg: #232a38;
+  --nav-active-shadow: none;
+
+  --heat-1: rgb(139 124 246 / 22%);
+  --heat-2: rgb(139 124 246 / 42%);
+  --heat-3: rgb(139 124 246 / 66%);
+  --heat-4: #8b7cf6;
+
+  --radius-sm: 8px;
+  --radius-lg: 16px;
+
+  /* The width the reading column grows to; a wider window is spent on `--page-zoom` instead. */
+  --page-base-width: 1280px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 44px;
+
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, "Microsoft YaHei UI",
+    "Noto Sans SC", sans-serif;
+}
+
+/* The boot script and the color mode store write `data-theme`; dark is the base. */:root[data-theme="light"]{
+  color-scheme: light;
+  --bg: #f6f7fb;
+  --bg-sidebar: #f1f3f8;
+  --surface: #ffffff;
+  --surface-hover: #f0f2f8;
+  --border: #e3e7f0;
+  --border-strong: #ccd3e0;
+  --text: #161922;
+  --text-muted: #626c81;
+  --accent: #5b47f0;
+  --accent-soft: rgb(91 71 240 / 10%);
+  --accent-text: #4a37d6;
+  --nav-active-bg: #ffffff;
+  --nav-active-shadow: 0 1px 2px rgb(16 20 32 / 10%), 0 0 0 1px rgb(16 20 32 / 4%);
+  --heat-1: rgb(91 71 240 / 18%);
+  --heat-2: rgb(91 71 240 / 36%);
+  --heat-3: rgb(91 71 240 / 62%);
+  --heat-4: #5b47f0;
+}

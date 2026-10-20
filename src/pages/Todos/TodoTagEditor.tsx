@@ -7,6 +7,7 @@ import { useI18n } from "../../hooks/useI18n";
 import { useTags } from "../../hooks/useTags";
 import type { Tag } from "../../types/tag";
 import type { Todo } from "../../types/todo";
+import todosStyles from "./todos.module.css";
 
 export interface TodoTagEditorProps {
   /** Closes the picker without touching the task. */
@@ -49,16 +50,16 @@ export function TodoTagEditor({ onClose, onChange, tags, todo }: TodoTagEditorPr
   };
 
   return (
-    <div className="todo-tag-editor">
-      {tags.length === 0 ? <p className="todo-tag-hint">{t("todo.tags.empty")}</p> : null}
-      <div className="todo-tag-choices">
+    <div className={todosStyles.todoTagEditor}>
+      {tags.length === 0 ? <p className={todosStyles.todoTagHint}>{t("todo.tags.empty")}</p> : null}
+      <div className={todosStyles.todoTagChoices}>
         {tags.map((tag) => {
           const on = chosen.has(tag.id);
 
           return (
             <button
               aria-pressed={on}
-              className="todo-tag-choice"
+              className={todosStyles.todoTagChoice}
               key={tag.id}
               onClick={() => {
                 const next = new Set(chosen);
@@ -78,11 +79,11 @@ export function TodoTagEditor({ onClose, onChange, tags, todo }: TodoTagEditorPr
           );
         })}
       </div>
-      <div className="todo-tag-foot">
-        <form className="todo-tag-new" onSubmit={submit}>
+      <div className={todosStyles.todoTagFoot}>
+        <form className={todosStyles.todoTagNew} onSubmit={submit}>
           <input
             aria-label={t("todo.tags.name")}
-            className="todo-input"
+            className={todosStyles.todoInput}
             onChange={(event) => {
               setDraft(event.target.value);
             }}

@@ -1,0 +1,419 @@
+/* Dashboard layout entry in settings, and the editor it opens. */
+.layout-entry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.layout-summary {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.layout-label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/*
+ * The editor covers the window and lays the dashboard out at its real size, so what gets dragged is
+ * literally the page. The mask swallows pointer input, which keeps links inside the panels inert
+ * while the layout is being changed.
+ */
+.editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+  background: rgb(8 10 16 / 62%);
+}
+
+.editor-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: min(1180px, 100%);
+  max-height: 100%;
+  padding: var(--space-5);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 45%);
+}
+
+.editor-dialog:focus-visible {
+  outline: none;
+}
+
+.editor-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-5);
+  align-items: flex-start;
+}
+
+.editor-lead {
+  display: grid;
+  gap: 4px;
+}
+
+.editor-lead h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.editor-sub {
+  max-width: 46ch;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.editor-columns {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.editor-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-left: auto;
+}
+
+.editor-body {
+  display: flex;
+  gap: var(--space-4);
+  align-items: stretch;
+  min-height: 0;
+  overflow: auto;
+}
+
+/*
+ * The canvas is the stage the panels live on: a faint dotted field that reads as "space to fill"
+ * even while it is empty, and the dotted rows also give the eye a beat against which a dragging
+ * ghost snaps.
+ */
+.editor-canvas {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-4);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background-image: radial-gradient(var(--border) 1px, transparent 1.5px);
+  background-position: 10px 10px;
+  background-size: 22px 22px;
+}
+
+/* Nothing parked yet: a quiet invitation instead of a bare box. */
+.editor-empty {
+  position: absolute;
+  inset: var(--space-4);
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+/*
+ * The visible half of a drag: the panel itself never leaves its cell, this dashed box is what moves
+ * under the pointer. Position comes entirely from a transform written by the pointer handler, so
+ * the drag does not touch React at all; it sits above the panels so it is never hidden behind one.
+ */
+.editor-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  display: flex;
+  align-items: flex-start;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* The dragged panel's name, so a ghost lifted from the library says what it will become. */
+.editor-ghost-label {
+  margin: var(--space-2) auto 0;
+  max-width: calc(100% - var(--space-3));
+  padding: 2px 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The library is the clipboard of the editor: panels waiting to be dropped, each card both a
+ * one-click add and a drag handle. It is deliberately narrower than the canvas so the grid keeps
+ * the stage.
+ */
+.editor-library {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 0 0 252px;
+  min-height: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.editor-library-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.editor-library-head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.editor-library-count {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.editor-library-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+  overflow: auto;
+}
+
+/* One parked panel: its drawing, its name and size, and a plus that reads "this can come back". */
+.library-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  color: var(--text);
+  text-align: left;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.library-card:hover {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+
+.library-card:active {
+  cursor: grabbing;
+}
+
+.library-glyph {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.library-meta {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.library-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-size {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.library-plus {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text-muted);
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.library-card:hover .library-plus {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.editor-library-empty {
+  margin: auto;
+  padding: var(--space-4);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.editor-library-note {
+  margin-top: auto;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.editor-slot {
+  position: relative;
+  /* Scaling from the top-left corner is what makes the slide animation land exactly on the cell. */
+  transform-origin: 0 0;
+}
+
+/* Held: the panel stays where it is and only its outline answers, the ghost is what travels. */
+.editor-slot[data-dragging="true"] [data-dash-panel] {
+  border-color: var(--accent);
+}
+
+.editor-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 2px solid transparent;
+  border-radius: var(--radius-lg);
+  cursor: grab;
+  touch-action: none;
+}
+
+.editor-mask:hover {
+  border-color: var(--accent);
+}
+
+.editor-mask:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.editor-slot[data-dragging="true"] .editor-mask {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  cursor: grabbing;
+}
+
+.editor-grip {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 2;
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.editor-slot:hover .editor-grip,
+.editor-slot[data-dragging="true"] .editor-grip {
+  border-color: var(--accent);
+}
+
+/*
+ * The way off the grid: a small circle that appears over the corner of a panel. It sits above the
+ * drag mask so it never steals a drag, and it only shows while the panel is being looked at.
+ */
+.editor-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text-muted);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 140ms ease, color 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.editor-slot:hover .editor-remove,
+.editor-slot:focus-within .editor-remove {
+  opacity: 1;
+}
+
+.editor-remove:hover,
+.editor-remove:focus-visible {
+  border-color: #e5534b;
+  background: #e5534b;
+  color: #fff;
+}
+
+.editor-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.editor-shortcuts {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A window too narrow for side-by-side shelves: the library drops under the canvas. */@media (max-width: 900px) {
+  .editor-body{
+    flex-direction: column;
+  }
+  .editor-library{
+    flex: none;
+  }
+  .editor-library-list{
+    max-height: 200px;
+  }
+}

@@ -7,7 +7,8 @@ import i18n from "../src/i18n";
 import { TodosPage } from "../src/pages/Todos/TodosPage";
 import { useI18nStore } from "../src/stores/i18nStore";
 import type { Todo, TodoCompletions, TodoCounts } from "../src/types/todo";
-import "../src/styles/app.css";
+import "../src/styles/tokens.css";
+import "../src/styles/global.css";
 
 const params = new URLSearchParams(window.location.search);
 const language = params.get("language") === "en-US" ? "en-US" : "zh-CN";

@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import { useI18n } from "../../../hooks/useI18n";
 import { useTodos } from "../../../hooks/useTodos";
+import dashboardStyles from "../dashboard.module.css";
 
 /** Today's finished count, with the lifetime count as its note. */
 export function CompletionWidget() {
@@ -15,19 +16,19 @@ export function CompletionWidget() {
   }, [refreshCompletions]);
 
   return (
-    <section className="dash-panel">
-      <p className="dash-kicker">{t("dashboard.done.title")}</p>
-      {completionsLoading ? <p className="dash-muted">{t("dashboard.loading")}</p> : null}
+    <section className={dashboardStyles.dashPanel} data-dash-panel>
+      <p className={dashboardStyles.dashKicker}>{t("dashboard.done.title")}</p>
+      {completionsLoading ? <p className={dashboardStyles.dashMuted}>{t("dashboard.loading")}</p> : null}
       {completionsError !== null ? <p className="error">{t("dashboard.error")}</p> : null}
       {!completionsLoading && completionsError === null ? (
         <>
-          <p className="dash-count">
+          <p className={dashboardStyles.dashCount}>
             {completions.today}
-            <span className="dash-unit">{t("dashboard.done.unit")}</span>
+            <span className={dashboardStyles.dashUnit}>{t("dashboard.done.unit")}</span>
           </p>
-          <p className="dash-note">{t("dashboard.done.total", { count: completions.all })}</p>
+          <p className={dashboardStyles.dashNote}>{t("dashboard.done.total", { count: completions.all })}</p>
           {completions.today === 0 ? (
-            <p className="dash-muted">{t("dashboard.done.empty")}</p>
+            <p className={dashboardStyles.dashMuted}>{t("dashboard.done.empty")}</p>
           ) : null}
         </>
       ) : null}

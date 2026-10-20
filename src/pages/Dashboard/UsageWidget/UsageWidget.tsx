@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { useAppUsage } from "../../../hooks/useAppEvents";
 import { useI18n } from "../../../hooks/useI18n";
 import { formatSpan } from "../format";
+import dashboardStyles from "../dashboard.module.css";
 
 /** How many applications the panel lists. */
 const SHOWN_APPS = 3;
@@ -17,22 +18,22 @@ export function UsageWidget() {
   const peakApp = usage[0]?.seconds ?? 1;
 
   return (
-    <section className="dash-panel">
-      <p className="dash-kicker">{t("dashboard.apps.title")}</p>
-      {loading ? <p className="dash-muted">{t("dashboard.loading")}</p> : null}
+    <section className={dashboardStyles.dashPanel} data-dash-panel>
+      <p className={dashboardStyles.dashKicker}>{t("dashboard.apps.title")}</p>
+      {loading ? <p className={dashboardStyles.dashMuted}>{t("dashboard.loading")}</p> : null}
       {error !== null ? <p className="error">{t("dashboard.error")}</p> : null}
       {!loading && error === null ? (
         usage.length === 0 ? (
-          <p className="dash-muted">{t("dashboard.apps.empty")}</p>
+          <p className={dashboardStyles.dashMuted}>{t("dashboard.apps.empty")}</p>
         ) : (
           <>
-            <ul className="dash-apps">
+            <ul className={dashboardStyles.dashApps}>
               {usage.slice(0, SHOWN_APPS).map((entry) => (
-                <li className="dash-app" key={entry.appName}>
-                  <span className="dash-app-name" title={entry.appName}>
+                <li className={dashboardStyles.dashApp} key={entry.appName}>
+                  <span className={dashboardStyles.dashAppName} title={entry.appName}>
                     {entry.appName}
                   </span>
-                  <span className="dash-app-time">{formatSpan(entry.seconds, t)}</span>
+                  <span className={dashboardStyles.dashAppTime}>{formatSpan(entry.seconds, t)}</span>
                   <span aria-hidden="true" className="meter">
                     <span
                       style={{
@@ -43,7 +44,7 @@ export function UsageWidget() {
                 </li>
               ))}
             </ul>
-            <Link className="dash-link" to="/analytics">
+            <Link className={dashboardStyles.dashLink} to="/analytics">
               {t("dashboard.apps.open")}
             </Link>
           </>

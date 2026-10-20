@@ -101,8 +101,8 @@ test("a heading can stand alone, with an icon and a destructive answer", async (
 
   const dialog = panel(page);
   await expect(dialog.getByRole("heading", { name: "Remove the saved filter?" })).toBeVisible();
-  await expect(dialog.locator(".popconfirm-content")).toHaveCount(0);
-  await expect(dialog.locator(".popconfirm-icon svg")).toHaveCount(1);
+  await expect(dialog.locator('[data-testid="popconfirm-content"]')).toHaveCount(0);
+  await expect(dialog.locator('[data-testid="popconfirm-icon"] svg')).toHaveCount(1);
   await expect(dialog).toHaveAttribute("data-danger", "");
 
   const cancel = dialog.getByRole("button", { name: "No" });

@@ -2,6 +2,7 @@
 
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import type { InputHTMLAttributes } from "react";
+import numericInputStyles from "./NumericInput.module.css";
 
 export interface NumericInputProps
   extends Omit<
@@ -119,13 +120,13 @@ export function NumericInput({
   }, []);
 
   return (
-    <div className="numeric-input" data-disabled={disabled} ref={controlRef}>
+    <div className={numericInputStyles.numericInput} data-disabled={disabled} ref={controlRef}>
       <input
         {...inputProps}
         aria-valuemax={Number.isFinite(max) ? max : undefined}
         aria-valuemin={Number.isFinite(min) ? min : undefined}
         aria-valuenow={value}
-        className={`numeric-input-field ${className}`.trim()}
+        className={`${numericInputStyles.numericInputField} ${className}`.trim()}
         disabled={disabled}
         inputMode="decimal"
         onBlur={(event) => {
@@ -171,14 +172,14 @@ export function NumericInput({
         type="text"
         value={draft.text}
       />
-      <div className="numeric-input-buttons">
+      <div className={numericInputStyles.numericInputButtons}>
         {[
           { direction: 1, label: increaseLabel, limit: value >= max },
           { direction: -1, label: decreaseLabel, limit: value <= min },
         ].map(({ direction, label, limit }) => (
           <button
             aria-label={label}
-            className="numeric-input-button"
+            className={numericInputStyles.numericInputButton}
             disabled={disabled || readOnly || limit}
             key={direction}
             onClick={() => {

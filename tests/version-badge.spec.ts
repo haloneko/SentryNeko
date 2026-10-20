@@ -6,7 +6,7 @@ test("the version sits at the bottom-right corner of the app name", async ({ pag
 
   await page.goto("/");
 
-  const version = page.locator(".brand-version");
+  const version = page.locator('[data-testid="brand-version"]');
   await expect(version).toHaveText(/^v\d+\.\d+\.\d+$/);
 
   // Small and grey: the size is its own, the colour is the same muted one as the tagline below
@@ -14,17 +14,17 @@ test("the version sits at the bottom-right corner of the app name", async ({ pag
   await expect(version).toHaveCSS("font-size", "10.5px");
 
   const muted = await page
-    .locator(".brand-tagline")
+    .locator('[data-testid="brand-tagline"]')
     .evaluate((element) => getComputedStyle(element).color);
 
   expect(await version.evaluate((element) => getComputedStyle(element).color)).toBe(muted);
 
   // It hugs the right edge of the brand's content box and drops to the name's baseline.
-  const brand = await page.locator(".brand").boundingBox();
-  const name = await page.locator(".brand-name").boundingBox();
+  const brand = await page.locator('[data-testid="brand"]').boundingBox();
+  const name = await page.locator('[data-testid="brand-name"]').boundingBox();
   const label = await version.boundingBox();
   const inset = await page
-    .locator(".brand")
+    .locator('[data-testid="brand"]')
     .evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingRight));
 
   expect(brand).not.toBeNull();

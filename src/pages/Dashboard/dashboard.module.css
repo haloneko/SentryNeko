@@ -1,0 +1,338 @@
+/* Dashboard *//*
+ * The page itself is a plain grid: a cell is as wide as the page allows, so the panels are the real
+ * thing at their real size and nothing about them is scaled to the window.
+ */
+.dash-grid {
+  container-type: inline-size;
+}
+
+/*
+ * The layout editor previews that grid at a fixed design width and then scales the whole thing down
+ * to the room the preview column has, so a complete layout stays in view while it is arranged.
+ * Only the cells take their size from the stage; the drawings inside a panel keep their real
+ * proportions because the preview is scaled as a whole rather than re-laid-out.
+ *
+ * The stage is taken out of flow because the scale is written onto it while the frame's height is
+ * written by the hook: a scaled box still lays out at its unscaled height, which would leave a gap.
+ */
+.dash-canvas {
+  position: relative;
+  width: 100%;
+}
+
+.dash-canvas-stage {
+  /* The width the preview is designed at; every cell size follows from it and the columns. */
+  --canvas-width: 1100px;
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--canvas-width);
+  /* Makes `100cqw` inside the grid mean this width, exactly as it means the page width outside. */
+  container-type: inline-size;
+  transform: scale(var(--canvas-scale, 1));
+  transform-origin: 0 0;
+}
+
+.dash-cells {
+  --dash-gap: var(--space-4);
+  /* `100cqw` is the grid's own width, which a percentage is not inside `grid-auto-rows`. */
+  --dash-cell: calc(
+    (100cqw - (var(--dash-columns) - 1) * var(--dash-gap)) / var(--dash-columns)
+  );
+
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--dash-columns), minmax(0, 1fr));
+  grid-auto-rows: var(--dash-cell);
+  gap: var(--dash-gap);
+}
+
+.dash-slot {
+  display: flex;
+  min-width: 0;
+}
+
+.dash-slot > .dash-panel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.dash-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+/*
+ * Nothing on the dashboard at all: the block stands in for the missing panels and is also what the
+ * right-click that puts one back lands on.
+ */
+.dash-empty {
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.dash-hero {
+  border-color: var(--border-strong);
+  background:
+    radial-gradient(120% 80% at 100% 0%, var(--accent-soft), transparent 62%),
+    var(--surface);
+}
+
+.dash-kicker {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.dash-clock {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  /* Fixed: the panel is scaled as a whole, so its own type must not answer to the window. */
+  font-size: 64px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  line-height: 0.95;
+}
+
+.dash-clock .dash-unit {
+  margin-right: 6px;
+}
+
+.dash-timer,
+.dash-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.dash-timer {
+  font-size: 34px;
+}
+
+.dash-count {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 44px;
+}
+
+.dash-unit {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.dash-note {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.dash-muted {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.dash-link {
+  align-self: flex-start;
+  margin-top: auto;
+  border-bottom: 1px solid transparent;
+  color: var(--accent-text);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.dash-link:hover {
+  border-bottom-color: currentColor;
+}
+
+.dash-pulse {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: auto;
+  padding-top: var(--space-4);
+}
+
+.dash-day {
+  display: grid;
+  grid-template-rows: 96px auto;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dash-day-track {
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+  border-bottom: 1px solid var(--border);
+}
+
+.dash-day-bar {
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+  background: var(--border-strong);
+  transition: height 240ms ease, background-color 120ms ease;
+}
+
+.dash-day[data-today="true"] .dash-day-bar {
+  background: var(--accent);
+  box-shadow: 0 0 14px var(--accent-soft);
+}
+
+.dash-day:hover .dash-day-bar {
+  background: var(--accent-text);
+}
+
+.dash-day-label {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-day[data-today="true"] .dash-day-label {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.dash-apps {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dash-app {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px var(--space-3);
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.dash-app :global(.meter) {
+  grid-column: 1 / -1;
+  height: 4px;
+}
+
+.dash-app-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-app-time {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-alarm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+}
+
+.dash-alarm-time {
+  font-size: 32px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.dash-alarm-label {
+  font-size: 13.5px;
+}
+
+.dash-alarm .dash-link {
+  margin-top: 0;
+  margin-left: auto;
+}
+
+/* Every dashboard drawing shares one stroke, as the sidebar's do, so the set reads as one family. */
+.widget-icon {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+@media (max-width: 760px) {
+  .dash-cells{
+    --dash-gap: var(--space-3);
+  }
+}
+
+.usage-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.usage-row {
+  display: grid;
+  grid-template-columns: minmax(0, 16ch) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 13px;
+}
+
+.usage-app {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-time {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.completion-rate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.completion-value {
+  font-size: 26px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-day-bar {
+    transition: none;
+  }
+}

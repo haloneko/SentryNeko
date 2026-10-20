@@ -13,6 +13,8 @@ import {
 import type { NotificationMethod } from "../types/alarm";
 import { NumericInput } from "./ui/NumericInput";
 import { SegmentedControl } from "./ui/SegmentedControl";
+import settingsStyles from "../pages/Settings/settings.module.css";
+import todosStyles from "../pages/Todos/todos.module.css";
 
 /** Wait after the last keystroke, so typing `10` writes once. */
 const SAVE_DELAY_MS = 600;
@@ -73,9 +75,9 @@ export function AlarmDefaultsSettings() {
   }, [seconds, method, loading, stored, save]);
 
   return (
-    <div className="settings-form">
-      <div className="settings-pair">
-        <div className="set-field">
+    <div className={settingsStyles.settingsForm}>
+      <div className={settingsStyles.settingsPair}>
+        <div className={settingsStyles.setField}>
           <label htmlFor="alarm-ring-seconds">{t("alarm.settings.ring")}</label>
           <NumericInput
             decreaseLabel={t("numericInput.decrease", { label: t("alarm.settings.ring") })}
@@ -92,7 +94,7 @@ export function AlarmDefaultsSettings() {
             value={seconds}
           />
         </div>
-        <div className="set-field">
+        <div className={settingsStyles.setField}>
           <span>{t("alarm.settings.method")}</span>
           <SegmentedControl
             label={t("alarm.settings.method")}
@@ -109,9 +111,9 @@ export function AlarmDefaultsSettings() {
         </div>
       </div>
       {error !== null || saved ? (
-        <p className="settings-status">
+        <p className={settingsStyles.settingsStatus}>
           {error !== null ? (
-            <span className="todo-error">{t("alarm.settings.error")}</span>
+            <span className={todosStyles.todoError}>{t("alarm.settings.error")}</span>
           ) : null}
           {error === null && saved ? (
             <span className="muted">{t("alarm.settings.saved")}</span>

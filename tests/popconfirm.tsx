@@ -5,7 +5,8 @@ import { I18nProvider } from "../src/components/I18nProvider";
 import { ActionIcon } from "../src/components/ui/ActionIcon";
 import { Popconfirm } from "../src/components/ui/Popconfirm";
 import i18n from "../src/i18n";
-import "../src/styles/app.css";
+import "../src/styles/tokens.css";
+import "../src/styles/global.css";
 
 const params = new URLSearchParams(window.location.search);
 document.documentElement.dataset.theme = params.get("theme") ?? "dark";

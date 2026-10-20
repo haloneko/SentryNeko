@@ -7,6 +7,7 @@ import { useI18n } from "../../../hooks/useI18n";
 import { ALL_DAYS, clockTime, isOneOff, maskDays } from "../../../types/alarm";
 import type { Alarm } from "../../../types/alarm";
 import { nextRing } from "../nextRing";
+import dashboardStyles from "../dashboard.module.css";
 
 /** The next armed alarm, or that none is switched on. */
 export function AlarmWidget() {
@@ -31,21 +32,21 @@ export function AlarmWidget() {
   };
 
   return (
-    <section className="dash-panel">
-      <p className="dash-kicker">{t("dashboard.alarm.title")}</p>
-      {loading ? <p className="dash-muted">{t("dashboard.loading")}</p> : null}
+    <section className={dashboardStyles.dashPanel} data-dash-panel>
+      <p className={dashboardStyles.dashKicker}>{t("dashboard.alarm.title")}</p>
+      {loading ? <p className={dashboardStyles.dashMuted}>{t("dashboard.loading")}</p> : null}
       {error !== null ? <p className="error">{t("dashboard.error")}</p> : null}
       {!loading && error === null ? (
         next === null ? (
-          <p className="dash-muted">{t("dashboard.alarm.empty")}</p>
+          <p className={dashboardStyles.dashMuted}>{t("dashboard.alarm.empty")}</p>
         ) : (
-          <div className="dash-alarm">
-            <span className="dash-alarm-time">{clockTime(next.alarm.hour, next.alarm.minute)}</span>
-            <span className="dash-alarm-label">
+          <div className={dashboardStyles.dashAlarm}>
+            <span className={dashboardStyles.dashAlarmTime}>{clockTime(next.alarm.hour, next.alarm.minute)}</span>
+            <span className={dashboardStyles.dashAlarmLabel}>
               {next.alarm.label || t("dashboard.alarm.untitled")}
             </span>
-            <span className="dash-note">{repeat(next.alarm)}</span>
-            <Link className="dash-link" to="/alarms">
+            <span className={dashboardStyles.dashNote}>{repeat(next.alarm)}</span>
+            <Link className={dashboardStyles.dashLink} to="/alarms">
               {t("dashboard.alarm.open")}
             </Link>
           </div>
