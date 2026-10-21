@@ -287,16 +287,13 @@ fn is_idle(milliseconds: u64) -> bool {
     milliseconds >= IDLE_TIMEOUT.as_millis() as u64
 }
 
-/// Reads the foreground window, dropping our own: time spent in SentryNeko is not activity.
+/// Reads the foreground window.
+///
+/// This application's own window is sampled like any other: the time a user spends reading the
+/// dashboard is time in front of this app, and the stream would otherwise show a stretch no app
+/// owns.
 fn sample() -> Option<Sample> {
-    keep(windows::foreground_app()?, windows::current_process_id())
-}
-
-/// Drops the window when it belongs to `own_process_id`.
-fn keep(foreground: windows::ForegroundApp, own_process_id: u32) -> Option<Sample> {
-    if foreground.process_id == own_process_id {
-        return None;
-    }
+    let foreground = windows::foreground_app()?;
 
     Some(Sample {
         app_name: foreground.app_name,
@@ -538,22 +535,6 @@ mod tests {
         assert_eq!(pushed[1].0, names::APP_SWITCH);
         assert_eq!(pushed[1].1["appName"], serde_json::json!("chrome"));
         assert_eq!(pushed[1].1["startedAt"], serde_json::json!(160));
-    }
-
-    #[test]
-    fn our_own_window_never_becomes_a_sample() {
-        let own = windows::ForegroundApp {
-            app_name: "SentryNeko".to_owned(),
-            window_title: Some("SentryNeko".to_owned()),
-            process_id: 4_242,
-        };
-
-        assert_eq!(keep(own.clone(), 4_242), None);
-        assert_eq!(
-            keep(own, 4_243),
-            seen("SentryNeko", Some("SentryNeko")),
-            "another process is kept"
-        );
     }
 
     #[test]

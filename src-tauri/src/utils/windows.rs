@@ -84,7 +84,6 @@ extern "system" {
 
 #[link(name = "kernel32")]
 extern "system" {
-    fn GetCurrentProcessId() -> u32;
     fn GetTickCount() -> u32;
     fn GetTickCount64() -> u64;
     fn GetLastInputInfo(last_input: *mut LastInputInfo) -> i32;
@@ -160,8 +159,6 @@ pub struct ForegroundApp {
     pub app_name: String,
     /// Caption of the window, trimmed; `None` when it is empty.
     pub window_title: Option<String>,
-    /// Process that owns the window, so the caller can drop its own windows.
-    pub process_id: u32,
 }
 
 /// Reads the foreground window.
@@ -182,14 +179,7 @@ pub fn foreground_app() -> Option<ForegroundApp> {
     Some(ForegroundApp {
         app_name: executable_name(&image)?,
         window_title: window_title(window),
-        process_id,
     })
-}
-
-/// Process id of the running application, so its own windows can be told apart.
-#[must_use]
-pub fn current_process_id() -> u32 {
-    unsafe { GetCurrentProcessId() }
 }
 
 /// Executable file name without its extension: `C:\Apps\Code.exe` becomes `Code`.
@@ -577,11 +567,6 @@ mod tests {
     fn an_empty_image_path_has_no_name() {
         assert_eq!(executable_name(""), None);
         assert_eq!(executable_name(r"C:\Program Files\"), None);
-    }
-
-    #[test]
-    fn the_current_process_has_an_id() {
-        assert_ne!(current_process_id(), 0);
     }
 
     #[test]

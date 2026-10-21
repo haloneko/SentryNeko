@@ -169,8 +169,8 @@ the foreground window once a second:
 - A window title that changes while the same app stays in front updates `window_title` in place.
   One row is one continuous app stretch, so a window that rewrites its caption every second cannot
   flood the table.
-- Windows owned by SentryNeko itself are skipped and the row before them is closed: time spent in
-  this app is not activity worth recording.
+- Windows owned by SentryNeko itself are recorded like any other: time spent reading the dashboard
+  is time in front of this app, and skipping it would leave a stretch of the stream owned by none.
 - Five minutes without keyboard or mouse input count as being away: the open row is closed at that
   sample and a new one opens when input returns, so an app left in front does not accrue time.
 - A sample that finds nothing to attribute — no foreground window, a locked screen, a process that

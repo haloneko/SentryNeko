@@ -27,8 +27,8 @@ const MAX_PAGE: i64 = 100;
 /// One `app_events` row.
 ///
 /// A row opens when an app reaches the foreground and closes when another one takes over, so
-/// `ended_at` stays `None` for as long as the app stays in front. Windows of the application
-/// itself are never recorded.
+/// `ended_at` stays `None` for as long as the app stays in front. The application's own window is
+/// recorded like any other: the time a user spends in it is time in front of an app too.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppEvent {
