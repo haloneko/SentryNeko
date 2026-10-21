@@ -1,7 +1,7 @@
 /** Hourly usage hook: the app stacks and the focus buckets of one local day. */
 
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { isOk } from "../types";
 import type { ApiCode, ApiResponse } from "../types";
@@ -9,37 +9,38 @@ import type { FocusHour, HourlyUsage } from "../types/hourly";
 import { dayWindow } from "../types/hourly";
 
 export interface DayUsageState {
-  /** One row per app and hour; empty while loading or after a failure. */
   usage: readonly HourlyUsage[];
-  /** One row per hour that has focus time. */
   focus: readonly FocusHour[];
   loading: boolean;
-  /** Code of the failed call, `null` while everything is fine. */
+  busy: boolean;
   error: ApiCode | null;
 }
 
-/**
- * Loads both hourly series of `day`.
- *
- * Both are asked at once so switching the chart kind never waits for the backend again; the window
- * is the local calendar day, computed here because a day is a calendar concept.
- */
 export function useDayUsage(day: Date): DayUsageState {
   const [state, setState] = useState<DayUsageState>({
+    busy: false,
     error: null,
     focus: [],
     loading: true,
     usage: [],
   });
+  // Whether a first answer ever landed, so an empty day is not mistaken for a pending one.
+  const answered = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     const bounds = dayWindow(day);
 
-    setState((current) => ({ ...current, error: null, loading: true }));
+    setState((current) => ({
+      ...current,
+      busy: true,
+      error: null,
+      loading: !answered.current,
+    }));
 
     if (!isTauri()) {
-      setState({ error: "UNSUPPORTED", focus: [], loading: false, usage: [] });
+      answered.current = true;
+      setState({ busy: false, error: "UNSUPPORTED", focus: [], loading: false, usage: [] });
       return;
     }
 
@@ -52,8 +53,11 @@ export function useDayUsage(day: Date): DayUsageState {
           return;
         }
 
+        answered.current = true;
+
         if (!isOk(usage) || !isOk(focus)) {
           setState({
+            busy: false,
             error: isOk(usage) ? focus.code : usage.code,
             focus: [],
             loading: false,
@@ -62,12 +66,15 @@ export function useDayUsage(day: Date): DayUsageState {
           return;
         }
 
-        setState({ error: null, focus: focus.data, loading: false, usage: usage.data });
+        setState({ busy: false, error: null, focus: focus.data, loading: false, usage: usage.data });
       })
       .catch(() => {
-        if (!cancelled) {
-          setState({ error: "INTERNAL", focus: [], loading: false, usage: [] });
+        if (cancelled) {
+          return;
         }
+
+        answered.current = true;
+        setState({ busy: false, error: "INTERNAL", focus: [], loading: false, usage: [] });
       });
 
     return () => {

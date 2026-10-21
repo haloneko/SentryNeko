@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::connection::Db;
 use crate::db::repository;
+use crate::models::app_event::AppUsage;
 use crate::models::focus_usage::FocusUsage;
 use crate::utils::response::{ApiError, ApiResult};
 use crate::utils::windows::{self, LocalDate};
@@ -28,6 +29,7 @@ pub struct HeatmapBucket {
     pub start: i64,
     /// Seconds of focus from phases that started inside the bucket.
     pub focus_seconds: i64,
+    pub app_seconds: i64,
     /// Tasks whose `completed_at` falls inside the bucket.
     pub completed_tasks: i64,
 }
@@ -38,20 +40,6 @@ struct Day {
     bucket: HeatmapBucket,
     date: LocalDate,
 }
-
-/// Aggregates focus time and completed tasks per bucket over `[from, to)`.
-///
-/// The rules, in one place:
-///
-/// - Buckets follow the user's calendar, not UTC: a day starts at local midnight, a week on
-///   Monday, a month on the first. The boundary is resolved through the Windows time zone rules,
-///   so the two days a year whose clocks move keep the right length.
-/// - Every day of the window is answered, empty ones included, so a chart can lay the days out
-///   without filling gaps itself.
-/// - A focus phase counts through the hour buckets the minute tick fills, so a phase still running
-///   is already part of the total, and a crash costs the current minute instead of the session.
-/// - A task counts on the day stored in `completed_at`, so renaming it later does not move it.
-/// - The first and last bucket are partial when the window does not line up with the calendar.
 pub fn load(
     db: &Db,
     from: i64,
@@ -85,6 +73,7 @@ fn days(db: &Db, from: i64, to: i64) -> ApiResult<Vec<Day>> {
             bucket: HeatmapBucket {
                 start: cursor,
                 focus_seconds: 0,
+                app_seconds: 0,
                 completed_tasks: 0,
             },
             date: windows::local_date(cursor).ok_or_else(boundary_error)?,
@@ -98,6 +87,7 @@ fn days(db: &Db, from: i64, to: i64) -> ApiResult<Vec<Day>> {
     }
 
     add_focus(db, first, to, &mut days)?;
+    add_app(db, first, to, &mut days)?;
     add_completed(db, first, to, &mut days)?;
 
     Ok(days)
@@ -116,6 +106,19 @@ fn add_focus(db: &Db, first: i64, to: i64, days: &mut [Day]) -> ApiResult<()> {
 
         if let Some(position) = positions.get(&day) {
             days[*position].bucket.focus_seconds += seconds;
+        }
+    }
+
+    Ok(())
+}
+fn add_app(db: &Db, first: i64, to: i64, days: &mut [Day]) -> ApiResult<()> {
+    let positions = positions(days);
+
+    for (hour_start, seconds) in AppUsage::hourly_totals(db, first, to)? {
+        let day = local_day(hour_start)?;
+
+        if let Some(position) = positions.get(&day) {
+            days[*position].bucket.app_seconds += seconds;
         }
     }
 
@@ -207,6 +210,7 @@ fn sum(days: &[Day]) -> HeatmapBucket {
     HeatmapBucket {
         start: days[0].bucket.start,
         focus_seconds: days.iter().map(|day| day.bucket.focus_seconds).sum(),
+        app_seconds: days.iter().map(|day| day.bucket.app_seconds).sum(),
         completed_tasks: days.iter().map(|day| day.bucket.completed_tasks).sum(),
     }
 }
@@ -266,6 +270,7 @@ mod tests {
             bucket: HeatmapBucket {
                 start,
                 focus_seconds,
+                app_seconds: 0,
                 completed_tasks,
             },
             date: date(10, 1, weekday),
@@ -306,9 +311,26 @@ mod tests {
             [HeatmapBucket {
                 start: today,
                 focus_seconds: 900,
+                app_seconds: 0,
                 completed_tasks: 1,
             }]
         );
+    }
+
+    #[test]
+    fn a_day_bucket_carries_the_screen_time_of_its_day() {
+        let db = created();
+        let today = today();
+
+        AppUsage::record(&db, "code", AppUsage::hour_of(today + 60), 900).expect("usage");
+        AppUsage::record(&db, "browser", AppUsage::hour_of(today + 60), 300).expect("usage");
+        AppUsage::record(&db, "LockApp", AppUsage::hour_of(today + 120), 600).expect("usage");
+        AppUsage::record(&db, "code", AppUsage::hour_of(today - 3_600), 1_200).expect("usage");
+
+        let buckets = load(&db, today, today + 1_000, Granularity::Day).expect("heatmap");
+
+        assert_eq!(buckets.len(), 1);
+        assert_eq!(buckets[0].app_seconds, 1_200);
     }
 
     #[test]
@@ -385,6 +407,7 @@ mod tests {
             HeatmapBucket {
                 start: 0,
                 focus_seconds: 150,
+                app_seconds: 0,
                 completed_tasks: 1,
             }
         );
@@ -393,6 +416,7 @@ mod tests {
             HeatmapBucket {
                 start: 5,
                 focus_seconds: 300,
+                app_seconds: 0,
                 completed_tasks: 0,
             }
         );

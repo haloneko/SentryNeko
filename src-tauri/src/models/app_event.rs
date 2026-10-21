@@ -316,6 +316,26 @@ impl AppUsage {
         )
     }
 
+    pub fn hourly_totals(db: &Db, from: i64, to: i64) -> ApiResult<Vec<(i64, i64)>> {
+        if to <= from {
+            return Err(ApiError::invalid_input("to must be after from")
+                .with_details(format!("received from = {from}, to = {to}")));
+        }
+
+        repository::query_all(
+            db,
+            "SELECT hour_start, SUM(seconds) AS seconds
+             FROM app_usage_hours
+             WHERE hour_start >= ?1 AND hour_start < ?2
+               AND app_name NOT IN (?3, ?4)
+             GROUP BY hour_start
+             HAVING seconds > 0
+             ORDER BY hour_start",
+            params![Self::hour_of(from), to, LOCK_SHELLS[0], LOCK_SHELLS[1]],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+    }
+
     /// Folds the stored events into buckets, once, for a database that predates them.
     ///
     /// Only a database whose buckets are still empty is folded into: running this again would add the

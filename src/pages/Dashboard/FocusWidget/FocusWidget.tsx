@@ -1,14 +1,14 @@
 /** Focus panel: today's tracked time plus the pulse of the last week. */
 
-import { useFocusTrend } from "../../../hooks/useFocusTrend";
 import { useI18n } from "../../../hooks/useI18n";
+import { useTrend } from "../../../hooks/useTrend";
 import { formatSpan, weekday } from "../format";
 import dashboardStyles from "../dashboard.module.css";
 
 /** Today's focus at a glance, with the shape of the week behind it. */
 export function FocusWidget() {
   const { language, t } = useI18n();
-  const { buckets, error, loading } = useFocusTrend("day");
+  const { buckets, error, loading } = useTrend("day");
 
   const today = buckets.at(-1);
   const week = buckets.slice(-7);
