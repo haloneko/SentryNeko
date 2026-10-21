@@ -9,7 +9,7 @@ export interface AppEvent {
   windowTitle: string | null;
   /** UTC epoch seconds. */
   startedAt: number;
-  /** UTC epoch seconds; `null` while the app is still in front. */
+  /** UTC epoch seconds; the collector moves it forward with every report while the app stays in front. */
   endedAt: number | null;
 }
 

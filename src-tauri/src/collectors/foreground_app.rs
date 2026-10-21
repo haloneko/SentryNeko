@@ -1,9 +1,11 @@
 //! Foreground application collector built on GetForegroundWindow and GetWindowText.
 //!
-//! The loop runs on its own thread, one sample every five seconds, and writes through
-//! [`crate::models::app_event`]; it never touches the UI. Every sample is settled in one place — the
-//! time since the previous report, and whose it was — and only then handed to the two writers: the
-//! stream of app stretches, and the hours an application held the foreground.
+//! The loop runs on its own thread, one sample every second, and writes through
+//! [`crate::models::app_event`]; it never touches the UI. A WinEvent hook wakes the loop the moment
+//! the window in front changes, so a switch is settled at once instead of at the next tick. Every
+//! sample is settled in one place — the time since the previous report, and whose it was — and only
+//! then handed to the two writers: the stream of app stretches, and the hours an application held
+//! the foreground.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -17,37 +19,18 @@ use crate::utils::response::{ApiError, ApiResult};
 use crate::utils::time;
 use crate::utils::windows;
 
-/// How often the foreground window is sampled.
-///
-/// Rows are stored with second resolution, so sampling faster would not add detail; a slower
-/// loop would blur short switches.
 pub const POLL_INTERVAL: Duration = Duration::from_secs(5);
 
-/// How long the user has to be away before the app in front stops counting.
-///
-/// Five minutes covers a phone call or a read of the printed page without charging that time to
-/// whichever window happened to be open.
 pub const IDLE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
-/// Longest gap one report may charge.
-///
-/// A machine that sleeps leaves the same window in front, and the loop resumes an hour later; only
-/// the part that could have been watched is claimed, so a nap does not fill the hours it happened
-/// in.
 const MAX_CHARGED_GAP: i64 = 60;
 
-/// How much time may wait in memory before it is written.
-///
-/// The buckets are the only account of usage, so they are written sooner than a switch would force:
-/// a process that dies loses at most this much instead of the whole stretch it was in the middle of.
 const FLUSH_SECONDS: i64 = 30;
 
 /// What the collector saw, already stripped of the windows it ignores.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Sample {
-    /// Executable file name without its extension, e.g. `chrome`.
     pub app_name: String,
-    /// Caption of the foreground window, trimmed; `None` when it has none.
     pub window_title: Option<String>,
 }
 
@@ -76,7 +59,6 @@ pub struct ForegroundCollector {
 }
 
 impl ForegroundCollector {
-    /// Builds a collector that owns no row yet.
     #[must_use]
     pub fn new(db: Db, bus: EventBus) -> Self {
         Self {
@@ -103,24 +85,23 @@ impl ForegroundCollector {
     }
 
     /// Settles the time since the last report, then starts or ends the stretch.
-    ///
-    /// The app name and the seconds are its only business. The seconds are cut at the hour
-    /// boundaries and handed to the buckets; when the app in front changes, the stretch that ends is
-    /// written to the stream as one row holding both of its ends. A report further apart than
-    /// [`MAX_CHARGED_GAP`] means the loop was not running: the stretch that was watched ends where
-    /// the last report did, the gap is charged to nobody, and a new stretch starts at `now`.
     fn settle(&mut self, sample: Option<Sample>, now: i64) -> ApiResult<()> {
+        if let (Some(current), Some(sample)) = (self.current.as_mut(), &sample) {
+            if current.app_name == sample.app_name {
+                current.window_title = sample.window_title.clone();
+            }
+        }
+
         let charged = self.current.as_ref().map(|current| current.app_name.clone());
 
         if let (Some(app_name), Some(from)) = (charged, self.reported_at) {
             let seconds = now - from;
 
             if seconds > MAX_CHARGED_GAP {
-                // The loop was not running: the minutes in the gap were never watched, so the
-                // stretch keeps only what was charged and ends where the last report did.
                 self.end_current(from)?;
             } else if seconds > 0 {
                 self.push_usage(&app_name, from, seconds)?;
+                self.touch_current(now)?;
             }
         }
 
@@ -132,10 +113,6 @@ impl ForegroundCollector {
         );
 
         if same {
-            if let Some(current) = self.current.as_mut() {
-                current.window_title = sample.and_then(|sample| sample.window_title);
-            }
-
             return Ok(());
         }
 
@@ -148,13 +125,28 @@ impl ForegroundCollector {
             started_at: now,
         });
 
-        Ok(())
+        // The new stretch reaches the page at once, even if it lasts only one sample.
+        self.touch_current(now)
+    }
+
+    /// Writes the stretch in progress and pushes that same row again.
+    fn touch_current(&mut self, at: i64) -> ApiResult<()> {
+        let Some(current) = self.current.as_ref() else {
+            return Ok(());
+        };
+
+        let event = AppEvent::record_segment(
+            &self.db,
+            &current.app_name,
+            current.window_title.as_deref(),
+            current.started_at,
+            at,
+        )?;
+
+        self.bus.emit_app_switch(&event)
     }
 
     /// Writes the stretch in progress as one closed row, and the seconds it earned.
-    ///
-    /// `ended_at` is where the stretch stopped being watched: the app in front changed, the
-    /// application is quitting, or a gap ended it at the last report that was charged.
     fn end_current(&mut self, ended_at: i64) -> ApiResult<()> {
         let Some(current) = self.current.take() else {
             return Ok(());
@@ -214,8 +206,6 @@ impl ForegroundCollector {
         });
 
         if !same {
-            // Another hour or another app: what was gathered belongs to the bucket it was gathered
-            // for, so it goes out before the next one starts.
             self.flush()?;
             self.pending = Some(Pending {
                 app_name: app_name.to_owned(),
@@ -233,8 +223,6 @@ impl ForegroundCollector {
         Ok(())
     }
 
-    /// Writes the gathered seconds; they stay in memory when the write fails, so the next flush
-    /// retries them instead of losing them.
     fn flush(&mut self) -> ApiResult<()> {
         let Some(pending) = self.pending.as_ref() else {
             return Ok(());
@@ -249,12 +237,10 @@ impl ForegroundCollector {
 }
 
 /// Handle to the running collector.
-///
-/// Keep it in Tauri managed state: [`Self::stop`] closes the last row and joins the thread, so
-/// quitting the app does not leave a row open forever.
 pub struct RunningCollector {
     stopped: Arc<AtomicBool>,
     thread: Mutex<Option<JoinHandle<()>>>,
+    watch: Mutex<Option<windows::ForegroundWatch>>,
 }
 
 impl RunningCollector {
@@ -267,15 +253,16 @@ impl RunningCollector {
         let thread = thread::Builder::new()
             .name("foreground-collector".to_owned())
             .spawn(move || {
+                windows::wake_on_foreground_change(thread::current());
+
                 while !flag.load(Ordering::Relaxed) {
-                    // An app kept in front while the user is away must not accrue time.
                     let observed = if away() { None } else { sample() };
 
-                    // A failed write must not kill the loop: the next sample retries, otherwise
-                    // one lock timeout would cost the rest of the day.
                     let _ = collector.observe(observed, time::now_seconds());
                     thread::park_timeout(POLL_INTERVAL);
                 }
+
+                windows::forget_foreground_waker();
 
                 let _ = collector.close(time::now_seconds());
             })
@@ -284,9 +271,12 @@ impl RunningCollector {
                     .with_details(error.to_string())
             })?;
 
+        let watch = windows::ForegroundWatch::install();
+
         Ok(Self {
             stopped,
             thread: Mutex::new(Some(thread)),
+            watch: Mutex::new(watch),
         })
     }
 
@@ -294,26 +284,32 @@ impl RunningCollector {
     pub fn stop(&self) {
         self.stopped.store(true, Ordering::Relaxed);
 
-        let Ok(mut thread) = self.thread.lock() else {
-            return;
-        };
-        let Some(handle) = thread.take() else {
-            return;
-        };
+        if let Ok(mut thread) = self.thread.lock() {
+            if let Some(handle) = thread.take() {
+                handle.thread().unpark();
+                let _ = handle.join();
+            }
+        }
 
-        handle.thread().unpark();
-        let _ = handle.join();
+        if let Ok(mut watch) = self.watch.lock() {
+            if let Some(hook) = watch.take() {
+                drop(hook);
+            }
+        }
     }
 }
 
 /// Whether the user has left the machine: no input for five minutes and nothing playing.
-///
-/// Watching a video leaves the keyboard untouched, so playback vetoes the idle answer.
 fn away() -> bool {
-    is_away(
-        windows::milliseconds_since_last_input(),
-        windows::media_is_playing(),
-    )
+    let Some(milliseconds) = windows::milliseconds_since_last_input() else {
+        return false;
+    };
+
+    if !is_idle(milliseconds) {
+        return false;
+    }
+
+    is_away(Some(milliseconds), windows::media_is_playing())
 }
 
 /// Decides from the two facts alone, so the rule is testable without a media session.
@@ -327,10 +323,6 @@ fn is_idle(milliseconds: u64) -> bool {
 }
 
 /// Reads the foreground window.
-///
-/// This application's own window is sampled like any other: the time a user spends reading the
-/// dashboard is time in front of this app, and the stream would otherwise show a stretch no app
-/// owns.
 fn sample() -> Option<Sample> {
     let foreground = windows::foreground_app()?;
 
@@ -394,7 +386,7 @@ mod tests {
     }
 
     #[test]
-    fn nothing_is_written_until_the_stretch_ends() {
+    fn the_stretch_in_progress_is_written_before_it_ends() {
         let db = created();
         let mut collector = new_collector(&db);
 
@@ -404,14 +396,18 @@ mod tests {
                 .expect("observed");
         }
 
-        assert!(
-            rows(&db).is_empty(),
-            "a stretch that has not ended is not a report"
+        let stored = rows(&db);
+        assert_eq!(stored.len(), 1, "one line follows the whole stretch");
+        assert_eq!(stored[0].started_at, 100);
+        assert_eq!(
+            stored[0].ended_at,
+            Some(110),
+            "the row carries the last report, never a NULL"
         );
     }
 
     #[test]
-    fn a_switch_writes_one_closed_row_and_its_seconds() {
+    fn a_switch_closes_the_old_row_and_opens_the_new_one() {
         let db = created();
         let mut collector = new_collector(&db);
 
@@ -434,10 +430,17 @@ mod tests {
         );
 
         let stored = rows(&db);
-        assert_eq!(stored.len(), 1, "the app in front has no row yet");
+        assert_eq!(
+            stored.len(),
+            2,
+            "the stretch that just started owns a row from its first sample"
+        );
         assert_eq!(stored[0].app_name, "code");
         assert_eq!(stored[0].started_at, 100);
         assert_eq!(stored[0].ended_at, Some(105));
+        assert_eq!(stored[1].app_name, "chrome");
+        assert_eq!(stored[1].started_at, 105);
+        assert_eq!(stored[1].ended_at, Some(105));
     }
 
     #[test]
@@ -471,8 +474,6 @@ mod tests {
         for now in [105, 110] {
             collector.observe(seen("code", None), now).expect("watched");
         }
-        // The machine slept for two hours: the loop was not running, so the gap is charged to
-        // nobody, and what was watched before it keeps its own row.
         collector.observe(seen("code", None), 7_300).expect("woke up");
         collector.close(7_301).expect("closed");
 
@@ -531,10 +532,13 @@ mod tests {
             .expect("second app");
 
         let stored = rows(&db);
-        assert_eq!(stored.len(), 1, "the app in front has no row yet");
+        assert_eq!(stored.len(), 2, "each stretch owns one row");
         assert_eq!(stored[0].app_name, "code");
         assert_eq!(stored[0].started_at, 100);
         assert_eq!(stored[0].ended_at, Some(160));
+        assert_eq!(stored[1].app_name, "chrome");
+        assert_eq!(stored[1].started_at, 160);
+        assert_eq!(stored[1].ended_at, Some(160));
     }
 
     #[test]
@@ -553,10 +557,11 @@ mod tests {
             .expect("switched away");
 
         let stored = rows(&db);
-        assert_eq!(stored.len(), 1);
+        assert_eq!(stored.len(), 2, "the second app opens its own row");
         assert_eq!(stored[0].window_title.as_deref(), Some("tab two"));
         assert_eq!(stored[0].started_at, 100);
         assert_eq!(stored[0].ended_at, Some(150));
+        assert_eq!(stored[1].app_name, "code");
     }
 
     #[test]
@@ -606,7 +611,7 @@ mod tests {
     }
 
     #[test]
-    fn a_switch_is_pushed_once_and_after_the_row_is_stored() {
+    fn the_stretch_is_pushed_again_under_the_same_id() {
         let db = created();
         let recorder = Recorder::default();
         let mut collector = ForegroundCollector::new(db.clone(), EventBus::new(recorder.clone()));
@@ -625,15 +630,29 @@ mod tests {
             .expect("second app");
 
         let pushed = recorder.pushed();
-        assert_eq!(pushed.len(), 1, "{pushed:?}");
-        assert_eq!(pushed[0].0, names::APP_SWITCH);
-        assert_eq!(pushed[0].1["appName"], serde_json::json!("code"));
-        assert_eq!(pushed[0].1["startedAt"], serde_json::json!(100));
+        let code: Vec<&serde_json::Value> = pushed
+            .iter()
+            .filter(|(name, _)| name == names::APP_SWITCH)
+            .map(|(_, payload)| payload)
+            .filter(|payload| payload["appName"] == serde_json::json!("code"))
+            .collect();
+
+        assert!(code.len() >= 3, "one push per report: {pushed:?}");
+        let id = &code[0]["id"];
+        assert!(
+            code.iter().all(|payload| &payload["id"] == id),
+            "the whole stretch keeps one row"
+        );
+
+        let last = code.last().expect("code was pushed");
+        assert_eq!(last["startedAt"], serde_json::json!(100));
+        assert_eq!(last["endedAt"], serde_json::json!(160));
+        assert_eq!(last["windowTitle"], serde_json::json!("lib.rs"));
         assert_eq!(rows(&db)[0].ended_at, Some(160));
     }
 
     #[test]
-    fn a_clock_that_steps_back_does_not_write_a_row() {
+    fn a_clock_that_steps_back_does_not_write_a_second_row() {
         let db = created();
         let mut collector = new_collector(&db);
 
@@ -642,7 +661,9 @@ mod tests {
             .expect("observed");
         collector.observe(None, 400).expect("clock stepped back");
 
-        assert!(rows(&db).is_empty());
+        let stored = rows(&db);
+        assert_eq!(stored.len(), 1, "the first sample already wrote its line");
+        assert_eq!(stored[0].ended_at, Some(500), "the step back is ignored");
     }
 
     #[test]

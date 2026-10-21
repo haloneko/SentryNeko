@@ -159,15 +159,18 @@ customised and the built-in order applies; a panel written without `visible` cou
 is what the rail did before hiding existed.
 
 `app_events` and `app_usage_hours` are written by the foreground collector
-(`collectors/foreground_app.rs`), which samples the foreground window every five seconds. One place
+(`collectors/foreground_app.rs`), which samples the foreground window every second; a WinEvent hook
+wakes the loop as soon as the window in front changes, so a switch does not wait for the next tick.
+One place
 settles each report — how long since the last one, and whose time it was — and hands that answer to
 the two writers:
 
-- The stream: a stretch is written as one row holding both ends, when the app in front changes or
-  when the app quits. A stretch still in progress has no row, so `ended_at` is never null. The row
-  added last is read before the insert; when it is the same stretch (same app, same start) its end
-  is moved forward instead of a second row being added. One row is one continuous app stretch, so a
-  window that rewrites its caption every second cannot flood the table.
+- The stream: a stretch owns a row from its first sample. Every report moves that row's `ended_at`
+  forward and pushes it again, so the time being spent is visible while it is spent and `ended_at`
+  is never null. The row added last is read before the insert; when it is the same stretch (same
+  app, same start) its end is moved forward instead of a second row being added. One row is one
+  continuous app stretch, so a window that rewrites its caption every second cannot flood the
+  table.
 - The hours: the settled seconds are cut at the hour boundaries and added to the row of the app and
   the hour they happened in. `AppUsage::record` reads the stored number first and writes the sum
   back, cut at 3600; the buckets are flushed at every switch, at every hour boundary, and after
