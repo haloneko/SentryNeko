@@ -303,5 +303,3 @@ pnpm tauri build
 ## License
 
 [Apache License 2.0](LICENSE) © 2026 haloneko
-
-The application icon (`src-tauri/app-icon.svg`) adapts the "list" glyph from [Phosphor Icons](https://phosphoricons.com), which is distributed under the MIT License.

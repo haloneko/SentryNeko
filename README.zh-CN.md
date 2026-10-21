@@ -303,5 +303,3 @@ pnpm tauri build
 ## 许可证
 
 [Apache License 2.0](LICENSE) © 2026 haloneko
-
-应用图标（`src-tauri/app-icon.svg`）改编自 [Phosphor Icons](https://phosphoricons.com) 的 "list" 图标，该图标库以 MIT 许可证发布。
