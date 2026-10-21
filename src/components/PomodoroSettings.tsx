@@ -26,7 +26,7 @@ interface Draft {
 /** Three minute fields and the ratio they add up to; every change saves itself. */
 export function PomodoroSettings() {
   const { t } = useI18n();
-  const { durations, endsAt, error, saveDurations, sessionId } = usePomodoro();
+  const { active, durations, endsAt, error, saveDurations } = usePomodoro();
   const [draft, setDraft] = useState<Draft>(() => toDraft(durations));
   const [saved, setSaved] = useState(false);
 
@@ -49,7 +49,7 @@ export function PomodoroSettings() {
     };
   }, [saved]);
 
-  const idle = endsAt === null && sessionId === null;
+  const idle = endsAt === null && !active;
   const next: PomodoroDurations = {
     focusSeconds: draft.focus * 60,
     longBreakSeconds: draft.longBreak * 60,

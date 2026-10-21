@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::connection::Db;
 use crate::db::repository;
+use crate::models::focus_usage::FocusUsage;
 use crate::utils::response::{ApiError, ApiResult};
 use crate::utils::windows::{self, LocalDate};
 
@@ -47,8 +48,8 @@ struct Day {
 ///   so the two days a year whose clocks move keep the right length.
 /// - Every day of the window is answered, empty ones included, so a chart can lay the days out
 ///   without filling gaps itself.
-/// - A focus phase counts with its `actual_seconds` and belongs to the day it started in; a phase
-///   that is still running counts once it is closed.
+/// - A focus phase counts through the hour buckets the minute tick fills, so a phase still running
+///   is already part of the total, and a crash costs the current minute instead of the session.
 /// - A task counts on the day stored in `completed_at`, so renaming it later does not move it.
 /// - The first and last bucket are partial when the window does not line up with the calendar.
 pub fn load(
@@ -102,20 +103,16 @@ fn days(db: &Db, from: i64, to: i64) -> ApiResult<Vec<Day>> {
     Ok(days)
 }
 
-/// Adds the focus seconds of every closed phase that started inside the window.
+/// Adds the focus seconds of every hour that falls inside the window.
+///
+/// The buckets are written a minute at a time by the focus tick, so a running phase and a stopped
+/// one are both already here: nothing has to be cut at `now` or at the window end. An hour belongs
+/// to the local day of its start, which keeps a stretch that crosses midnight on the day it began.
 fn add_focus(db: &Db, first: i64, to: i64, days: &mut [Day]) -> ApiResult<()> {
     let positions = positions(days);
 
-    let sessions = repository::query_all(
-        db,
-        "SELECT started_at, actual_seconds FROM pomodoro_sessions
-         WHERE phase = 'focus' AND actual_seconds IS NOT NULL AND started_at >= ?1 AND started_at < ?2",
-        params![first, to],
-        |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
-    )?;
-
-    for (started_at, seconds) in sessions {
-        let day = local_day(started_at)?;
+    for (hour_start, seconds) in FocusUsage::hours(db, first, to)? {
+        let day = local_day(hour_start)?;
 
         if let Some(position) = positions.get(&day) {
             days[*position].bucket.focus_seconds += seconds;
@@ -275,14 +272,9 @@ mod tests {
         }
     }
 
-    fn store_focus(db: &Db, started_at: i64, actual_seconds: Option<i64>) {
-        repository::insert(
-            db,
-            "INSERT INTO pomodoro_sessions (phase, planned_seconds, actual_seconds, started_at, ended_at)
-             VALUES ('focus', 1500, ?1, ?2, ?2)",
-            params![actual_seconds, started_at],
-        )
-        .expect("session is stored");
+    /// Stores focus seconds the way the minute tick does: into the hour holding `instant`.
+    fn store_focus(db: &Db, instant: i64, seconds: i64) {
+        FocusUsage::record(db, FocusUsage::hour_of(instant), seconds).expect("focus is stored");
     }
 
     fn store_completion(db: &Db, completed_at: i64) {
@@ -300,12 +292,11 @@ mod tests {
         let db = created();
         let today = today();
 
-        store_focus(&db, today + 60, Some(600));
-        store_focus(&db, today + 600, Some(300));
-        store_focus(&db, today + 900, None);
+        store_focus(&db, today + 60, 600);
+        store_focus(&db, today + 600, 300);
         store_completion(&db, today + 120);
         // Outside the window: yesterday's rows must not leak into today.
-        store_focus(&db, today - 60, Some(1_500));
+        store_focus(&db, today - 60, 1_500);
         store_completion(&db, today - 60);
 
         let buckets = load(&db, today, today + 1_000, Granularity::Day).expect("heatmap");
@@ -318,6 +309,20 @@ mod tests {
                 completed_tasks: 1,
             }]
         );
+    }
+
+    #[test]
+    fn a_stretch_crossing_an_hour_lands_in_both_buckets() {
+        let db = created();
+        let today = today();
+
+        // Ten seconds before the hour and fifty after it, both still today.
+        store_focus(&db, today + 3_590, 10);
+        store_focus(&db, today + 3_600, 50);
+
+        let buckets = load(&db, today, today + 7_200, Granularity::Day).expect("heatmap");
+
+        assert_eq!(buckets[0].focus_seconds, 60);
     }
 
     #[test]

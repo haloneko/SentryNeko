@@ -1,53 +1,59 @@
-//! Pomodoro commands: the sessions a phase leaves behind.
+//! Pomodoro commands: starting, stopping and reporting the focus clock.
+//!
+//! Nothing here writes a session row — the stretch lives in [`FocusTicker`] and only its seconds
+//! reach `focus_usage_hours`.
 
 use tauri::State;
 
-use crate::db::connection::Db;
-use crate::models::pomodoro::{Phase, PomodoroSession};
+use crate::collectors::focus_tick::FocusTicker;
+use crate::models::pomodoro::{Phase, Running};
 use crate::services::event_bus::EventBus;
 use crate::utils::response::{ApiResponse, ApiResult};
 
-/// Opens a session when a phase starts.
+/// Starts a stretch, stopping the one already running.
 #[tauri::command]
 pub fn start_pomodoro_session(
-    db: State<'_, Db>,
+    ticker: State<'_, FocusTicker>,
     phase: Phase,
     planned_seconds: i64,
-    todo_id: Option<i64>,
-) -> ApiResponse<PomodoroSession> {
-    PomodoroSession::start(&db, phase, planned_seconds, todo_id).into()
+) -> ApiResponse<Running> {
+    ticker.start(phase, planned_seconds).into()
 }
 
-/// Closes a session with the seconds actually spent and pushes the closed row.
+/// Stops the running stretch, writing the seconds it spent since the last tick.
+///
+/// A pause and a rest end the same way: the stretch stops, so the minute tick stops counting it,
+/// and resuming starts a new one. The stretch that ended is pushed, so another window can tell
+/// the phase is over without asking.
 #[tauri::command]
-pub fn finish_pomodoro_session(
-    db: State<'_, Db>,
+pub fn stop_pomodoro_session(
+    ticker: State<'_, FocusTicker>,
     bus: State<'_, EventBus>,
-    id: i64,
-    actual_seconds: i64,
-) -> ApiResponse<PomodoroSession> {
-    finish(&db, &bus, id, actual_seconds).into()
+) -> ApiResponse<()> {
+    stop(&ticker, &bus).into()
 }
 
-/// Lists the sessions, newest first.
+/// Stops the stretch and pushes it; nothing running pushes nothing.
+fn stop(ticker: &FocusTicker, bus: &EventBus) -> ApiResult<()> {
+    if let Some(stretch) = ticker.stop()? {
+        bus.emit_pomodoro_finished(&stretch)?;
+    }
+
+    Ok(())
+}
+
+/// Answers the stretch still running, so a window that reloads resumes the same clock.
 #[tauri::command]
-pub fn list_pomodoro_sessions(db: State<'_, Db>, limit: i64) -> ApiResponse<Vec<PomodoroSession>> {
-    PomodoroSession::list(&db, limit).into()
-}
-
-fn finish(db: &Db, bus: &EventBus, id: i64, actual_seconds: i64) -> ApiResult<PomodoroSession> {
-    let session = PomodoroSession::finish(db, id, actual_seconds)?;
-
-    // The row is stored either way; a push nobody receives must not fail the command, or the
-    // window that closed the session would report an error it cannot act on.
-    let _ = bus.emit_pomodoro_finished(&session);
-
-    Ok(session)
+pub fn get_running_pomodoro_session(
+    ticker: State<'_, FocusTicker>,
+) -> ApiResponse<Option<Running>> {
+    ApiResponse::from(Ok(ticker.running()))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::connection::Db;
     use crate::db::schema;
     use crate::services::event_bus::names;
     use crate::services::event_bus::testing::Recorder;
@@ -60,51 +66,55 @@ mod tests {
     }
 
     #[test]
-    fn a_finished_session_is_pushed_with_its_row() {
+    fn a_started_stretch_is_answered_until_it_is_stopped() {
+        let db = created();
+        let ticker =
+            FocusTicker::spawn(db, EventBus::new(Recorder::default())).expect("the tick starts");
+
+        assert!(ticker.running().is_none());
+
+        let started = ticker.start(Phase::Focus, 1_500).expect("started");
+        assert_eq!(ticker.running(), Some(started));
+
+        ticker.stop().expect("stopped");
+        assert!(ticker.running().is_none());
+
+        ticker.shutdown();
+    }
+
+    #[test]
+    fn a_length_no_phase_could_have_is_refused() {
+        let db = created();
+        let ticker =
+            FocusTicker::spawn(db, EventBus::new(Recorder::default())).expect("the tick starts");
+
+        let error = ticker
+            .start(Phase::Focus, 0)
+            .expect_err("a zero length phase is refused");
+
+        assert_eq!(error.code(), ApiCode::InvalidInput);
+        ticker.shutdown();
+    }
+
+    #[test]
+    fn stopping_a_stretch_pushes_what_was_running() {
         let db = created();
         let recorder = Recorder::default();
         let bus = EventBus::new(recorder.clone());
-        let session = PomodoroSession::start(&db, Phase::Focus, 1_500, None).expect("started");
+        let ticker = FocusTicker::spawn(db, bus.clone()).expect("the tick starts");
 
-        let finished = finish(&db, &bus, session.id, 1_500).expect("finished");
+        ticker.start(Phase::LongBreak, 900).expect("started");
+        stop(&ticker, &bus).expect("stopped");
 
         let pushed = recorder.pushed();
         assert_eq!(pushed.len(), 1);
         assert_eq!(pushed[0].0, names::POMODORO_FINISHED);
-        assert_eq!(pushed[0].1["id"], serde_json::json!(finished.id));
-        assert_eq!(pushed[0].1["actualSeconds"], serde_json::json!(1_500));
-    }
+        assert_eq!(pushed[0].1["phase"], serde_json::json!("longBreak"));
 
-    #[test]
-    fn an_unknown_session_fails_without_pushing() {
-        let db = created();
-        let recorder = Recorder::default();
-        let bus = EventBus::new(recorder.clone());
+        // Nothing running means nothing to tell the other windows about.
+        stop(&ticker, &bus).expect("stopped again");
+        assert_eq!(recorder.pushed().len(), 1);
 
-        let error = finish(&db, &bus, 404, 10).expect_err("unknown session");
-
-        assert_eq!(error.code(), ApiCode::NotFound);
-        assert!(recorder.pushed().is_empty());
-    }
-
-    #[test]
-    fn a_refused_push_does_not_fail_the_finish() {
-        let db = created();
-        let bus = EventBus::new(RefusingSink);
-        let session = PomodoroSession::start(&db, Phase::Focus, 1_500, None).expect("started");
-
-        let finished = finish(&db, &bus, session.id, 1_200).expect("the row is stored");
-
-        assert_eq!(finished.actual_seconds, Some(1_200));
-    }
-
-    struct RefusingSink;
-
-    impl crate::services::event_bus::EventSink for RefusingSink {
-        fn emit(&self, event: &str, _payload: serde_json::Value) -> ApiResult<()> {
-            Err(crate::utils::response::ApiError::internal(format!(
-                "`{event}` was refused"
-            )))
-        }
+        ticker.shutdown();
     }
 }

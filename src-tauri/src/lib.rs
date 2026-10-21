@@ -11,6 +11,7 @@ pub mod version;
 
 use tauri::{Manager, RunEvent};
 
+use crate::collectors::focus_tick::FocusTicker;
 use crate::collectors::foreground_app::RunningCollector;
 use crate::commands::{
     alarm_commands, app_event_commands, event_commands, heatmap_commands, migration_commands,
@@ -50,6 +51,9 @@ pub fn run() {
                         &db,
                         crate::utils::time::now_seconds(),
                     )?;
+                    // The focus clock lives here, not in a row: a stretch left by an earlier run is
+                    // simply gone, and its seconds were already written a minute at a time.
+                    app.manage(FocusTicker::spawn(db.clone(), bus.clone())?);
                     app.manage(RunningCollector::spawn(db.clone(), bus.clone())?);
                     app.manage(RunningScheduler::spawn(
                         db.clone(),
@@ -122,8 +126,8 @@ pub fn run() {
             notification_commands::send_test_notification,
             notification_commands::notify_pomodoro_phase,
             pomodoro_commands::start_pomodoro_session,
-            pomodoro_commands::finish_pomodoro_session,
-            pomodoro_commands::list_pomodoro_sessions,
+            pomodoro_commands::stop_pomodoro_session,
+            pomodoro_commands::get_running_pomodoro_session,
             system_commands::get_uptime,
             app_event_commands::app_usage,
             app_event_commands::list_app_events,
@@ -141,6 +145,13 @@ pub fn run() {
         // Closing the app ends the collector's open row instead of leaving it open forever, and
         // stops the alarm loop instead of waiting for it to notice.
         if matches!(event, RunEvent::Exit) {
+            // The thread stops first, then the stretch writes its last partial minute: quitting
+            // must not cost the seconds since the previous tick.
+            if let Some(ticker) = handle.try_state::<FocusTicker>() {
+                ticker.shutdown();
+                let _ = ticker.stop();
+            }
+
             if let Some(collector) = handle.try_state::<RunningCollector>() {
                 collector.stop();
             }

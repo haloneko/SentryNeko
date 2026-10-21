@@ -28,7 +28,6 @@ export function PomodoroTimer() {
     remainingMs,
     reset,
     selectPhase,
-    sessionId,
     start,
   } = usePomodoro();
 
@@ -44,7 +43,8 @@ export function PomodoroTimer() {
   const done = focusCount % PHASES_PER_CYCLE;
   const nextPhase = phaseAfter(phase, focusCount + (phase === "focus" ? 1 : 0));
   const nextMinutes = Math.round(phaseSeconds(durations, nextPhase) / 60);
-  const state = running ? "running" : sessionId === null ? "idle" : "paused";
+  // A phase that was stopped part way keeps its shorter clock, which is what makes it paused.
+  const state = running ? "running" : remainingMs < totalMs ? "paused" : "idle";
 
   return (
     <section className={pomodoroStyles.pomo} data-state={state}>
@@ -122,7 +122,7 @@ export function PomodoroTimer() {
             className={`btn ${pomodoroStyles.pomoPrimary}`}
             onClick={() => {
               if (running) {
-                pause();
+                void pause();
               } else {
                 void start();
               }
