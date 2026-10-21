@@ -350,7 +350,7 @@ fn tray_error(context: &str, error: tauri::Error) -> ApiError {
 mod tests {
     use super::*;
     use crate::db::schema;
-    use crate::models::pomodoro::{Phase, PomodoroSession};
+    use crate::models::focus_usage::FocusUsage;
     use crate::models::todo::Todo;
 
     fn created() -> Db {
@@ -430,9 +430,9 @@ mod tests {
             (0, 0)
         );
 
-        let finished = PomodoroSession::start(&db, Phase::Focus, 600, None).expect("started");
-        PomodoroSession::finish(&db, finished.id, 600).expect("finished");
-        let open = PomodoroSession::start(&db, Phase::Focus, 300, None).expect("started");
+        // Ten minutes the minute tick has already written into the hour.
+        FocusUsage::record(&db, FocusUsage::hour_of(time::now_seconds()), 600)
+            .expect("the tick recorded the focus");
 
         let todo = Todo::add(&db, "ship the tray", None, None).expect("added");
         Todo::set_completed(&db, todo.id, true).expect("completed");
@@ -440,8 +440,7 @@ mod tests {
         let (focus_seconds, completed_tasks) =
             today_totals(&db, time::now_seconds()).expect("totals");
 
-        assert_eq!(focus_seconds, 600, "only the closed phase counts");
+        assert_eq!(focus_seconds, 600, "the buckets carry the day's focus");
         assert_eq!(completed_tasks, 1);
-        assert_eq!(open.actual_seconds, None);
     }
 }

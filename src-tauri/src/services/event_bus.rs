@@ -8,7 +8,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::models::alarm::Alarm;
 use crate::models::app_event::AppEvent;
-use crate::models::pomodoro::PomodoroSession;
+use crate::models::pomodoro::Running;
 use crate::services::notification::NotificationKind;
 use crate::utils::response::{ApiError, ApiResult};
 
@@ -20,7 +20,7 @@ pub mod names {
     pub const NOTIFICATION_FALLBACK: &str = "notification-fallback";
     /// Pushed when another application takes the foreground, carrying the row that just opened.
     pub const APP_SWITCH: &str = "app-switch";
-    /// Pushed when a pomodoro session is closed, carrying the stored row.
+    /// Pushed when a focus stretch is stopped, carrying the stretch that was running.
     pub const POMODORO_FINISHED: &str = "pomodoro-finished";
     /// Pushed when an alarm goes off, carrying the row it belongs to.
     pub const ALARM_TRIGGERED: &str = "alarm-triggered";
@@ -145,10 +145,10 @@ impl EventBus {
             .emit(names::APP_SWITCH, serde_json::to_value(event)?)
     }
 
-    /// Pushes [`names::POMODORO_FINISHED`] with the session that was just closed.
-    pub fn emit_pomodoro_finished(&self, session: &PomodoroSession) -> ApiResult<()> {
+    /// Pushes [`names::POMODORO_FINISHED`] with the stretch that was just stopped.
+    pub fn emit_pomodoro_finished(&self, stretch: &Running) -> ApiResult<()> {
         self.sink
-            .emit(names::POMODORO_FINISHED, serde_json::to_value(session)?)
+            .emit(names::POMODORO_FINISHED, serde_json::to_value(stretch)?)
     }
 
     /// Pushes [`names::ALARM_TRIGGERED`] with the alarm that just went off.
@@ -281,26 +281,23 @@ mod tests {
     }
 
     #[test]
-    fn a_finished_pomodoro_carries_its_session() {
+    fn a_finished_pomodoro_carries_the_stretch_that_ran() {
         use crate::models::pomodoro::Phase;
 
         let recorder = Recorder::default();
         let bus = EventBus::new(recorder.clone());
 
-        bus.emit_pomodoro_finished(&PomodoroSession {
-            id: 3,
+        bus.emit_pomodoro_finished(&Running {
             phase: Phase::Focus,
-            planned_seconds: 1_500,
-            actual_seconds: Some(1_500),
             started_at: 1_700_000_000,
-            ended_at: Some(1_700_001_500),
-            todo_id: None,
+            planned_seconds: 1_500,
         })
         .expect("pushed");
 
         let pushed = recorder.pushed();
         assert_eq!(pushed[0].0, names::POMODORO_FINISHED);
         assert_eq!(pushed[0].1["phase"], serde_json::json!("focus"));
-        assert_eq!(pushed[0].1["actualSeconds"], serde_json::json!(1_500));
+        assert_eq!(pushed[0].1["plannedSeconds"], serde_json::json!(1_500));
+        assert_eq!(pushed[0].1["startedAt"], serde_json::json!(1_700_000_000));
     }
 }

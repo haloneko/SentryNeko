@@ -1,11 +1,11 @@
-/** Pomodoro state store: the running phase, its durations and the session row behind it. */
+/** Pomodoro state store: the running phase, its durations and the stretch the backend times. */
 
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { create } from "zustand";
 
 import { isOk } from "../types";
 import type { ApiCode, ApiResponse, NotificationOutcome } from "../types";
-import type { PomodoroDurations, PomodoroPhase, PomodoroSession } from "../types/pomodoro";
+import type { PomodoroDurations, PomodoroPhase, RunningPomodoro } from "../types/pomodoro";
 import {
   DEFAULT_DURATIONS,
   normalizeDurations,
@@ -25,8 +25,8 @@ export interface PomodoroState {
   endsAt: number | null;
   /** Milliseconds left, kept current by `tick`. */
   remainingMs: number;
-  /** Row backing the running phase; `null` while nothing is running. */
-  sessionId: number | null;
+  /** Whether the backend holds the running stretch; `false` while idle or paused. */
+  active: boolean;
   /** Focus phases finished since the app started, which decides when a long break comes. */
   focusCount: number;
   loading: boolean;
@@ -34,7 +34,7 @@ export interface PomodoroState {
   error: ApiCode | null;
   load: () => Promise<void>;
   start: () => Promise<void>;
-  pause: () => void;
+  pause: () => Promise<void>;
   reset: () => Promise<void>;
   /** Jumps to a phase by hand; a running phase is closed with the time it already spent. */
   selectPhase: (phase: PomodoroPhase) => Promise<void>;
@@ -50,6 +50,16 @@ async function request<T>(command: string, args: Record<string, unknown> = {}): 
   }
 
   return invoke<ApiResponse<T>>(command, args);
+}
+
+/**
+ * Stops the stretch the backend is timing; answers the code of a failed call, `null` when it
+ * worked. The command answers nothing, so there is no payload to narrow.
+ */
+async function stopStretch(): Promise<ApiCode | null> {
+  const response = await request<unknown>("stop_pomodoro_session");
+
+  return response.code === "OK" ? null : response.code;
 }
 
 /** How often the clock is sampled; the remaining time comes from the timestamp, not the ticks. */
@@ -92,7 +102,7 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   durations: DEFAULT_DURATIONS,
   endsAt: null,
   remainingMs: DEFAULT_DURATIONS.focusSeconds * 1000,
-  sessionId: null,
+  active: false,
   focusCount: 0,
   loading: false,
   error: null,
@@ -101,7 +111,10 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     set({ loading: true, error: null });
 
     // An absent key answers `null` in `data`, which `parseSetting` reads as "use the defaults".
-    const response = await request<Setting>("get_setting", { key: DURATIONS_KEY });
+    const [response, running] = await Promise.all([
+      request<Setting>("get_setting", { key: DURATIONS_KEY }),
+      request<RunningPomodoro | null>("get_running_pomodoro_session"),
+    ]);
 
     if (!isOk(response)) {
       set({ loading: false, error: response.code });
@@ -110,18 +123,44 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
 
     // The row is the frontend's to check: a duration nobody could have entered falls back.
     const durations = normalizeDurations(parseSetting<unknown>(response.data, null));
-    const { endsAt, phase, remainingMs, sessionId } = get();
-    const idle = endsAt === null && sessionId === null;
+    const { endsAt, phase, remainingMs, active } = get();
+    const idle = endsAt === null && !active;
+    let failure: ApiCode | null = null;
+
+    // A window that opens again finds the stretch the backend kept: the clock is rebuilt from the
+    // stretch's own timestamps, so reloading the window does not lose the phase.
+    if (idle && isOk(running) && running.data !== null) {
+      const stretch = running.data;
+      const left = (stretch.startedAt + stretch.plannedSeconds) * 1000 - Date.now();
+
+      if (left > 0) {
+        set({
+          active: true,
+          durations,
+          endsAt: Date.now() + left,
+          loading: false,
+          phase: stretch.phase,
+          remainingMs: left,
+        });
+        startTicker();
+        return;
+      }
+
+      // The phase ran out while the window was away: the backend settles it at its own end.
+      failure = await stopStretch();
+    }
 
     set({
+      active: false,
       durations,
+      error: failure,
       loading: false,
       remainingMs: idle ? phaseSeconds(durations, phase) * 1000 : remainingMs,
     });
   },
 
   start: async () => {
-    const { endsAt, phase, remainingMs, sessionId } = get();
+    const { endsAt, phase, remainingMs } = get();
 
     if (endsAt !== null) {
       return;
@@ -129,94 +168,92 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
 
     set({ error: null });
 
-    let id = sessionId;
+    // A pause stopped the previous stretch, so starting again opens a new one holding what is left
+    // of the phase; a stretch is never resumed in place.
+    const response = await request<RunningPomodoro>("start_pomodoro_session", {
+      phase,
+      plannedSeconds: Math.max(1, Math.round(remainingMs / 1000)),
+    });
 
-    if (id === null) {
-      // The row is opened once per phase, so a pause and a resume stay inside the same session.
-      const response = await request<PomodoroSession>("start_pomodoro_session", {
-        phase,
-        plannedSeconds: Math.max(1, Math.round(remainingMs / 1000)),
-      });
-
-      if (!isOk(response)) {
-        set({ error: response.code });
-        return;
-      }
-
-      id = response.data.id;
+    if (!isOk(response)) {
+      set({ error: response.code });
+      return;
     }
 
-    set({ endsAt: Date.now() + get().remainingMs, sessionId: id });
+    set({ active: true, endsAt: Date.now() + get().remainingMs });
     startTicker();
   },
 
-  pause: () => {
-    const { endsAt } = get();
+  pause: async () => {
+    const { endsAt, active } = get();
 
     if (endsAt === null) {
       return;
     }
 
-    set({ endsAt: null, remainingMs: Math.max(0, endsAt - Date.now()) });
-    stopTicker();
-  },
-
-  reset: async () => {
-    const { durations, phase, remainingMs, sessionId } = get();
-    const totalMs = phaseSeconds(durations, phase) * 1000;
-    const spent = Math.max(0, Math.round((totalMs - remainingMs) / 1000));
-
-    set({ error: null, endsAt: null, remainingMs: totalMs });
+    set({
+      active: false,
+      endsAt: null,
+      error: null,
+      remainingMs: Math.max(0, endsAt - Date.now()),
+    });
     stopTicker();
 
-    if (sessionId === null) {
+    if (!active) {
       return;
     }
 
-    set({ sessionId: null });
+    // Stopping the stretch is what stops the minute tick from counting this phase.
+    const failure = await stopStretch();
 
-    const response = await request<PomodoroSession>("finish_pomodoro_session", {
-      actualSeconds: spent,
-      id: sessionId,
-    });
+    if (failure !== null) {
+      set({ error: failure });
+    }
+  },
 
-    if (!isOk(response)) {
-      set({ error: response.code });
+  reset: async () => {
+    const { durations, phase, active } = get();
+    const totalMs = phaseSeconds(durations, phase) * 1000;
+
+    set({ active: false, error: null, endsAt: null, remainingMs: totalMs });
+    stopTicker();
+
+    if (!active) {
+      return;
+    }
+
+    const failure = await stopStretch();
+
+    if (failure !== null) {
+      set({ error: failure });
     }
   },
 
   selectPhase: async (phase) => {
-    const { durations, endsAt, phase: current, remainingMs, sessionId } = get();
+    const { durations, phase: current, active } = get();
 
     if (phase === current) {
       return;
     }
 
-    const totalMs = phaseSeconds(durations, current) * 1000;
-    const left = endsAt === null ? remainingMs : Math.max(0, endsAt - Date.now());
-    const spent = Math.max(0, Math.round((totalMs - left) / 1000));
-
-    // The chosen phase starts from its full length; a running one is closed with what it spent.
+    // The chosen phase starts from its full length; a running one is closed where it stands.
     set({
+      active: false,
       endsAt: null,
       error: null,
       phase,
       remainingMs: phaseSeconds(durations, phase) * 1000,
-      sessionId: null,
     });
     stopTicker();
 
-    if (sessionId === null) {
+    if (!active) {
       return;
     }
 
-    const response = await request<PomodoroSession>("finish_pomodoro_session", {
-      actualSeconds: spent,
-      id: sessionId,
-    });
+    const failure = await stopStretch();
 
-    if (!isOk(response)) {
-      set({ error: response.code });
+    if (failure !== null) {
+      set({ error: failure });
     }
   },
 
@@ -239,8 +276,8 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
 
     // The echo is what is now in force; normalizing it keeps the clock on a usable length.
     const saved = normalizeDurations(parseSetting<unknown>(response.data, next));
-    const { endsAt, phase, sessionId } = get();
-    const idle = endsAt === null && sessionId === null;
+    const { endsAt, phase, active } = get();
+    const idle = endsAt === null && !active;
 
     set({
       durations: saved,
@@ -251,7 +288,7 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   },
 
   tick: async (now) => {
-    const { endsAt } = get();
+    const { active, endsAt } = get();
 
     if (endsAt === null) {
       return;
@@ -265,24 +302,17 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     }
 
     // Cleared before the first await, so the next tick of the interval cannot run this twice.
-    set({ endsAt: null, remainingMs: 0 });
+    set({ active: false, endsAt: null, remainingMs: 0 });
 
-    const { durations, focusCount, phase, sessionId } = get();
+    const { durations, focusCount, phase } = get();
     const finishedFocus = phase === "focus" ? focusCount + 1 : focusCount;
     const next = phaseAfter(phase, finishedFocus);
     const nextMs = phaseSeconds(durations, next) * 1000;
     let failure: ApiCode | null = null;
 
-    // The phase ran to its end, so the stored row records the full planned length.
-    if (sessionId !== null) {
-      const response = await request<PomodoroSession>("finish_pomodoro_session", {
-        actualSeconds: phaseSeconds(durations, phase),
-        id: sessionId,
-      });
-
-      if (!isOk(response)) {
-        failure = response.code;
-      }
+    // The phase ran to its end, so the backend settles the stretch there.
+    if (active) {
+      failure = await stopStretch();
     }
 
     const notified = await request<NotificationOutcome>("notify_pomodoro_phase", { phase });
@@ -291,19 +321,22 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
       failure = notified.code;
     }
 
-    // A reset or a phase pick while the calls were in flight wins over the hand-over.
-    if (get().sessionId !== sessionId) {
+    // A reset, a phase pick or a fresh start while the calls were in flight wins over the
+    // hand-over: each of them moves either the clock or the remaining time off the state this
+    // tick left behind.
+    if (get().endsAt !== null || get().remainingMs !== 0) {
       return;
     }
 
-    // The next phase opens its own row and starts running, so nobody has to press anything.
-    const started = await request<PomodoroSession>("start_pomodoro_session", {
+    // The next phase opens its own stretch and starts running, so nobody has to press anything.
+    const started = await request<RunningPomodoro>("start_pomodoro_session", {
       phase: next,
       plannedSeconds: Math.max(1, Math.round(nextMs / 1000)),
     });
 
     if (!isOk(started)) {
       set({
+        active: false,
         error: failure ?? started.code,
         focusCount: finishedFocus,
         phase: next,
@@ -314,12 +347,12 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     }
 
     set({
+      active: true,
       endsAt: Date.now() + nextMs,
       error: failure,
       focusCount: finishedFocus,
       phase: next,
       remainingMs: nextMs,
-      sessionId: started.data.id,
     });
   },
 }));

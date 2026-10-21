@@ -101,8 +101,12 @@ many tasks were finished today and in total — the counting rules live in
 `docs/database.md`. The tag group is reserved —
 no page calls it yet: it maintains the name index, links tags to a task through `set_todo_tags`,
 and reads the relation from either side (`todo_tags` for one task, `todos_with_tag` for one tag).
-The pomodoro group persists the timer: `start_pomodoro_session` opens a row when a phase starts,
-and `finish_pomodoro_session` closes it with the seconds actually spent — the countdown itself
+The pomodoro group times the current stretch: `start_pomodoro_session` opens one when a phase
+starts and answers it, `get_running_pomodoro_session` answers the one still running so a reopened
+window can resume it, and `stop_pomodoro_session` stops it — the seconds come from the backend's
+own timestamps, not from the window. A pause and a rest stop a stretch the same way, and the minute
+tick in `collectors/focus_tick.rs` writes its seconds into `focus_usage_hours` while it runs. No row
+records the stretch, so a crash costs the current minute instead of the phase. The countdown itself
 runs in the frontend from timestamps, not from a tick count, and is driven from the store rather
 than the page, so switching pages does not stop it. The durations are the setting
 `pomodoro.durations`, edited on the settings page. The notification
@@ -178,9 +182,9 @@ answering with what is now in force. A registry that refuses the write is `PERMI
 | `set_todo_tags` | `tag_commands` | `id: i64`, `tagIds: i64[]` | `Todo` | T33 |
 | `todo_tags` | `tag_commands` | `todoId: i64` | `Tag[]` | T33 |
 | `todos_with_tag` | `tag_commands` | `tagId: i64` | `Todo[]` | T33 |
-| `start_pomodoro_session` | `pomodoro_commands` | `phase: Phase`, `plannedSeconds: i64`, `todoId: i64?` | `PomodoroSession` | T11 |
-| `finish_pomodoro_session` | `pomodoro_commands` | `id: i64`, `actualSeconds: i64` | `PomodoroSession` | T11 |
-| `list_pomodoro_sessions` | `pomodoro_commands` | `limit: i64` | `PomodoroSession[]` | T11 |
+| `start_pomodoro_session` | `pomodoro_commands` | `phase: Phase`, `plannedSeconds: i64` | `Running` (`{ phase, startedAt, plannedSeconds }`) | T11 |
+| `get_running_pomodoro_session` | `pomodoro_commands` | — | `Running` or `null` | T11 |
+| `stop_pomodoro_session` | `pomodoro_commands` | — | — (pushes `pomodoro-finished`) | T11 |
 | `send_test_notification` | `notification_commands` | — | `Outcome` (`"toast"` or `"fallback"`) | T14 |
 | `notify_pomodoro_phase` | `notification_commands` | `phase: Phase` | `Outcome` (`"toast"` or `"fallback"`) | T14 |
 | `get_uptime` | `system_commands` | — | `Uptime` (`{ bootAt, todaySeconds, totalSeconds }`) | T13 |

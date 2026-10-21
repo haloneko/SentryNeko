@@ -10,7 +10,7 @@ use crate::utils::response::ApiResult;
 /// Tables owned by the schema, in creation order.
 pub const TABLES: [&str; 8] = [
     "todos",
-    "pomodoro_sessions",
+    "focus_usage_hours",
     "app_events",
     "app_usage_hours",
     "alarms",
@@ -38,15 +38,14 @@ CREATE TABLE IF NOT EXISTS todos (
                  CHECK (json_valid(extra) AND json_type(extra) = 'object')
 );
 
-CREATE TABLE IF NOT EXISTS pomodoro_sessions (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    phase           TEXT    NOT NULL CHECK (phase IN ('focus', 'short_break', 'long_break')),
-    planned_seconds INTEGER NOT NULL,
-    actual_seconds  INTEGER,
-    started_at      INTEGER NOT NULL,
-    ended_at        INTEGER,
-    todo_id         INTEGER REFERENCES todos (id) ON DELETE SET NULL
-);
+-- One row per hour, holding how many seconds of focus fell inside it. The minute tick writes it,
+-- so the shape is the guarantee: an hour can never answer with more time than it has, and a crash
+-- costs the current minute, never a whole session. There is no session table to match: a focus
+-- stretch lives in the backend while it runs and leaves only these seconds behind.
+CREATE TABLE IF NOT EXISTS focus_usage_hours (
+    hour_start INTEGER PRIMARY KEY CHECK (hour_start % 3600 = 0),
+    seconds    INTEGER NOT NULL DEFAULT 0 CHECK (seconds BETWEEN 0 AND 3600)
+) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS app_events (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,9 +96,6 @@ CREATE TABLE IF NOT EXISTS todo_tags (
 
 CREATE INDEX IF NOT EXISTS idx_todos_completed
     ON todos (completed, created_at);
-
-CREATE INDEX IF NOT EXISTS idx_pomodoro_sessions_started_at
-    ON pomodoro_sessions (started_at);
 
 CREATE INDEX IF NOT EXISTS idx_app_events_started_at
     ON app_events (started_at);
@@ -164,13 +160,11 @@ mod tests {
             .connection()
             .expect("connection")
             .execute(
-                "INSERT INTO pomodoro_sessions (phase, planned_seconds, started_at, todo_id)
-                 VALUES ('focus', 1500, 1, 987654)",
+                "INSERT INTO todo_tags (todo_id, tag_id) VALUES (987654, 1)",
                 [],
             )
             .expect_err("an unknown todo_id is rejected");
 
         assert_eq!(ApiError::from(error).code(), ApiCode::Database);
     }
-
 }

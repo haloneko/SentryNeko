@@ -53,15 +53,12 @@ function phaseLength(value: unknown, fallback: number): number {
     : fallback;
 }
 
-export interface PomodoroSession {
-  id: number;
+/** The stretch the backend is timing; mirrors `Running` in `models/pomodoro.rs`. */
+export interface RunningPomodoro {
   phase: PomodoroPhase;
-  plannedSeconds: number;
-  actualSeconds: number | null;
   /** UTC epoch seconds. */
   startedAt: number;
-  endedAt: number | null;
-  todoId: number | null;
+  plannedSeconds: number;
 }
 
 /** Every phase, in the order the segmented control shows them. */
