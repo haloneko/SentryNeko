@@ -140,9 +140,6 @@ impl EventBus {
         )
     }
 
-    /// Pushes [`names::APP_SWITCH`] with the row the collector just opened.
-    ///
-    /// A title change inside the same app updates its row without pushing: one push is one switch.
     pub fn emit_app_switch(&self, event: &AppEvent) -> ApiResult<()> {
         self.sink
             .emit(names::APP_SWITCH, serde_json::to_value(event)?)

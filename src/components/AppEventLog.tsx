@@ -14,6 +14,17 @@ function stamp(seconds: number, language: string): string {
   });
 }
 
+/** `m:ss` under an hour, `h:mm:ss` above it; a stretch in progress grows with every push. */
+function span(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const rest = total % 60;
+  const pad = (value: number) => String(value).padStart(2, "0");
+
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(rest)}` : `${minutes}:${pad(rest)}`;
+}
+
 interface AppEventLogProps {
   /** Episodes to show, newest first. */
   events: readonly AppEvent[];
@@ -33,6 +44,9 @@ export function AppEventLog({ events }: AppEventLogProps) {
         <li className={eventsStyles.eventRow} key={event.id}>
           <span className={eventsStyles.eventApp}>{event.appName}</span>
           <span className={eventsStyles.eventTitle}>{event.windowTitle ?? t("events.log.untitled")}</span>
+          <span className={`${eventsStyles.eventSpan} muted`}>
+            {span((event.endedAt ?? event.startedAt) - event.startedAt)}
+          </span>
           <span className={`${eventsStyles.eventTime} muted`}>{stamp(event.startedAt, language)}</span>
         </li>
       ))}

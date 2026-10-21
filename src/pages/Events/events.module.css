@@ -10,7 +10,7 @@
 
 .event-row {
   display: grid;
-  grid-template-columns: minmax(0, 14ch) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 14ch) minmax(0, 1fr) auto auto;
   align-items: baseline;
   gap: var(--space-3);
   padding: 6px 0;
@@ -37,7 +37,12 @@
   color: var(--text-muted);
 }
 
+.event-span,
 .event-time {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+
+.event-span {
+  text-align: right;
 }

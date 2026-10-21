@@ -5,6 +5,10 @@
 
 use std::ffi::c_void;
 use std::ptr;
+use std::sync::mpsc;
+use std::sync::Mutex;
+use std::thread::{self, JoinHandle, Thread};
+use std::time::Duration;
 
 /// Opaque handle type: `HWND` for windows, `HANDLE` for kernel objects.
 type Handle = *mut c_void;
@@ -54,6 +58,39 @@ struct LastInputInfo {
     tick: u32,
 }
 
+/// `POINT`: a screen position in pixels.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+/// `MSG`: one message read by a thread's message loop.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+struct Msg {
+    window: isize,
+    message: u32,
+    w_param: usize,
+    l_param: isize,
+    time: u32,
+    point: Point,
+}
+
+/// `WINEVENTPROC`: the callback Windows calls on a foreground change.
+type WinEventProc = unsafe extern "system" fn(isize, u32, isize, i32, i32, u32, u32);
+
+/// `EVENT_SYSTEM_FOREGROUND`: the window in front changed.
+const EVENT_SYSTEM_FOREGROUND: u32 = 0x0003;
+
+/// `WINEVENT_OUTOFCONTEXT`: the callback runs on the thread that installed the hook, which is what
+/// lets a message loop own it.
+const WINEVENT_OUTOFCONTEXT: u32 = 0x0000;
+
+/// `WM_QUIT`: ends a message loop that has no window to close.
+const WM_QUIT: u32 = 0x0012;
+
 /// `MB_ICONASTERISK`: the chime Windows plays for an informational alert.
 const MB_ICONASTERISK: u32 = 0x0000_0040;
 
@@ -80,12 +117,27 @@ extern "system" {
     fn GetWindowTextLengthW(window: WindowHandle) -> i32;
     fn GetWindowTextW(window: WindowHandle, buffer: *mut u16, capacity: i32) -> i32;
     fn GetWindowThreadProcessId(window: WindowHandle, process_id: *mut u32) -> u32;
+    fn SetWinEventHook(
+        event_min: u32,
+        event_max: u32,
+        module: isize,
+        callback: Option<WinEventProc>,
+        process_id: u32,
+        thread_id: u32,
+        flags: u32,
+    ) -> isize;
+    fn UnhookWinEvent(hook: isize) -> i32;
+    fn GetMessageW(message: *mut Msg, window: isize, min: u32, max: u32) -> i32;
+    fn TranslateMessage(message: *const Msg) -> i32;
+    fn DispatchMessageW(message: *const Msg) -> isize;
+    fn PostThreadMessageW(thread_id: u32, message: u32, w_param: usize, l_param: isize) -> i32;
 }
 
 #[link(name = "kernel32")]
 extern "system" {
     fn GetTickCount() -> u32;
     fn GetTickCount64() -> u64;
+    fn GetCurrentThreadId() -> u32;
     fn GetLastInputInfo(last_input: *mut LastInputInfo) -> i32;
     fn OpenProcess(access: u32, inherit: i32, process_id: u32) -> Handle;
     fn CloseHandle(handle: Handle) -> i32;
@@ -749,6 +801,116 @@ fn full_screen_app_is_running() -> bool {
     )
 }
 
+/// A thread Windows wakes whenever the window in front changes.
+///
+/// The sampling loop keeps its own clock — durations and the idle check still need one — but a
+/// switch no longer waits for the next tick: the hook unparks the loop, which reads the window in
+/// front at once.
+pub struct ForegroundWatch {
+    thread_id: u32,
+    thread: Option<JoinHandle<()>>,
+}
+
+impl ForegroundWatch {
+    /// Installs the hook on a thread of its own, which runs the message loop Windows requires.
+    ///
+    /// Returns `None` when the hook cannot be installed; the caller then falls back to sampling on
+    /// its clock, which is slower but still correct.
+    pub fn install() -> Option<Self> {
+        let (sender, receiver) = mpsc::channel();
+        let thread = thread::Builder::new()
+            .name("foreground-watch".to_owned())
+            .spawn(move || unsafe {
+                let hook = SetWinEventHook(
+                    EVENT_SYSTEM_FOREGROUND,
+                    EVENT_SYSTEM_FOREGROUND,
+                    0,
+                    Some(on_foreground_change),
+                    0,
+                    0,
+                    WINEVENT_OUTOFCONTEXT,
+                );
+
+                // The caller needs the id before it can ask this loop to quit.
+                let _ = sender.send(GetCurrentThreadId());
+
+                if hook == 0 {
+                    return;
+                }
+
+                let mut message = Msg::default();
+                while GetMessageW(&mut message, 0, 0, 0) > 0 {
+                    TranslateMessage(&message);
+                    DispatchMessageW(&message);
+                }
+
+                UnhookWinEvent(hook);
+            })
+            .ok()?;
+
+        let thread_id = receiver.recv_timeout(Duration::from_secs(1)).ok()?;
+
+        Some(Self {
+            thread_id,
+            thread: Some(thread),
+        })
+    }
+
+    /// Ends the message loop and waits for the hook thread.
+    pub fn stop(&mut self) {
+        let Some(thread) = self.thread.take() else {
+            return;
+        };
+
+        unsafe {
+            PostThreadMessageW(self.thread_id, WM_QUIT, 0, 0);
+        }
+
+        let _ = thread.join();
+    }
+}
+
+impl Drop for ForegroundWatch {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
+/// The sampling thread a foreground change should wake.
+static WAKER: Mutex<Option<Thread>> = Mutex::new(None);
+
+/// Makes `target` the thread that a foreground change wakes.
+pub fn wake_on_foreground_change(target: Thread) {
+    if let Ok(mut waker) = WAKER.lock() {
+        *waker = Some(target);
+    }
+}
+
+/// Stops waking the sampling thread, which is leaving its loop.
+pub fn forget_foreground_waker() {
+    if let Ok(mut waker) = WAKER.lock() {
+        *waker = None;
+    }
+}
+
+/// Runs on the hook thread: hands the wake-up to the sampler without waiting for it.
+unsafe extern "system" fn on_foreground_change(
+    _hook: isize,
+    _event: u32,
+    _window: isize,
+    _object: i32,
+    _child: i32,
+    _thread: u32,
+    _time: u32,
+) {
+    // A sampler that is busy holding the lock is already awake; skipping the wake-up is enough.
+    if let Ok(waker) = WAKER.try_lock() {
+        if let Some(target) = waker.as_ref() {
+            target.unpark();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -797,6 +959,15 @@ mod tests {
         // What is playing depends on the machine, so only the round trip through COM is asserted:
         // every pointer released, no call through a wrong vtable index.
         let _ = media_is_playing();
+    }
+
+    #[test]
+    fn the_foreground_hook_starts_and_stops() {
+        // A session without a desktop cannot install the hook; the collector then falls back to
+        // its clock, so `None` is a valid answer.
+        if let Some(mut watch) = ForegroundWatch::install() {
+            watch.stop();
+        }
     }
 
     #[test]
