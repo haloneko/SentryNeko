@@ -3,6 +3,7 @@
 use tauri::State;
 
 use crate::db::connection::Db;
+use crate::models::focus_usage::{FocusHour, FocusUsage};
 use crate::models::heatmap::{Granularity, HeatmapBucket};
 use crate::utils::response::ApiResponse;
 
@@ -15,4 +16,10 @@ pub fn heatmap(
     granularity: Granularity,
 ) -> ApiResponse<Vec<HeatmapBucket>> {
     crate::models::heatmap::load(&db, from, to, granularity).into()
+}
+
+/// Answers the focus seconds of every hour in `[from, to)`, for the hourly chart.
+#[tauri::command]
+pub fn focus_hours(db: State<'_, Db>, from: i64, to: i64) -> ApiResponse<Vec<FocusHour>> {
+    FocusUsage::hourly(&db, from, to).into()
 }

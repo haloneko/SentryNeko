@@ -1,16 +1,58 @@
-/** Focus trend as an area chart: one point per bucket, peak on the left, span along the bottom. */
+/** Focus trend: one point per bucket, drawn as an area with a minute axis and a hover readout. */
+
+import { useId } from "react";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { useI18n } from "../hooks/useI18n";
 import type { HeatmapBucket, HeatmapGranularity } from "../types/heatmap";
 import analyticsStyles from "../pages/Analytics/analytics.module.css";
 
-/** Drawing box the SVG scales from, so the chart stays sharp at any width. */
-const WIDTH = 600;
-const HEIGHT = 150;
-const PAD = 10;
+/** Room the axis labels need; the plot keeps the rest. */
+const MARGIN = { bottom: 0, left: 0, right: 8, top: 8 };
 
-/** How many tick labels the axis carries at most. */
-const TICKS = 6;
+/** One bucket, ready for the axis and the tooltip. */
+interface TrendPoint {
+  seconds: number;
+  label: string;
+}
+
+interface TrendTooltipProps {
+  active?: boolean;
+  payload?: readonly { payload?: TrendPoint }[];
+}
+
+/** Seconds as the minutes the axis and the tooltip print. */
+function minuteTick(value: number): string {
+  return String(Math.round(value / 60));
+}
+
+/** The tooltip in the app's own surfaces instead of the library's default box. */
+function TrendTooltip({ active, payload }: TrendTooltipProps) {
+  const { t } = useI18n();
+  const point = payload?.[0]?.payload;
+
+  if (active !== true || point === undefined) {
+    return null;
+  }
+
+  return (
+    <div className={analyticsStyles.chartTooltip}>
+      <p className={analyticsStyles.chartTooltipHead}>{point.label}</p>
+      <p className={analyticsStyles.chartTooltipRow}>
+        <span
+          className={analyticsStyles.chartDot}
+          style={{ background: "var(--accent)" }}
+        />
+        <span className={analyticsStyles.chartTooltipName}>
+          {t("analytics.trend.focus")}
+        </span>
+        <span className={analyticsStyles.chartTooltipValue}>
+          {t("analytics.duration.minutes", { minutes: Math.round(point.seconds / 60) })}
+        </span>
+      </p>
+    </div>
+  );
+}
 
 interface FocusTrendChartProps {
   /** Buckets of the window, oldest first and dense. */
@@ -21,22 +63,13 @@ interface FocusTrendChartProps {
 /** Renders the buckets as an area, answering the empty state itself. */
 export function FocusTrendChart({ buckets, granularity }: FocusTrendChartProps) {
   const { language, t } = useI18n();
+  // The gradient needs an id; the colons `useId` adds are not valid in an `url(#…)` reference.
+  const fillId = `trend-fill-${useId().replace(/:/g, "")}`;
   const peak = buckets.reduce((max, bucket) => Math.max(max, bucket.focusSeconds), 0);
 
   if (buckets.length === 0 || peak === 0) {
     return <p className="muted">{t("analytics.trend.empty")}</p>;
   }
-
-  const minutes = (seconds: number): number => Math.round(seconds / 60);
-  const x = (index: number): number =>
-    buckets.length === 1 ? WIDTH / 2 : PAD + (index * (WIDTH - 2 * PAD)) / (buckets.length - 1);
-  const y = (seconds: number): number => HEIGHT - PAD - (seconds / peak) * (HEIGHT - 2 * PAD);
-
-  const line = buckets
-    .map((bucket, index) => `${x(index).toFixed(1)},${y(bucket.focusSeconds).toFixed(1)}`)
-    .join(" ");
-  const area = `${PAD},${HEIGHT - PAD} ${line} ${WIDTH - PAD},${HEIGHT - PAD}`;
-  const step = Math.max(1, Math.ceil(buckets.length / TICKS));
 
   const label = (start: number): string =>
     new Date(start * 1000).toLocaleDateString(
@@ -45,62 +78,56 @@ export function FocusTrendChart({ buckets, granularity }: FocusTrendChartProps) 
         ? { month: "short", year: "2-digit" }
         : { day: "numeric", month: "short" },
     );
+  const points: TrendPoint[] = buckets.map((bucket) => ({
+    label: label(bucket.start),
+    seconds: bucket.focusSeconds,
+  }));
 
   return (
-    <figure className={analyticsStyles.trend}>
-      <figcaption className={`${analyticsStyles.trendPeak} muted`}>
-        {t("analytics.trend.peak", { minutes: minutes(peak) })}
+    <figure className={analyticsStyles.chartFigure}>
+      <figcaption className={`${analyticsStyles.chartCaption} muted`}>
+        {t("analytics.trend.peak", { minutes: Math.round(peak / 60) })}
       </figcaption>
-      <svg
-        aria-label={t("analytics.trend.title")}
-        className={analyticsStyles.trendChart}
-        role="img"
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      >
-        <polygon className={analyticsStyles.trendArea} points={area} />
-        <polyline className={analyticsStyles.trendLine} points={line} />
-        {buckets.map((bucket, index) => (
-          <circle
-            className={analyticsStyles.trendPoint}
-            cx={x(index)}
-            cy={y(bucket.focusSeconds)}
-            key={bucket.start}
-            r={3}
-          >
-            <title>
-              {t("analytics.trend.point", {
-                date: label(bucket.start),
-                minutes: minutes(bucket.focusSeconds),
-              })}
-            </title>
-          </circle>
-        ))}
-      </svg>
-      <div className={analyticsStyles.trendTicks}>
-        {buckets.map((bucket, index) => {
-          const isLast = index === buckets.length - 1;
-
-          // The last label is always drawn, so a regular tick that would crowd it is dropped.
-          if (!isLast && (index % step !== 0 || buckets.length - 1 - index < step)) {
-            return null;
-          }
-
-          // The first and last labels sit against the edge instead of running past it; a lone
-          // bucket falls between the two and stays centred.
-          const left = (x(index) / WIDTH) * 100;
-          const edge = (PAD / WIDTH) * 100;
-          const shift = left <= edge ? 0 : left >= 100 - edge ? -100 : -50;
-
-          return (
-            <span
-              className="muted"
-              key={bucket.start}
-              style={{ left: `${left}%`, transform: `translateX(${shift}%)` }}
-            >
-              {label(bucket.start)}
-            </span>
-          );
-        })}
+      <div className={analyticsStyles.chartPlot}>
+        <ResponsiveContainer height="100%" width="100%">
+          <AreaChart data={points} margin={MARGIN}>
+            <defs>
+              <linearGradient id={fillId} x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis
+              axisLine={{ stroke: "var(--border)" }}
+              dataKey="label"
+              interval="preserveStartEnd"
+              minTickGap={56}
+              tick={{ fill: "var(--text-muted)", fontSize: 11 }}
+              tickLine={false}
+              tickMargin={8}
+            />
+            <YAxis
+              allowDecimals={false}
+              axisLine={false}
+              tick={{ fill: "var(--text-muted)", fontSize: 11 }}
+              tickFormatter={minuteTick}
+              tickLine={false}
+              width={34}
+            />
+            <Tooltip
+              content={<TrendTooltip />}
+              cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }}
+            />
+            <Area
+              animationDuration={240}
+              dataKey="seconds"
+              fill={`url(#${fillId})`}
+              stroke="var(--accent)"
+              strokeWidth={2}
+              type="monotone"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
     </figure>
   );

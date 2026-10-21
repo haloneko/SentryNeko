@@ -65,6 +65,7 @@ Status legend: `[ ]` not started　`[~]` in progress　`[x]` done　`[!]` blocke
 | [x] | T25 | System tray: stay resident when minimized + context menu + single instance | T02, T11 | Menu offers start Pomodoro, today's stats, show/hide window; closing the main window does not quit the app; launching again focuses or restores the existing window without another resident process or tray icon |
 | [x] | T26 | Auto-start with Windows (registry / Task Scheduler) | T25 | A settings switch writes `HKCU\...\Run` for the running executable; switching it on twice leaves one entry, switching it off removes it, and a login start waits in the tray |
 | [x] | T34 | Reusable numeric input with wheel adjustment (#36) | T16, T18 | Validated typing, wheel / keyboard / arrow stepping, configurable min / max / step, and both themes; reused for Pomodoro and alarm durations |
+| [x] | T35 | Analytics charts: a chart library, a focus trend and a switchable hourly breakdown | T19, T20 | Recharts draws the focus trend and a day as bars stacked per app or as focus minutes; the day and the kind are switchable, next to a three-number summary of the day |
 
 ## P3 Reserved (stubs only, not implemented)
 

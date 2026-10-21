@@ -20,6 +20,14 @@
   --heat-3: rgb(139 124 246 / 66%);
   --heat-4: #8b7cf6;
 
+  /* Chart series: one hue per rank, muted so the accent still leads, adjacent hues kept apart. */
+  --chart-1: #8b7cf6;
+  --chart-2: #4bbfa6;
+  --chart-3: #e0a45c;
+  --chart-4: #4f9fe8;
+  --chart-5: #dd7f9f;
+  --chart-other: #5c667a;
+
   --radius-sm: 8px;
   --radius-lg: 16px;
 
@@ -57,4 +65,11 @@
   --heat-2: rgb(91 71 240 / 36%);
   --heat-3: rgb(91 71 240 / 62%);
   --heat-4: #5b47f0;
+
+  --chart-1: #5b47f0;
+  --chart-2: #2a9d8a;
+  --chart-3: #c08a44;
+  --chart-4: #3f86d6;
+  --chart-5: #cf6f92;
+  --chart-other: #8e99ad;
 }

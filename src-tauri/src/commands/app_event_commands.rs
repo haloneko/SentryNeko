@@ -3,7 +3,7 @@
 use tauri::State;
 
 use crate::db::connection::Db;
-use crate::models::app_event::{AppEvent, AppEventPage, AppUsage};
+use crate::models::app_event::{AppEvent, AppEventPage, AppUsage, HourlyUsage};
 use crate::utils::response::{ApiResponse, ApiResult};
 use crate::utils::time;
 
@@ -11,6 +11,12 @@ use crate::utils::time;
 #[tauri::command]
 pub fn app_usage(db: State<'_, Db>, from: i64, to: i64, limit: i64) -> ApiResponse<Vec<AppUsage>> {
     usage(&db, from, to, limit).into()
+}
+
+/// Answers every hour of `[from, to)` that holds usage, one row per app, so a chart can stack them.
+#[tauri::command]
+pub fn app_usage_hours(db: State<'_, Db>, from: i64, to: i64) -> ApiResponse<Vec<HourlyUsage>> {
+    AppUsage::hourly(&db, from, to).into()
 }
 
 /// Returns one page of foreground events, newest first; `before` pages towards older rows.

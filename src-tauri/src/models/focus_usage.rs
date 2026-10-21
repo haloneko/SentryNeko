@@ -5,6 +5,7 @@
 //! minute instead of a whole session.
 
 use rusqlite::params;
+use serde::Serialize;
 
 use crate::db::connection::Db;
 use crate::db::repository;
@@ -12,6 +13,16 @@ use crate::utils::response::{ApiError, ApiResult};
 
 /// Seconds in one hour.
 const HOUR_SECONDS: i64 = 3_600;
+
+/// One hour of focus as the hourly chart draws it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FocusHour {
+    /// UTC epoch seconds of the hour's start.
+    pub hour_start: i64,
+    /// Seconds of that hour spent in a focus phase.
+    pub seconds: i64,
+}
 
 /// The hourly buckets a focus stretch is written into.
 pub struct FocusUsage;
@@ -101,6 +112,17 @@ impl FocusUsage {
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
     }
+
+    /// The same buckets, named for the JSON the hourly chart reads.
+    pub fn hourly(db: &Db, from: i64, to: i64) -> ApiResult<Vec<FocusHour>> {
+        Ok(Self::hours(db, from, to)?
+            .into_iter()
+            .map(|(hour_start, seconds)| FocusHour {
+                hour_start,
+                seconds,
+            })
+            .collect())
+    }
 }
 
 #[cfg(test)]
@@ -129,6 +151,26 @@ mod tests {
             FocusUsage::total(&db, 0, 7_300).expect("total"),
             3_710,
             "ten, a full hour and a hundred seconds all count"
+        );
+    }
+
+    #[test]
+    fn the_hourly_rows_name_the_buckets_the_chart_draws() {
+        let db = created();
+        FocusUsage::record_span(&db, 3_590, 3_650).expect("recorded");
+
+        assert_eq!(
+            FocusUsage::hourly(&db, 0, 7_200).expect("hours"),
+            [
+                FocusHour {
+                    hour_start: 0,
+                    seconds: 10,
+                },
+                FocusHour {
+                    hour_start: 3_600,
+                    seconds: 50,
+                },
+            ]
         );
     }
 

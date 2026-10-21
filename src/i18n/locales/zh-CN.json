@@ -43,23 +43,36 @@
     }
   },
   "analytics": {
-    "completion": {
-      "empty": "还没有完成过待办。",
-      "error": "完成情况加载失败。",
-      "title": "今日完成",
-      "total": "累计完成 {{count}} 个",
-      "unit": "个待办"
+    "duration": {
+      "hours": "{{hours}} 小时 {{minutes}} 分",
+      "minutes": "{{minutes}} 分钟"
+    },
+    "hourly": {
+      "empty": "这一天还没有记录。",
+      "error": "小时分布加载失败。",
+      "focusMinutes": "专注",
+      "kind": {
+        "apps": "按应用堆叠",
+        "focus": "专注时长",
+        "label": "图表"
+      },
+      "next": "后一天",
+      "other": "其他应用",
+      "peak": "最忙的一小时 {{minutes}} 分钟",
+      "previous": "前一天",
+      "title": "按小时分布",
+      "total": "共 {{minutes}} 分钟"
     },
     "loading": "加载中…",
-    "range": {
-      "label": "时间范围",
-      "month": "近 30 天",
-      "today": "今天",
-      "week": "近 7 天"
+    "summary": {
+      "apps": "应用时长",
+      "focus": "专注时长",
+      "top": "最长应用"
     },
     "trend": {
       "empty": "这个时间窗里还没有专注记录。",
       "error": "趋势加载失败。",
+      "focus": "专注",
       "granularity": {
         "day": "近 30 天",
         "label": "聚合粒度",
@@ -67,17 +80,8 @@
         "week": "近 12 周"
       },
       "peak": "单格最高 {{minutes}} 分钟",
-      "point": "{{date}} · 专注 {{minutes}} 分钟",
       "title": "专注趋势",
-      "totalHours": "窗口内共 {{hours}} 小时 {{minutes}} 分",
-      "totalMinutes": "窗口内共 {{minutes}} 分钟"
-    },
-    "usage": {
-      "empty": "这个范围里还没有前台活动记录。",
-      "error": "排行榜加载失败。",
-      "hours": "{{hours}} 小时 {{minutes}} 分",
-      "minutes": "{{minutes}} 分钟",
-      "title": "前台应用排行"
+      "total": "本窗口共 {{duration}}"
     }
   },
   "app": {

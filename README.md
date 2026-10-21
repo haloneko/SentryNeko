@@ -28,6 +28,7 @@ Runtime requirement: [WebView2 Runtime](https://developer.microsoft.com/microsof
 | Desktop framework | Tauri 2.x |
 | Backend | Rust (Win32 FFI, SQLite, scheduling, Toast notifications) |
 | Frontend | React + TypeScript + Vite |
+| Charts | Recharts (stacked bars, areas) |
 | Database | SQLite via rusqlite, r2d2 connection pool, one idempotent schema script |
 | i18n | i18next / react-i18next (Simplified Chinese, English) |
 | State management | Frontend stores + Tauri event subscriptions |
@@ -64,9 +65,9 @@ Status legend: ✅ Planned (implemented in the current scope); 🚧 Reserved (fu
 
 | Feature | Description | Status |
 | --- | --- | --- |
-| App usage stats | Aggregate usage time per application and show a Top apps ranking | ✅ Planned |
-| Focus trends | Daily / weekly / monthly focus time trend charts | ✅ Planned |
-| Task completion rate | Completed tasks / total tasks | ✅ Planned |
+| Hourly breakdown | A day's foreground hours stacked per app, or its focus minutes; day and chart kind switchable | ✅ Planned |
+| Focus trends | 30-day / 12-week / 12-month focus trend with an axis and a hover readout | ✅ Planned |
+| Day summary | Focus time, screen time and the busiest app of the chosen day | ✅ Planned |
 
 ### 5. Internationalization
 

@@ -43,23 +43,36 @@
     }
   },
   "analytics": {
-    "completion": {
-      "empty": "Nothing finished yet.",
-      "error": "The finished counts could not be loaded.",
-      "title": "Finished today",
-      "total": "{{count}} finished in total",
-      "unit": "tasks"
+    "duration": {
+      "hours": "{{hours}} h {{minutes}} min",
+      "minutes": "{{minutes}} min"
+    },
+    "hourly": {
+      "empty": "Nothing recorded on this day yet.",
+      "error": "The hourly breakdown could not be loaded.",
+      "focusMinutes": "Focus",
+      "kind": {
+        "apps": "Stacked by app",
+        "focus": "Focus minutes",
+        "label": "Chart"
+      },
+      "next": "Next day",
+      "other": "Other apps",
+      "peak": "Peak hour: {{minutes}} min",
+      "previous": "Previous day",
+      "title": "Hour by hour",
+      "total": "{{minutes}} min in total"
     },
     "loading": "Loading…",
-    "range": {
-      "label": "Time range",
-      "month": "30 days",
-      "today": "Today",
-      "week": "7 days"
+    "summary": {
+      "apps": "Screen time",
+      "focus": "Focus",
+      "top": "Busiest app"
     },
     "trend": {
       "empty": "No focus recorded in this window yet.",
       "error": "The trend could not be loaded.",
+      "focus": "Focus",
       "granularity": {
         "day": "30 days",
         "label": "Granularity",
@@ -67,17 +80,8 @@
         "week": "12 weeks"
       },
       "peak": "Best bucket: {{minutes}} min",
-      "point": "{{date}} · {{minutes}} min of focus",
       "title": "Focus trend",
-      "totalHours": "{{hours}} h {{minutes}} min in this window",
-      "totalMinutes": "{{minutes}} min in this window"
-    },
-    "usage": {
-      "empty": "No foreground activity in this range yet.",
-      "error": "The ranking could not be loaded.",
-      "hours": "{{hours}} h {{minutes}} min",
-      "minutes": "{{minutes}} min",
-      "title": "Foreground app ranking"
+      "total": "{{duration}} in this window"
     }
   },
   "app": {
