@@ -24,11 +24,7 @@ pub const HOUR_SECONDS: i64 = 3_600;
 /// Longest page the stream answers with.
 const MAX_PAGE: i64 = 100;
 
-/// One `app_events` row.
-///
-/// A row opens when an app reaches the foreground and closes when another one takes over, so
-/// `ended_at` stays `None` for as long as the app stays in front. The application's own window is
-/// recorded like any other: the time a user spends in it is time in front of an app too.
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppEvent {
@@ -49,6 +45,46 @@ impl AppEvent {
             started_at: row.get(3)?,
             ended_at: row.get(4)?,
         })
+    }
+
+    pub fn record_segment(
+        db: &Db,
+        app_name: &str,
+        window_title: Option<&str>,
+        started_at: i64,
+        ended_at: i64,
+    ) -> ApiResult<Self> {
+        let app_name = app_name.trim();
+
+        if app_name.is_empty() {
+            return Err(ApiError::invalid_input("appName must not be empty"));
+        }
+
+        let ended_at = ended_at.max(started_at);
+
+        if let Some(last) = Self::latest(db)? {
+            if last.app_name == app_name && last.started_at == started_at {
+                if last.ended_at != Some(ended_at) || last.window_title.as_deref() != window_title
+                {
+                    repository::execute(
+                        db,
+                        "UPDATE app_events SET ended_at = ?1, window_title = ?2 WHERE id = ?3",
+                        params![ended_at, window_title, last.id],
+                    )?;
+                }
+
+                return Self::find(db, last.id);
+            }
+        }
+
+        let id = repository::insert(
+            db,
+            "INSERT INTO app_events (app_name, window_title, started_at, ended_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![app_name, window_title, started_at, ended_at],
+        )?;
+
+        Self::find(db, id)
     }
 
     /// Opens a row at `started_at`; the caller supplies the instant it observed the switch.
@@ -144,6 +180,16 @@ impl AppEvent {
         )
     }
 
+    /// The row added last, open or closed: what a new sample is compared against.
+    pub fn latest(db: &Db) -> ApiResult<Option<Self>> {
+        repository::query_optional(
+            db,
+            &format!("SELECT {COLUMNS} FROM app_events ORDER BY id DESC LIMIT 1"),
+            [],
+            Self::from_row,
+        )
+    }
+
     fn missing(id: i64) -> ApiError {
         ApiError::not_found(format!("no open app event with id {id}"))
     }
@@ -166,31 +212,41 @@ impl AppUsage {
         instant - instant.rem_euclid(HOUR_SECONDS)
     }
 
-    /// Adds `seconds` to the bucket of `app_name` in the hour starting at `hour_start`.
-    ///
-    /// The stored sum is cut at [`HOUR_SECONDS`]: an hour cannot hold more seconds than it has, so a
-    /// clock that jumps or a stretch charged twice cannot push a row past its own length.
     pub fn record(db: &Db, app_name: &str, hour_start: i64, seconds: i64) -> ApiResult<()> {
         if seconds <= 0 {
             return Ok(());
         }
 
-        repository::execute(
+        let stored = repository::query_optional(
             db,
-            "INSERT INTO app_usage_hours (app_name, hour_start, seconds) VALUES (?1, ?2, MIN(?3, ?4))
-             ON CONFLICT (app_name, hour_start) DO UPDATE
-                SET seconds = MIN(?4, seconds + excluded.seconds)",
-            params![app_name, hour_start, seconds, HOUR_SECONDS],
+            "SELECT seconds FROM app_usage_hours WHERE app_name = ?1 AND hour_start = ?2",
+            params![app_name, hour_start],
+            |row| Ok(row.get::<_, i64>(0)?),
         )?;
+
+        match stored {
+            Some(current) => {
+                repository::execute(
+                    db,
+                    "UPDATE app_usage_hours SET seconds = ?1
+                     WHERE app_name = ?2 AND hour_start = ?3",
+                    params![(current + seconds).min(HOUR_SECONDS), app_name, hour_start],
+                )?;
+            }
+            None => {
+                repository::execute(
+                    db,
+                    "INSERT INTO app_usage_hours (app_name, hour_start, seconds)
+                     VALUES (?1, ?2, ?3)",
+                    params![app_name, hour_start, seconds.min(HOUR_SECONDS)],
+                )?;
+            }
+        }
 
         Ok(())
     }
 
-    /// Ranks applications by the seconds recorded in the buckets inside `[from, to)`.
-    ///
-    /// A window is counted in whole hours: the hour `from` falls in counts in full. That is exact for
-    /// the presets the page asks for, which all start at local midnight, and off by at most the part
-    /// of an hour for anything else.
+
     pub fn ranking(db: &Db, from: i64, to: i64, limit: i64) -> ApiResult<Vec<Self>> {
         if to <= from {
             return Err(ApiError::invalid_input("to must be after from")
