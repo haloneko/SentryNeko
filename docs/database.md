@@ -182,6 +182,8 @@ the two writers:
   is time in front of this app, and skipping it would leave a stretch of the stream owned by none.
 - Five minutes without keyboard or mouse input count as being away: the stretch in progress ends at
   that sample and a new one starts when input returns, so an app left in front does not accrue time.
+  Sound on the default output or a full-screen app vetoes that answer: watching a video leaves the
+  keyboard untouched for far longer, and the time is still spent in front of the window.
 - A sample that finds nothing to attribute — no foreground window, a locked screen, a process that
   cannot be opened — ends the stretch in progress the same way.
 

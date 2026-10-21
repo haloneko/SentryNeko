@@ -269,7 +269,7 @@ impl RunningCollector {
             .spawn(move || {
                 while !flag.load(Ordering::Relaxed) {
                     // An app kept in front while the user is away must not accrue time.
-                    let observed = if idle() { None } else { sample() };
+                    let observed = if away() { None } else { sample() };
 
                     // A failed write must not kill the loop: the next sample retries, otherwise
                     // one lock timeout would cost the rest of the day.
@@ -306,9 +306,19 @@ impl RunningCollector {
     }
 }
 
-/// Whether the user has been away long enough that the app in front should stop counting.
-fn idle() -> bool {
-    windows::milliseconds_since_last_input().is_some_and(is_idle)
+/// Whether the user has left the machine: no input for five minutes and nothing playing.
+///
+/// Watching a video leaves the keyboard untouched, so playback vetoes the idle answer.
+fn away() -> bool {
+    is_away(
+        windows::milliseconds_since_last_input(),
+        windows::media_is_playing(),
+    )
+}
+
+/// Decides from the two facts alone, so the rule is testable without a media session.
+fn is_away(milliseconds: Option<u64>, playing: bool) -> bool {
+    !playing && milliseconds.is_some_and(is_idle)
 }
 
 /// Compares an interval of no input against [`IDLE_TIMEOUT`].
@@ -577,6 +587,22 @@ mod tests {
         );
         assert!(is_idle(threshold));
         assert!(is_idle(threshold * 10));
+    }
+
+    #[test]
+    fn playing_media_keeps_the_user_present() {
+        let threshold = IDLE_TIMEOUT.as_millis() as u64;
+
+        assert!(is_away(Some(threshold), false));
+        assert!(
+            !is_away(Some(threshold * 10), true),
+            "a video in front is not an empty chair"
+        );
+        assert!(!is_away(Some(0), false));
+        assert!(
+            !is_away(None, false),
+            "an unreadable input clock is not an absence"
+        );
     }
 
     #[test]
