@@ -84,7 +84,6 @@ extern "system" {
 
 #[link(name = "kernel32")]
 extern "system" {
-    fn GetCurrentProcessId() -> u32;
     fn GetTickCount() -> u32;
     fn GetTickCount64() -> u64;
     fn GetLastInputInfo(last_input: *mut LastInputInfo) -> i32;
@@ -160,8 +159,6 @@ pub struct ForegroundApp {
     pub app_name: String,
     /// Caption of the window, trimmed; `None` when it is empty.
     pub window_title: Option<String>,
-    /// Process that owns the window, so the caller can drop its own windows.
-    pub process_id: u32,
 }
 
 /// Reads the foreground window.
@@ -182,14 +179,7 @@ pub fn foreground_app() -> Option<ForegroundApp> {
     Some(ForegroundApp {
         app_name: executable_name(&image)?,
         window_title: window_title(window),
-        process_id,
     })
-}
-
-/// Process id of the running application, so its own windows can be told apart.
-#[must_use]
-pub fn current_process_id() -> u32 {
-    unsafe { GetCurrentProcessId() }
 }
 
 /// Executable file name without its extension: `C:\Apps\Code.exe` becomes `Code`.
@@ -549,6 +539,216 @@ fn text_of(bytes: &[u8]) -> String {
         .to_owned()
 }
 
+/// Peak level Windows reports for a silent endpoint.
+///
+/// A driver's noise floor is not exactly zero, so anything at or below this is treated as silence.
+const SILENCE_PEAK: f32 = 0.000_5;
+
+/// `S_OK`, the success code COM returns.
+const S_OK: i32 = 0;
+
+/// `S_FALSE`, returned when a call succeeds without doing anything (e.g. already initialized).
+const S_FALSE: i32 = 1;
+
+/// `RPC_E_CHANGED_MODE`: the thread already joined an apartment with another model.
+const RPC_E_CHANGED_MODE: i32 = 0x8001_0106u32 as i32;
+
+/// `CLSCTX_ALL`, which lets COM pick the server's apartment.
+const CLSCTX_ALL: u32 = 0x17;
+
+/// `COINIT_MULTITHREADED`: no window message pump is involved, which suits a worker thread.
+const COINIT_MULTITHREADED: u32 = 0;
+
+/// `eRender`: the endpoint sound leaves through.
+const E_RENDER: u32 = 0;
+
+/// `eConsole`: the endpoint the user hears first.
+const E_CONSOLE: u32 = 0;
+
+/// `QUNS_BUSY`: a full-screen application is running, or presentation settings are applied.
+const QUNS_BUSY: i32 = 2;
+
+/// `QUNS_RUNNING_D3D_FULL_SCREEN`: a Direct3D application owns the screen.
+const QUNS_RUNNING_D3D_FULL_SCREEN: i32 = 3;
+
+/// `QUNS_PRESENTATION_MODE`: the machine is presenting, so nobody is typing.
+const QUNS_PRESENTATION_MODE: i32 = 4;
+
+/// `GUID`, the identifier shape COM and Core Audio exchange.
+#[repr(C)]
+#[derive(Clone, Copy)]
+struct Guid {
+    data1: u32,
+    data2: u16,
+    data3: u16,
+    data4: [u8; 8],
+}
+
+const CLSID_MM_DEVICE_ENUMERATOR: Guid = Guid {
+    data1: 0xBCDE_0395,
+    data2: 0xE52F,
+    data3: 0x467C,
+    data4: [0x8E, 0x3D, 0xC4, 0x57, 0x92, 0x91, 0x69, 0x2E],
+};
+
+const IID_IMM_DEVICE_ENUMERATOR: Guid = Guid {
+    data1: 0xA956_64D2,
+    data2: 0x9614,
+    data3: 0x4F35,
+    data4: [0xA7, 0x46, 0xDE, 0x8D, 0xB6, 0x36, 0x17, 0xE6],
+};
+
+const IID_IAUDIO_METER_INFORMATION: Guid = Guid {
+    data1: 0xC022_16F6,
+    data2: 0x8C67,
+    data3: 0x4B5B,
+    data4: [0x9D, 0x00, 0xD0, 0x08, 0xE7, 0x3E, 0x00, 0x64],
+};
+
+#[link(name = "ole32")]
+extern "system" {
+    fn CoInitializeEx(reserved: *mut c_void, model: u32) -> i32;
+    fn CoUninitialize();
+    fn CoCreateInstance(
+        class: *const Guid,
+        outer: *mut c_void,
+        context: u32,
+        interface: *const Guid,
+        object: *mut *mut c_void,
+    ) -> i32;
+}
+
+#[link(name = "shell32")]
+extern "system" {
+    fn SHQueryUserNotificationState(state: *mut i32) -> i32;
+}
+
+/// Whether media is playing: sound on the default output, or a full-screen app.
+///
+/// Watching a video leaves the keyboard and mouse untouched for longer than any idle timeout, so the
+/// collector asks this before deciding that the chair is empty. Either signal is enough: a windowed
+/// player that is heard, and a muted full-screen one that is seen.
+#[must_use]
+pub fn media_is_playing() -> bool {
+    audio_is_playing() || full_screen_app_is_running()
+}
+
+/// Whether the default output device is producing sound.
+fn audio_is_playing() -> bool {
+    // Core Audio is COM; a worker thread has to join an apartment before asking. A thread already in
+    // one answers `RPC_E_CHANGED_MODE`, and the objects below are still usable from it.
+    let initialized = unsafe { CoInitializeEx(ptr::null_mut(), COINIT_MULTITHREADED) };
+    let joined = initialized == S_OK || initialized == S_FALSE;
+    let usable = joined || initialized == RPC_E_CHANGED_MODE;
+
+    if !usable {
+        return false;
+    }
+
+    let playing = unsafe { default_output_peak() }.is_some_and(is_loud);
+
+    if joined {
+        unsafe { CoUninitialize() };
+    }
+
+    playing
+}
+
+/// Peak level of the default output endpoint; `None` when it cannot be read.
+///
+/// The endpoint's meter is the mix of every stream played on it, so one call covers every player.
+unsafe fn default_output_peak() -> Option<f32> {
+    let mut enumerator: *mut c_void = ptr::null_mut();
+    let created = CoCreateInstance(
+        &CLSID_MM_DEVICE_ENUMERATOR,
+        ptr::null_mut(),
+        CLSCTX_ALL,
+        &IID_IMM_DEVICE_ENUMERATOR,
+        &mut enumerator,
+    );
+
+    if created != S_OK || enumerator.is_null() {
+        return None;
+    }
+
+    let get_default: unsafe extern "system" fn(*mut c_void, u32, u32, *mut *mut c_void) -> i32 =
+        slot(enumerator, 4);
+    let mut device: *mut c_void = ptr::null_mut();
+    let found = get_default(enumerator, E_RENDER, E_CONSOLE, &mut device);
+    release(enumerator);
+
+    if found != S_OK || device.is_null() {
+        return None;
+    }
+
+    let activate: unsafe extern "system" fn(
+        *mut c_void,
+        *const Guid,
+        u32,
+        *mut c_void,
+        *mut *mut c_void,
+    ) -> i32 = slot(device, 3);
+    let mut meter: *mut c_void = ptr::null_mut();
+    let activated = activate(
+        device,
+        &IID_IAUDIO_METER_INFORMATION,
+        CLSCTX_ALL,
+        ptr::null_mut(),
+        &mut meter,
+    );
+    release(device);
+
+    if activated != S_OK || meter.is_null() {
+        return None;
+    }
+
+    let get_peak: unsafe extern "system" fn(*mut c_void, *mut f32) -> i32 = slot(meter, 3);
+    let mut peak = 0.0f32;
+    let read = get_peak(meter, &mut peak);
+    release(meter);
+
+    (read == S_OK).then_some(peak)
+}
+
+/// The function at `index` of `object`'s COM vtable.
+///
+/// Every interface begins with the same three `IUnknown` entries (`QueryInterface`, `AddRef`,
+/// `Release`), so an index is the method's position in its interface declaration.
+unsafe fn slot<T>(object: *mut c_void, index: usize) -> T {
+    let vtable = *(object as *mut *const *const c_void);
+
+    std::mem::transmute_copy(&*vtable.add(index))
+}
+
+/// Drops one COM reference, ignoring an object that was never created.
+unsafe fn release(object: *mut c_void) {
+    if object.is_null() {
+        return;
+    }
+
+    let drop_reference: unsafe extern "system" fn(*mut c_void) -> u32 = slot(object, 2);
+    drop_reference(object);
+}
+
+/// Whether a peak level is sound rather than a driver's noise floor.
+fn is_loud(peak: f32) -> bool {
+    peak.is_finite() && peak > SILENCE_PEAK
+}
+
+/// Whether a full-screen app is running: a muted video, a game, a presentation.
+fn full_screen_app_is_running() -> bool {
+    let mut state = 0i32;
+
+    if unsafe { SHQueryUserNotificationState(&mut state) } != S_OK {
+        return false;
+    }
+
+    matches!(
+        state,
+        QUNS_BUSY | QUNS_RUNNING_D3D_FULL_SCREEN | QUNS_PRESENTATION_MODE
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -580,13 +780,23 @@ mod tests {
     }
 
     #[test]
-    fn the_current_process_has_an_id() {
-        assert_ne!(current_process_id(), 0);
+    fn the_boot_counter_has_started() {
+        assert!(milliseconds_since_boot() > 0);
     }
 
     #[test]
-    fn the_boot_counter_has_started() {
-        assert!(milliseconds_since_boot() > 0);
+    fn only_a_level_above_the_noise_floor_counts_as_sound() {
+        assert!(!is_loud(0.0));
+        assert!(!is_loud(SILENCE_PEAK), "the driver's floor is not sound");
+        assert!(!is_loud(f32::NAN), "an unreadable level is not sound");
+        assert!(is_loud(0.25));
+    }
+
+    #[test]
+    fn the_media_check_answers_without_crashing() {
+        // What is playing depends on the machine, so only the round trip through COM is asserted:
+        // every pointer released, no call through a wrong vtable index.
+        let _ = media_is_playing();
     }
 
     #[test]

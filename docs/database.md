@@ -103,6 +103,7 @@ The schema holds seven tables:
 | `todos` | Tasks the user maintains | `title`, `completed`, `completed_at`, `created_at`, `updated_at`, `tag_ids`, `start_at`, `end_at`, `starred_at`, `extra`, `notes` |
 | `pomodoro_sessions` | One focus or break interval | `phase`, `planned_seconds`, `actual_seconds`, `started_at`, `ended_at`, `todo_id` |
 | `app_events` | Foreground application activity | `app_name`, `window_title`, `started_at`, `ended_at` |
+| `app_usage_hours` | Seconds one app held the foreground inside one hour | `app_name` + `hour_start` (primary key), `seconds` (0–3600) |
 | `alarms` | One-off or weekly reminders | `label`, `hour`, `minute`, `repeat_days`, `enabled`, `created_at` |
 | `settings` | Application settings, one row per key and grouped by category | `id`, `key` (unique), `value`, `category`, `updated_at` |
 | `tags` | Tag names a task can carry | `name` (unique, case-insensitive), `created_at` |
@@ -157,28 +158,40 @@ each with the flag that decides whether it is drawn. A missing row means the rai
 customised and the built-in order applies; a panel written without `visible` counts as shown, which
 is what the rail did before hiding existed.
 
-`app_events` is written by the foreground collector (`collectors/foreground_app.rs`), which samples
-the foreground window once a second:
+`app_events` and `app_usage_hours` are written by the foreground collector
+(`collectors/foreground_app.rs`), which samples the foreground window every five seconds. One place
+settles each report — how long since the last one, and whose time it was — and hands that answer to
+the two writers:
 
-- A row opens on the sample where an app reaches the foreground (`started_at`) and closes on the
-  sample where another app takes over (`ended_at`). `ended_at IS NULL` means the row is still
-  running — normally only until the application quits, which closes it.
+- The stream: a stretch is written as one row holding both ends, when the app in front changes or
+  when the app quits. A stretch still in progress has no row, so `ended_at` is never null. The row
+  added last is read before the insert; when it is the same stretch (same app, same start) its end
+  is moved forward instead of a second row being added. One row is one continuous app stretch, so a
+  window that rewrites its caption every second cannot flood the table.
+- The hours: the settled seconds are cut at the hour boundaries and added to the row of the app and
+  the hour they happened in. `AppUsage::record` reads the stored number first and writes the sum
+  back, cut at 3600; the buckets are flushed at every switch, at every hour boundary, and after
+  thirty seconds at the latest, so a killed process loses at most those thirty seconds.
+- A report more than a minute after the last one means the loop was not running — the machine slept,
+  or the process was frozen. The stretch that was watched ends where the last report did, the gap
+  itself is charged to nobody, and a new stretch starts at the report that found the loop running
+  again.
 - `app_name` is the executable file name without its extension (`chrome`, `Code`), so one app keeps
   one value across versions and install paths.
-- A window title that changes while the same app stays in front updates `window_title` in place.
-  One row is one continuous app stretch, so a window that rewrites its caption every second cannot
-  flood the table.
-- Windows owned by SentryNeko itself are skipped and the row before them is closed: time spent in
-  this app is not activity worth recording.
-- Five minutes without keyboard or mouse input count as being away: the open row is closed at that
-  sample and a new one opens when input returns, so an app left in front does not accrue time.
+- Windows owned by SentryNeko itself are recorded like any other: time spent reading the dashboard
+  is time in front of this app, and skipping it would leave a stretch of the stream owned by none.
+- Five minutes without keyboard or mouse input count as being away: the stretch in progress ends at
+  that sample and a new one starts when input returns, so an app left in front does not accrue time.
+  Sound on the default output or a full-screen app vetoes that answer: watching a video leaves the
+  keyboard untouched for far longer, and the time is still spent in front of the window.
 - A sample that finds nothing to attribute — no foreground window, a locked screen, a process that
-  cannot be opened — closes the open row the same way.
+  cannot be opened — ends the stretch in progress the same way.
 
-`AppEvent::usage` reads that table for the ranking: it clips every row to the window it was asked
-about, sums the rows of one app (an app revisited later in the window is merged with its earlier
-stretch instead of appearing twice), counts a row without `ended_at` up to the end of the window,
-and drops `LockApp` / `LogonUI` so locked time is not attributed to anybody.
+`AppUsage::ranking` reads the buckets: the window is counted in whole hours (the hour `from` falls in
+counts in full, which is exact for the presets because all of them start at local midnight), the rows
+of one app are summed, and `LockApp` / `LogonUI` are dropped so locked time is not attributed to
+anybody. `AppUsage::backfill` folds the events stored before the buckets existed into them, once, and
+only while the buckets are still empty.
 
 The heatmap (`models/heatmap.rs`) rolls `pomodoro_sessions` and `todos` up into buckets:
 

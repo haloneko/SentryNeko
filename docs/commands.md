@@ -117,8 +117,8 @@ the part after it, and the counter keeps running through sleep, so a resume does
 instant. The foreground group answers what the ranking shows: `app_usage` takes a window (`from`,
 `to`, UTC epoch seconds) and a `limit`, and ranks applications by the seconds they held the
 foreground inside it. The frontend computes the window for its presets — "today" starts at local
-midnight — and the backend clips stored rows to it, merges an app revisited later in the window,
-and drops the lock and sign-in shells. The event stream reads the same table: `list_app_events`
+midnight — and the backend adds up the hourly buckets whose hour starts inside it, dropping the lock
+and sign-in shells. The event stream reads `app_events`: `list_app_events`
 answers one page newest first, and `before` is the id the previous page ended at, so paging stays
 stable while the collector inserts rows. The heatmap group answers the chart: `heatmap` takes the
 window and a `granularity` (`day`, `week` or `month`) and returns one bucket per local day, Monday

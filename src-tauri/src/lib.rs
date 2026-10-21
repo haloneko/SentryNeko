@@ -44,6 +44,12 @@ pub fn run() {
                     app.manage(db.clone());
                     let bus = EventBus::new(app.handle().clone());
                     app.manage(bus.clone());
+                    // Usage is counted in hourly buckets from this build on, so the events stored
+                    // before it are folded in once, while they are still the only record of time.
+                    crate::models::app_event::AppUsage::backfill(
+                        &db,
+                        crate::utils::time::now_seconds(),
+                    )?;
                     app.manage(RunningCollector::spawn(db.clone(), bus.clone())?);
                     app.manage(RunningScheduler::spawn(
                         db.clone(),

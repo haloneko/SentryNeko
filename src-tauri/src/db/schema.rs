@@ -8,10 +8,11 @@ use crate::db::repository;
 use crate::utils::response::ApiResult;
 
 /// Tables owned by the schema, in creation order.
-pub const TABLES: [&str; 7] = [
+pub const TABLES: [&str; 8] = [
     "todos",
     "pomodoro_sessions",
     "app_events",
+    "app_usage_hours",
     "alarms",
     "settings",
     "tags",
@@ -55,6 +56,15 @@ CREATE TABLE IF NOT EXISTS app_events (
     ended_at     INTEGER
 );
 
+-- One row per application per hour, holding how many of that hour's seconds it was in front.
+-- The shape is the guarantee: an hour can never answer with more time than it has.
+CREATE TABLE IF NOT EXISTS app_usage_hours (
+    app_name   TEXT    NOT NULL,
+    hour_start INTEGER NOT NULL,
+    seconds    INTEGER NOT NULL DEFAULT 0 CHECK (seconds BETWEEN 0 AND 3600),
+    PRIMARY KEY (app_name, hour_start)
+) WITHOUT ROWID;
+
 CREATE TABLE IF NOT EXISTS alarms (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     label       TEXT    NOT NULL DEFAULT '',
@@ -93,6 +103,9 @@ CREATE INDEX IF NOT EXISTS idx_pomodoro_sessions_started_at
 
 CREATE INDEX IF NOT EXISTS idx_app_events_started_at
     ON app_events (started_at);
+
+CREATE INDEX IF NOT EXISTS idx_app_usage_hours_hour_start
+    ON app_usage_hours (hour_start);
 
 CREATE INDEX IF NOT EXISTS idx_todo_tags_tag_id
     ON todo_tags (tag_id);
