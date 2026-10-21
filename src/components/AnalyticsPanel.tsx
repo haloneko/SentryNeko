@@ -11,17 +11,25 @@ interface AnalyticsPanelProps {
   /** Switch shown beside the heading. */
   action?: ReactNode;
   loading: boolean;
+  busy?: boolean;
   /** Already translated failure message, `null` while the block is fine. */
   error: string | null;
   children: ReactNode;
 }
 
 /** Renders loading and failure once, so no block can forget one of them. */
-export function AnalyticsPanel({ action, children, error, loading, title }: AnalyticsPanelProps) {
+export function AnalyticsPanel({
+  action,
+  busy = false,
+  children,
+  error,
+  loading,
+  title,
+}: AnalyticsPanelProps) {
   const { t } = useI18n();
 
   return (
-    <section className={analyticsStyles.analyticsSection}>
+    <section aria-busy={busy} className={analyticsStyles.analyticsSection}>
       <div className={analyticsStyles.analyticsHead}>
         <h2>{title}</h2>
         {action}

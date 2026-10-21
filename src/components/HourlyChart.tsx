@@ -123,7 +123,7 @@ function HourlyLegend({ apps }: { apps: readonly StackedApp[] }) {
   );
 }
 
-/** Renders the chosen measure; the empty state is answered here, not by the page. */
+/** Renders the chosen measure; a day without records draws as an empty chart, not as a sentence. */
 export function HourlyChart({ focus, kind, usage }: HourlyChartProps) {
   const { t } = useI18n();
   const caption = (seconds: number): string =>
@@ -133,14 +133,10 @@ export function HourlyChart({ focus, kind, usage }: HourlyChartProps) {
     const rows = focusRows(focus);
     const peak = rows.reduce((best, row) => Math.max(best, row.seconds), 0);
 
-    if (peak === 0) {
-      return <p className="muted">{t("analytics.hourly.empty")}</p>;
-    }
-
     return (
       <figure className={analyticsStyles.chartFigure}>
         <figcaption className={`${analyticsStyles.chartCaption} muted`}>
-          {caption(peak)}
+          {peak === 0 ? null : caption(peak)}
         </figcaption>
         <div className={analyticsStyles.chartPlot}>
           <ResponsiveContainer height="100%" width="100%">
@@ -159,16 +155,18 @@ export function HourlyChart({ focus, kind, usage }: HourlyChartProps) {
                 content={<HourlyTooltip />}
                 cursor={{ fill: "var(--surface-hover)", fillOpacity: 0.6 }}
               />
-              <Area
-                animationDuration={240}
-                dataKey="seconds"
-                fill="var(--accent)"
-                fillOpacity={0.18}
-                name={t("analytics.hourly.focusMinutes")}
-                stroke="var(--accent)"
-                strokeWidth={2}
-                type="monotone"
-              />
+              {peak === 0 ? null : (
+                <Area
+                  animationDuration={240}
+                  dataKey="seconds"
+                  fill="var(--accent)"
+                  fillOpacity={0.18}
+                  name={t("analytics.hourly.focusMinutes")}
+                  stroke="var(--accent)"
+                  strokeWidth={2}
+                  type="monotone"
+                />
+              )}
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -177,10 +175,8 @@ export function HourlyChart({ focus, kind, usage }: HourlyChartProps) {
   }
 
   const { apps, rows } = stackHours(usage, t("analytics.hourly.other"));
-
-  if (apps.length === 0) {
-    return <p className="muted">{t("analytics.hourly.empty")}</p>;
-  }
+  // Nothing recorded means nothing to stack: the axes stay, so the day still reads as a chart.
+  const empty = apps.length === 0;
 
   // The busiest app — the first of the legend — is the base of every column; the slice sitting on
   // top of the stack is the one that carries the rounded corners.
@@ -199,7 +195,7 @@ export function HourlyChart({ focus, kind, usage }: HourlyChartProps) {
   return (
     <figure className={analyticsStyles.chartFigure}>
       <figcaption className={`${analyticsStyles.chartCaption} muted`}>
-        {caption(peakOf(rows, apps))}
+        {empty ? null : caption(peakOf(rows, apps))}
       </figcaption>
       <div className={analyticsStyles.chartPlot}>
         <ResponsiveContainer height="100%" width="100%">
@@ -222,7 +218,7 @@ export function HourlyChart({ focus, kind, usage }: HourlyChartProps) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <HourlyLegend apps={apps} />
+      {empty ? null : <HourlyLegend apps={apps} />}
     </figure>
   );
 }

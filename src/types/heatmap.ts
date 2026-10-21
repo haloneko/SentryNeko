@@ -16,6 +16,7 @@ export interface HeatmapBucket {
   start: number;
   /** Seconds of focus from phases that started inside the bucket. */
   focusSeconds: number;
+  appSeconds: number;
   completedTasks: number;
 }
 

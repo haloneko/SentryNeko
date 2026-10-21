@@ -48,7 +48,6 @@
       "minutes": "{{minutes}} 分钟"
     },
     "hourly": {
-      "empty": "这一天还没有记录。",
       "error": "小时分布加载失败。",
       "focusMinutes": "专注",
       "kind": {
@@ -70,9 +69,7 @@
       "top": "最长应用"
     },
     "trend": {
-      "empty": "这个时间窗里还没有专注记录。",
       "error": "趋势加载失败。",
-      "focus": "专注",
       "granularity": {
         "day": "近 30 天",
         "label": "聚合粒度",
@@ -80,8 +77,15 @@
         "week": "近 12 周"
       },
       "peak": "单格最高 {{minutes}} 分钟",
+      "series": {
+        "apps": "使用时长",
+        "focus": "专注"
+      },
       "title": "专注趋势",
       "total": "本窗口共 {{duration}}"
+    },
+    "usageTrend": {
+      "title": "软件使用时长"
     }
   },
   "app": {

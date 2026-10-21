@@ -66,7 +66,7 @@ Status legend: ✅ Planned (implemented in the current scope); 🚧 Reserved (fu
 | Feature | Description | Status |
 | --- | --- | --- |
 | Hourly breakdown | A day's foreground hours stacked per app, or its focus minutes; day and chart kind switchable | ✅ Planned |
-| Focus trends | 30-day / 12-week / 12-month focus trend with an axis and a hover readout | ✅ Planned |
+| Focus and usage trends | 30-day / 12-week / 12-month focus and screen time trends with an axis and a hover readout | ✅ Planned |
 | Day summary | Focus time, screen time and the busiest app of the chosen day | ✅ Planned |
 
 ### 5. Internationalization

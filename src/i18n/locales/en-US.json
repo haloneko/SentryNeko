@@ -48,7 +48,6 @@
       "minutes": "{{minutes}} min"
     },
     "hourly": {
-      "empty": "Nothing recorded on this day yet.",
       "error": "The hourly breakdown could not be loaded.",
       "focusMinutes": "Focus",
       "kind": {
@@ -70,9 +69,7 @@
       "top": "Busiest app"
     },
     "trend": {
-      "empty": "No focus recorded in this window yet.",
       "error": "The trend could not be loaded.",
-      "focus": "Focus",
       "granularity": {
         "day": "30 days",
         "label": "Granularity",
@@ -80,8 +77,15 @@
         "week": "12 weeks"
       },
       "peak": "Best bucket: {{minutes}} min",
+      "series": {
+        "apps": "Screen time",
+        "focus": "Focus"
+      },
       "title": "Focus trend",
       "total": "{{duration}} in this window"
+    },
+    "usageTrend": {
+      "title": "Software usage"
     }
   },
   "app": {
