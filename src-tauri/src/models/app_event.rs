@@ -24,7 +24,6 @@ pub const HOUR_SECONDS: i64 = 3_600;
 /// Longest page the stream answers with.
 const MAX_PAGE: i64 = 100;
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppEvent {
@@ -64,8 +63,7 @@ impl AppEvent {
 
         if let Some(last) = Self::latest(db)? {
             if last.app_name == app_name && last.started_at == started_at {
-                if last.ended_at != Some(ended_at) || last.window_title.as_deref() != window_title
-                {
+                if last.ended_at != Some(ended_at) || last.window_title.as_deref() != window_title {
                     repository::execute(
                         db,
                         "UPDATE app_events SET ended_at = ?1, window_title = ?2 WHERE id = ?3",
@@ -205,6 +203,18 @@ pub struct AppUsage {
     pub seconds: i64,
 }
 
+/// One basket of the hourly chart: an app and the seconds it held inside one hour.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HourlyUsage {
+    /// UTC epoch seconds of the hour's start.
+    pub hour_start: i64,
+    /// Executable file name without its extension, e.g. `chrome`.
+    pub app_name: String,
+    /// Seconds of that hour the app held the foreground.
+    pub seconds: i64,
+}
+
 impl AppUsage {
     /// The hour `instant` falls in, as UTC epoch seconds.
     #[must_use]
@@ -246,7 +256,6 @@ impl AppUsage {
         Ok(())
     }
 
-
     pub fn ranking(db: &Db, from: i64, to: i64, limit: i64) -> ApiResult<Vec<Self>> {
         if to <= from {
             return Err(ApiError::invalid_input("to must be after from")
@@ -272,6 +281,36 @@ impl AppUsage {
                 Ok(Self {
                     app_name: row.get(0)?,
                     seconds: row.get(1)?,
+                })
+            },
+        )
+    }
+
+    /// Every non-empty bucket of `[from, to)`, oldest first, one row per app and hour.
+    ///
+    /// This is what the hourly chart stacks: unlike [`Self::ranking`] it keeps the hour, so the
+    /// caller can draw a day as twenty-four columns. The lock and sign-in shells are dropped here
+    /// too, so the chart and the ranking never disagree about what counts as usage.
+    pub fn hourly(db: &Db, from: i64, to: i64) -> ApiResult<Vec<HourlyUsage>> {
+        if to <= from {
+            return Err(ApiError::invalid_input("to must be after from")
+                .with_details(format!("received from = {from}, to = {to}")));
+        }
+
+        repository::query_all(
+            db,
+            "SELECT hour_start, app_name, seconds
+             FROM app_usage_hours
+             WHERE hour_start >= ?1 AND hour_start < ?2
+               AND seconds > 0
+               AND app_name NOT IN (?3, ?4)
+             ORDER BY hour_start, seconds DESC, app_name ASC",
+            params![Self::hour_of(from), to, LOCK_SHELLS[0], LOCK_SHELLS[1]],
+            |row| {
+                Ok(HourlyUsage {
+                    hour_start: row.get(0)?,
+                    app_name: row.get(1)?,
+                    seconds: row.get(2)?,
                 })
             },
         )
@@ -497,6 +536,48 @@ mod tests {
     }
 
     #[test]
+    fn the_hourly_rows_keep_their_hour_and_drop_the_shells() {
+        let db = created();
+        bucket(&db, "code", 100, 600);
+        bucket(&db, "chrome", 100, 300);
+        bucket(&db, "code", 4_000, 200);
+        bucket(&db, "LockApp", 100, 900);
+
+        let rows = AppUsage::hourly(&db, 0, 7_200).expect("hours");
+
+        assert_eq!(
+            rows,
+            [
+                HourlyUsage {
+                    hour_start: 0,
+                    app_name: "code".to_owned(),
+                    seconds: 600,
+                },
+                HourlyUsage {
+                    hour_start: 0,
+                    app_name: "chrome".to_owned(),
+                    seconds: 300,
+                },
+                HourlyUsage {
+                    hour_start: 3_600,
+                    app_name: "code".to_owned(),
+                    seconds: 200,
+                },
+            ],
+            "the busiest app of each hour comes first, the lock screen never arrives"
+        );
+    }
+
+    #[test]
+    fn an_empty_hourly_window_is_refused() {
+        let db = created();
+
+        let error = AppUsage::hourly(&db, 500, 500).expect_err("empty window");
+
+        assert_eq!(error.code(), ApiCode::InvalidInput);
+    }
+
+    #[test]
     fn the_lock_and_sign_in_shells_are_dropped() {
         let db = created();
         for shell in LOCK_SHELLS {
@@ -544,7 +625,10 @@ mod tests {
 
         let written = AppUsage::backfill(&db, 10_000).expect("backfilled");
 
-        assert_eq!(written, 3, "one bucket for code in each hour, one for chrome");
+        assert_eq!(
+            written, 3,
+            "one bucket for code in each hour, one for chrome"
+        );
         let usage = AppUsage::ranking(&db, 0, 7_200, 10).expect("ranking");
 
         assert_eq!(
@@ -564,7 +648,10 @@ mod tests {
 
         // A second pass has nothing to do: folding the same events again would double them.
         assert_eq!(AppUsage::backfill(&db, 10_000).expect("again"), 0);
-        assert_eq!(AppUsage::ranking(&db, 0, 7_200, 10).expect("ranking"), usage);
+        assert_eq!(
+            AppUsage::ranking(&db, 0, 7_200, 10).expect("ranking"),
+            usage
+        );
     }
 
     #[test]

@@ -1,128 +1,62 @@
-/** Analytics page: app usage ranking, finished task counts and focus trend. */
+/**
+ * Analytics page: the focus trend of a window, then the day at a glance and where its hours went.
+ *
+ * Each block asks the backend for one aggregated answer, so a switch never waits on a second
+ * request and the page never folds rows itself.
+ */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { AnalyticsPanel } from "../components/AnalyticsPanel";
 import { FocusTrendChart } from "../components/FocusTrendChart";
+import { HourlyChart } from "../components/HourlyChart";
 import { SegmentedControl } from "../components/ui/SegmentedControl";
-import { useAppUsage } from "../hooks/useAppEvents";
+import { useDayUsage } from "../hooks/useDayUsage";
 import { useFocusTrend } from "../hooks/useFocusTrend";
 import { useI18n } from "../hooks/useI18n";
-import { useTodos } from "../hooks/useTodos";
-import { USAGE_RANGES } from "../types/appEvent";
-import type { UsageRange } from "../types/appEvent";
 import type { HeatmapGranularity } from "../types/heatmap";
+import type { HourlyKind } from "../types/hourly";
+import { addDays, dayTotals, HOURLY_KINDS, isSameDay } from "../types/hourly";
 import { TREND_GRANULARITIES } from "../types/trend";
-import dashboardStyles from "./Dashboard/dashboard.module.css";
+import analyticsStyles from "./Analytics/analytics.module.css";
 
-/** The copy a duration is written with, so the usage ranking and the trend share one formatter. */
-interface DurationKeys {
-  /** Used from one hour on. */
-  hours: string;
-  minutes: string;
-}
-
-const USAGE_DURATION: DurationKeys = {
-  hours: "analytics.usage.hours",
-  minutes: "analytics.usage.minutes",
+/** The copy a duration is written with, so every block of the page shares one formatter. */
+const DURATION = {
+  hours: "analytics.duration.hours",
+  minutes: "analytics.duration.minutes",
 };
 
-const TREND_DURATION: DurationKeys = {
-  hours: "analytics.trend.totalHours",
-  minutes: "analytics.trend.totalMinutes",
-};
-
-/**
- * Renders the analytics page.
- *
- * The three blocks load on their own, so switching one range never waits for another, and each
- * switch asks the backend for one aggregated answer instead of the page crunching rows itself.
- */
+/** Renders the analytics page. */
 export function AnalyticsPage() {
-  const { t } = useI18n();
-  const [range, setRange] = useState<UsageRange>("today");
+  const { language, t } = useI18n();
   const [granularity, setGranularity] = useState<HeatmapGranularity>("day");
-  const { error, loading, usage } = useAppUsage(range);
+  const [day, setDay] = useState(() => new Date());
+  const [kind, setKind] = useState<HourlyKind>("apps");
   const {
-    completions,
-    completionsError,
-    completionsLoading,
-    refreshCompletions,
-  } = useTodos();
+    error: hourlyError,
+    focus,
+    loading: hourlyLoading,
+    usage,
+  } = useDayUsage(day);
   const {
     buckets,
     error: trendError,
     loading: trendLoading,
     totalSeconds,
   } = useFocusTrend(granularity);
-  const peak = usage[0]?.seconds ?? 0;
-
-  useEffect(() => {
-    void refreshCompletions();
-  }, [refreshCompletions]);
+  const totals = dayTotals(usage, focus);
 
   /** Hours are only shown once there are any, so a short span reads as plain minutes. */
-  const duration = (seconds: number, keys: DurationKeys): string => {
+  const duration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3_600);
     const minutes = Math.floor((seconds % 3_600) / 60);
 
-    return hours > 0 ? t(keys.hours, { hours, minutes }) : t(keys.minutes, { minutes });
+    return hours > 0 ? t(DURATION.hours, { hours, minutes }) : t(DURATION.minutes, { minutes });
   };
 
   return (
     <>
       <h1>{t("nav.analytics")}</h1>
-      <AnalyticsPanel
-        action={
-          <SegmentedControl
-            label={t("analytics.range.label")}
-            onChange={setRange}
-            options={USAGE_RANGES.map((value) => ({
-              label: t(`analytics.range.${value}`),
-              value,
-            }))}
-            value={range}
-          />
-        }
-        error={error === null ? null : t("analytics.usage.error")}
-        loading={loading}
-        title={t("analytics.usage.title")}
-      >
-        {usage.length === 0 ? (
-          <p className="muted">{t("analytics.usage.empty")}</p>
-        ) : (
-          <ul className={dashboardStyles.usageList}>
-            {usage.map((entry) => (
-              <li className={dashboardStyles.usageRow} key={entry.appName}>
-                <span className={dashboardStyles.usageApp} title={entry.appName}>
-                  {entry.appName}
-                </span>
-                <span className="meter">
-                  <span style={{ width: `${Math.round((entry.seconds / peak) * 100)}%` }} />
-                </span>
-                <span className={dashboardStyles.usageTime}>{duration(entry.seconds, USAGE_DURATION)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </AnalyticsPanel>
-      <AnalyticsPanel
-        error={completionsError === null ? null : t("analytics.completion.error")}
-        loading={completionsLoading}
-        title={t("analytics.completion.title")}
-      >
-        {completions.all === 0 ? (
-          <p className="muted">{t("analytics.completion.empty")}</p>
-        ) : (
-          <>
-            <p className={dashboardStyles.completionRate}>
-              <span className={dashboardStyles.completionValue}>{completions.today}</span>
-              <span className="muted">{t("analytics.completion.unit")}</span>
-            </p>
-            <p className="muted">{t("analytics.completion.total", { count: completions.all })}</p>
-          </>
-        )}
-      </AnalyticsPanel>
       <AnalyticsPanel
         action={
           <SegmentedControl
@@ -141,8 +75,77 @@ export function AnalyticsPage() {
       >
         <FocusTrendChart buckets={buckets} granularity={granularity} />
         {totalSeconds > 0 ? (
-          <p className="muted">{duration(totalSeconds, TREND_DURATION)}</p>
+          <p className={`muted ${analyticsStyles.chartTotal}`}>
+            {t("analytics.trend.total", { duration: duration(totalSeconds) })}
+          </p>
         ) : null}
+      </AnalyticsPanel>
+      <AnalyticsPanel
+        action={
+          <div className={analyticsStyles.dayControls}>
+            <SegmentedControl
+              label={t("analytics.hourly.kind.label")}
+              onChange={setKind}
+              options={HOURLY_KINDS.map((value) => ({
+                label: t(`analytics.hourly.kind.${value}`),
+                value,
+              }))}
+              value={kind}
+            />
+            <nav className={analyticsStyles.dayNav}>
+              <button
+                aria-label={t("analytics.hourly.previous")}
+                className="btn"
+                onClick={() => {
+                  setDay((current) => addDays(current, -1));
+                }}
+                type="button"
+              >
+                ‹
+              </button>
+              <span className={analyticsStyles.dayLabel}>
+                {day.toLocaleDateString(language, {
+                  day: "numeric",
+                  month: "short",
+                  weekday: "short",
+                })}
+              </span>
+              <button
+                aria-label={t("analytics.hourly.next")}
+                className="btn"
+                disabled={isSameDay(day, new Date())}
+                onClick={() => {
+                  setDay((current) => addDays(current, 1));
+                }}
+                type="button"
+              >
+                ›
+              </button>
+            </nav>
+          </div>
+        }
+        error={hourlyError === null ? null : t("analytics.hourly.error")}
+        loading={hourlyLoading}
+        title={t("analytics.hourly.title")}
+      >
+        <div className={analyticsStyles.summary}>
+          <div className={analyticsStyles.summaryItem}>
+            <span className={analyticsStyles.summaryLabel}>{t("analytics.summary.focus")}</span>
+            <span className={analyticsStyles.summaryValue}>{duration(totals.focus)}</span>
+          </div>
+          <div className={analyticsStyles.summaryItem}>
+            <span className={analyticsStyles.summaryLabel}>{t("analytics.summary.apps")}</span>
+            <span className={analyticsStyles.summaryValue}>{duration(totals.apps)}</span>
+          </div>
+          <div className={analyticsStyles.summaryItem}>
+            <span className={analyticsStyles.summaryLabel}>{t("analytics.summary.top")}</span>
+            <span className={analyticsStyles.summaryValue}>
+              {totals.top === null ? "—" : duration(totals.top.seconds)}
+            </span>
+            <span className={analyticsStyles.summaryNote}>{totals.top?.name ?? ""}</span>
+          </div>
+        </div>
+        <HourlyChart focus={focus} kind={kind} usage={usage} />
       </AnalyticsPanel>
     </>
   );

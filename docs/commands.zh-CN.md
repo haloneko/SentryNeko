@@ -102,10 +102,12 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 因此恢复后开机时刻不会漂移。前台这一组回答排行榜用什么：`app_usage` 接收一个时间窗
 （`from`、`to`，UTC epoch 秒）和一个 `limit`，按应用在该窗口内占据前台的秒数排名。窗口由前端按
 预设算好（「今天」从本地零点起），后端只负责把窗口内的各小时桶相加，并丢掉锁屏与登录界面外壳。
+`app_usage_hours` 把同一个窗口按小时展开——每个应用每小时一行——统计页的堆叠图就画这些行。
 事件流读的是 `app_events`：`list_app_events` 倒序返回一页，`before` 传上一页
 最后一行的 id，采集器持续插入时翻页也不会错位。热力图这一组回答图表要什么：`heatmap` 接收窗口和 `granularity`
 （`day`、`week`、`month`），按本地日、周一或月初返回每个桶——空桶也返回——桶里带在该处开始的
-专注秒数和在该处完成的任务数；规则写在 `docs/database.md`。闹钟这一组维护调度器盯着的那批提醒：
+专注秒数和在该处完成的任务数；规则写在 `docs/database.md`。`focus_hours` 把同一批专注桶按小时
+返回，供小时专注曲线读取。闹钟这一组维护调度器盯着的那批提醒：
 `list_alarms`、`add_alarm`、`update_alarm`、`set_alarm_enabled`、`delete_alarm`。`hour` 和
 `minute` 是本地墙钟时间，`repeatDays` 是星期掩码（`0` 表示单次）；这里没有任何命令会响铃——
 真正响铃的是 `services/scheduler.rs`，跑在拥有时钟的那个线程上，所以页面开没开都不影响闹钟。
@@ -161,8 +163,10 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 | `notify_pomodoro_phase` | `notification_commands` | `phase: Phase` | `Outcome`（`"toast"` 或 `"fallback"`） | T14 |
 | `get_uptime` | `system_commands` | — | `Uptime`（`{ bootAt, todaySeconds, totalSeconds }`） | T13 |
 | `app_usage` | `app_event_commands` | `from: i64`、`to: i64`、`limit: i64` | `AppUsage[]`（`{ appName, seconds }`） | T20 |
+| `app_usage_hours` | `app_event_commands` | `from: i64`、`to: i64` | `HourlyUsage[]`（`{ hourStart, appName, seconds }`） | T35 |
 | `list_app_events` | `app_event_commands` | `before: i64?`、`limit: i64` | `AppEventPage`（`{ events, more }`） | T23 |
 | `heatmap` | `heatmap_commands` | `from: i64`、`to: i64`、`granularity: "day" \| "week" \| "month"` | `HeatmapBucket[]`（`{ start, focusSeconds, completedTasks }`） | T19 |
+| `focus_hours` | `heatmap_commands` | `from: i64`、`to: i64` | `FocusHour[]`（`{ hourStart, seconds }`） | T35 |
 | `list_alarms` | `alarm_commands` | — | `Alarm[]`（`{ id, label, hour, minute, repeatDays, enabled, createdAt }`） | T17 |
 | `add_alarm` | `alarm_commands` | `label: String`、`hour: i64`、`minute: i64`、`repeatDays: i64` | `Alarm` | T17 |
 | `update_alarm` | `alarm_commands` | `id: i64`、`label: String`、`hour: i64`、`minute: i64`、`repeatDays: i64` | `Alarm` | T17 |

@@ -122,12 +122,16 @@ instant. The foreground group answers what the ranking shows: `app_usage` takes 
 `to`, UTC epoch seconds) and a `limit`, and ranks applications by the seconds they held the
 foreground inside it. The frontend computes the window for its presets — "today" starts at local
 midnight — and the backend adds up the hourly buckets whose hour starts inside it, dropping the lock
-and sign-in shells. The event stream reads `app_events`: `list_app_events`
+and sign-in shells. `app_usage_hours` answers the same window hour by hour — one row per app and
+hour — which is what the stacked chart on the analytics page draws. The event stream reads
+`app_events`: `list_app_events`
 answers one page newest first, and `before` is the id the previous page ended at, so paging stays
 stable while the collector inserts rows. The heatmap group answers the chart: `heatmap` takes the
 window and a `granularity` (`day`, `week` or `month`) and returns one bucket per local day, Monday
-or first of the month — empty ones included — carrying the focus seconds of phases that started
-there and the tasks completed there; the rules live in `docs/database.md`. The alarm group
+or first of the month — empty ones included — carrying the focus seconds of the hourly buckets that
+start inside them and the tasks completed there; the rules live in `docs/database.md`.
+`focus_hours` answers those buckets as one row per hour, which the hourly focus line reads. The
+alarm group
 maintains the reminders the scheduler watches: `list_alarms`, `add_alarm`, `update_alarm`,
 `set_alarm_enabled` and `delete_alarm`. `hour` and `minute` are the local wall clock and
 `repeatDays` is a weekday mask (`0` for a one-off); nothing here rings — `services/scheduler.rs`
@@ -189,8 +193,10 @@ answering with what is now in force. A registry that refuses the write is `PERMI
 | `notify_pomodoro_phase` | `notification_commands` | `phase: Phase` | `Outcome` (`"toast"` or `"fallback"`) | T14 |
 | `get_uptime` | `system_commands` | — | `Uptime` (`{ bootAt, todaySeconds, totalSeconds }`) | T13 |
 | `app_usage` | `app_event_commands` | `from: i64`, `to: i64`, `limit: i64` | `AppUsage[]` (`{ appName, seconds }`) | T20 |
+| `app_usage_hours` | `app_event_commands` | `from: i64`, `to: i64` | `HourlyUsage[]` (`{ hourStart, appName, seconds }`) | T35 |
 | `list_app_events` | `app_event_commands` | `before: i64?`, `limit: i64` | `AppEventPage` (`{ events, more }`) | T23 |
 | `heatmap` | `heatmap_commands` | `from: i64`, `to: i64`, `granularity: "day" \| "week" \| "month"` | `HeatmapBucket[]` (`{ start, focusSeconds, completedTasks }`) | T19 |
+| `focus_hours` | `heatmap_commands` | `from: i64`, `to: i64` | `FocusHour[]` (`{ hourStart, seconds }`) | T35 |
 | `list_alarms` | `alarm_commands` | — | `Alarm[]` (`{ id, label, hour, minute, repeatDays, enabled, createdAt }`) | T17 |
 | `add_alarm` | `alarm_commands` | `label: String`, `hour: i64`, `minute: i64`, `repeatDays: i64` | `Alarm` | T17 |
 | `update_alarm` | `alarm_commands` | `id: i64`, `label: String`, `hour: i64`, `minute: i64`, `repeatDays: i64` | `Alarm` | T17 |

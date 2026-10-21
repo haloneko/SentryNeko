@@ -10,7 +10,7 @@
   background: var(--surface);
 }
 
-/* A page may stack more than one card, e.g. the ranking and the trend. */
+/* A page may stack more than one card, e.g. the trend and the day. */
 .analytics-section + .analytics-section {
   margin-top: var(--space-5);
 }
@@ -29,47 +29,154 @@
   font-weight: 600;
 }
 
-.trend {
+/* The day's numbers: three quiet columns above its chart. */
+.summary {
   display: grid;
-  gap: 4px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.summary-item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.summary-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.summary-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+}
+
+.summary-note {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Day picker and measure switch, side by side in the heading. */
+.day-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.day-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.day-label {
+  min-width: 104px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* Both charts share one frame: a caption, the plot and, when it has series, the legend. */
+.chart-figure {
+  display: grid;
+  gap: var(--space-2);
   margin: 0;
 }
 
-.trend-peak {
+.chart-caption {
   font-size: 12px;
 }
 
-.trend-chart {
-  display: block;
-  width: 100%;
-  height: auto;
+.chart-plot {
+  height: 220px;
 }
 
-.trend-area {
-  fill: var(--accent-soft);
+/* Stacked segments are laid out on fractional heights; whole pixels keep the seams away. */
+.chart-plot :global(.recharts-rectangle) {
+  shape-rendering: crispEdges;
 }
 
-.trend-line {
-  fill: none;
-  stroke: var(--accent);
-  stroke-linejoin: round;
-  stroke-width: 2;
+.chart-total {
+  margin: 0;
+  font-size: 12px;
 }
 
-.trend-point {
-  fill: var(--surface);
-  stroke: var(--accent);
-  stroke-width: 1.5;
-}
-
-.trend-ticks {
-  position: relative;
-  height: 18px;
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
   font-size: 11px;
 }
 
-.trend-ticks span {
-  position: absolute;
-  top: 0;
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+/* The tooltip borrows the surface and border of every other floating box in the app. */
+.chart-tooltip {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: 0 10px 24px rgb(8 10 18 / 28%);
+  font-size: 12px;
+}
+
+.chart-tooltip-head {
+  margin-bottom: 2px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-tooltip-name {
+  flex: 1;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.chart-tooltip-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-tooltip-total {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
