@@ -4,6 +4,10 @@
 
 > A Windows desktop productivity tool that combines a todo list, a Pomodoro timer, foreground-app tracking and focus analytics — all data stored locally, no cloud required.
 
+<p align="center">
+  <img alt="The SentryNeko dashboard" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/仪表盘.jpg" width="860">
+</p>
+
 ## Overview
 
 SentryNeko is a personal productivity and time-tracking app built for Windows. It puts *task management* and *where the time actually went* in the same place: you plan work with the todo list and Pomodoro timer while the app keeps tracking the foreground application and window title in the background. Heatmaps and charts then answer one question — **where did my time go?**
@@ -12,6 +16,14 @@ SentryNeko is a personal productivity and time-tracking app built for Windows. I
 - Always-on but light: runs in the system tray and starts with Windows, the collector works silently
 - Real-time feedback: Pomodoro completion, alarm firing and app switches are pushed to the UI via Tauri events
 - Bilingual UI: both the interface and backend error messages support multiple languages
+
+## Screenshots
+
+|  |  |
+| :---: | :---: |
+| <img alt="Todos" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/待办.jpg" width="400"><br>**Todos** — add, edit, complete and filter tasks, with the count still open | <img alt="Pomodoro" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/番茄钟.jpg" width="400"><br>**Pomodoro** — a focus countdown and its breaks, with the durations you set |
+| <img alt="Analytics" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/统计.jpg" width="400"><br>**Analytics** — the day's hours split per app or as focus minutes, under its trends | <img alt="Settings" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/设置页面.jpg" width="400"><br>**Settings** — Pomodoro and alarm defaults, language, start-up and storage |
+| <img alt="Custom dashboard" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/自定义仪表盘.jpg" width="400"><br>**Custom dashboard** — drag, resize and remove widgets, then keep the layout | <img alt="Sidebar" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/侧边栏设置.jpg" width="400"><br>**Sidebar** — choose which pages show up, and in what order |
 
 ## Platform support
 
@@ -231,6 +243,7 @@ SentryNeko/
 │       └── i18n.ts                   # i18n type definitions
 │
 ├── docs/                             # Documentation (English + Simplified Chinese)
+│   ├── screenshots/                  # Screenshots shown in this README
 │   ├── commands.md                   # Tauri command reference
 │   ├── database.md                   # Schema and the connection pool
 │   ├── events.md                     # Tauri event definitions
@@ -283,6 +296,12 @@ powershell -ExecutionPolicy Bypass -File scripts/dev.ps1
 # 4. Build the Windows installer (msi / nsis)
 pnpm tauri build
 ```
+
+The packaged app stays light: the installer asks for about 4.8 MB of disk space.
+
+<p align="center">
+  <img alt="Installer disk usage" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/空间占用.jpg" width="380">
+</p>
 
 > The collector reads foreground window information and runs inside the app, under your own account. If antivirus software blocks it, allow the SentryNeko executable in that tool; there is nothing to register separately. Starting with Windows is a switch on the settings page, which writes one value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 

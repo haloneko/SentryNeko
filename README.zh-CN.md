@@ -4,6 +4,10 @@
 
 > Windows 桌面生产力工具：待办清单、番茄钟、前台应用采集与专注统计，全部数据本地存储，不依赖云端。
 
+<p align="center">
+  <img alt="SentryNeko 仪表盘" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/仪表盘.jpg" width="860">
+</p>
+
 ## 简介
 
 SentryNeko 是一款面向 Windows 的个人效率与时间追踪应用。它把「任务管理」和「实际时间去向」放在一起：一边用待办清单和番茄钟安排工作，一边在后台采集前台应用与窗口标题，最终用热力图和统计图表回答一个问题——**我的时间到底花在了哪里**。
@@ -12,6 +16,14 @@ SentryNeko 是一款面向 Windows 的个人效率与时间追踪应用。它把
 - 轻量常驻：托盘运行 + 开机自启，采集进程静默工作
 - 实时反馈：番茄钟完成、闹钟触发、应用切换通过 Tauri 事件即时推送到界面
 - 中英双语：界面与后端错误消息均支持多语言
+
+## 界面预览
+
+|  |  |
+| :---: | :---: |
+| <img alt="待办清单" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/待办.jpg" width="400"><br>**待办清单** —— 增删改、勾选完成、按状态筛选，剩余数量随时可见 | <img alt="番茄钟" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/番茄钟.jpg" width="400"><br>**番茄钟** —— 专注与休息倒计时，时长可自定义 |
+| <img alt="统计" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/统计.jpg" width="400"><br>**统计** —— 一天的小时分布，按应用堆叠或看专注分钟，上方是趋势 | <img alt="设置" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/设置页面.jpg" width="400"><br>**设置** —— 番茄钟与闹钟默认值、语言、开机自启与数据管理 |
+| <img alt="自定义仪表盘" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/自定义仪表盘.jpg" width="400"><br>**自定义仪表盘** —— 拖动、缩放、移除组件，布局保存下来 | <img alt="侧边栏设置" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/侧边栏设置.jpg" width="400"><br>**侧边栏设置** —— 选择显示哪些页面，以及它们的顺序 |
 
 ## 平台支持
 
@@ -231,6 +243,7 @@ SentryNeko/
 │       └── i18n.ts                   # 国际化类型定义
 │
 ├── docs/                             # 文档（中英双语）
+│   ├── screenshots/                  # README 中展示的截图
 │   ├── commands.md                   # Tauri 命令文档
 │   ├── database.md                   # 表结构、迁移与连接池
 │   ├── events.md                     # Tauri 事件定义文档
@@ -283,6 +296,12 @@ powershell -ExecutionPolicy Bypass -File scripts/dev.ps1
 # 4. 打包 Windows 安装包（msi / nsis）
 pnpm tauri build
 ```
+
+安装包很小：安装向导所需空间约 4.8 MB。
+
+<p align="center">
+  <img alt="安装包占用空间" src="https://raw.githubusercontent.com/haloneko/SentryNeko/refs/heads/img1/docs/空间占用.jpg" width="380">
+</p>
 
 > 采集器需要读取前台窗口信息，它跑在应用进程内、使用你本人的账户。如遇杀软拦截，在该工具里放行 SentryNeko 的可执行文件即可，没有需要单独注册的东西。开机自启是设置页上的一个开关，会在 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` 下写入一条值。
 
