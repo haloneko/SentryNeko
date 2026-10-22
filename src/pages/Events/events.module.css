@@ -1,48 +1,294 @@
-/* Events */
-.event-log {
+/*
+ * One day, drawn twice: a bar across the top for the shape of the day, and the rows below for its
+ * detail. The axis is a clock, so the page reads left to right for time and top to bottom for the
+ * stream, never against each other.
+ */
+.timeline {
   display: grid;
-  gap: 2px;
+  gap: var(--space-4);
   width: 100%;
+}
+
+/* The card's own name, sized to a card rather than to a browser default heading: the day below it
+ * is what the page is about, so the title stays a quiet label. */
+.log-head {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Day navigation: the page moves by whole days, never by pages of rows. */
+.day-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.day-button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.day-button svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.2;
+}
+
+.day-button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.day-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.day-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.day-jump {
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.day-jump:hover {
+  background: var(--accent-soft);
+}
+
+/*
+ * The list itself: a fixed window over a canvas as tall as the day's rows. Only the rows inside
+ * the window are drawn, which is what keeps a day of tens of thousands of switches scrollable.
+ */
+.viewport {
+  position: relative;
+  width: 100%;
+  height: clamp(240px, calc(100vh - 430px), 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.canvas {
+  position: relative;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.event-row {
+.row {
+  position: absolute;
+  right: 0;
+  left: 0;
   display: grid;
-  grid-template-columns: minmax(0, 14ch) minmax(0, 1fr) auto auto;
-  align-items: baseline;
+  grid-template-columns: 44px 24px minmax(0, 1fr) auto;
+  align-items: center;
   gap: var(--space-3);
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border);
+  height: 36px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
+  line-height: 18px;
 }
 
-.event-row:last-child {
-  border-bottom: 0;
-}
-
-.event-app,
-.event-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
+.clock {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.event-app {
-  font-weight: 600;
+/* The node is a full-height column: the dot sits in it, and the line is drawn behind the dot. */
+.node {
+  position: relative;
+  align-self: stretch;
 }
 
-.event-title {
-  color: var(--text-muted);
+.node::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--border);
+  transform: translateX(-50%);
 }
 
-.event-span,
-.event-time {
+.node::after {
+  content: "";
+  position: absolute;
+  top: 13.5px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--event-color);
+  box-shadow: 0 0 0 3px var(--event-tint);
+  transform: translateX(-50%);
+}
+
+/* The axis opens at the first dot and closes at the last, so it never runs past its data. */
+.canvas > .row:first-child .node::before {
+  top: 18px;
+}
+
+.canvas > .row:last-child .node::before {
+  bottom: 18px;
+}
+
+.body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--space-2);
+  align-items: baseline;
+  min-width: 0;
+}
+
+.app {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--event-tint);
+  color: var(--text);
   font-size: 12px;
-  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
 }
 
-.event-span {
-  text-align: right;
+.window {
+  flex: 1 1 8ch;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 140ms ease;
+}
+
+.row:hover .window {
+  color: var(--text);
+}
+
+.span {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The row a seek landed on gets a wash that steps back on its own, so it reads as a position and
+ * not as a selection. */
+.row[data-focused="true"] {
+  background: var(--accent-soft);
+}
+
+/*
+ * The axis: a whole day side to side. Each loaded event is a stretch on the rail; the playhead says
+ * which one the list is showing. Zooming narrows the window, never the day's data.
+ */
+.scrubber {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+
+/* The bar is a grip: press and drag to slide the day under it. */
+.track {
+  position: relative;
+  height: 26px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.track[data-dragging="true"] {
+  cursor: grabbing;
+}
+
+.track:focus-visible {
+  border-radius: 999px;
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+}
+
+.rail {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  transform: translateY(-50%);
+}
+
+/* A switch lasts a moment, so its stretch keeps a visible width of its own; the marks sit a little
+ * taller than the rail, which is what makes them read as events rather than as buffering. They are
+ * square on purpose: a stretch of time has edges, and rounding them would blur where it ends. */
+.tick {
+  position: absolute;
+  top: 50%;
+  min-width: 2px;
+  height: 9px;
+  border-radius: 0;
+  background: var(--event-color);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.playhead {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.playhead::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface);
+  transform: translateX(-50%);
+}
+
+.scale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
 }

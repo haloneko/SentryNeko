@@ -37,8 +37,9 @@ useTauriEvent<TestEventPayload>(BACKEND_EVENTS.testEvent, (payload) => {
 | `alarm-triggered` | `Alarm` —— `{ id, label, hour, minute, repeatDays, enabled, createdAt }` | `services/scheduler.rs` 走到闹钟的本地时间：提示音开始，并且除非存下的默认设置是 `inApp`，Toast（或它的 `notification-fallback`）都已先发出。单次闹钟此时已自动关闭，因此载荷里 `enabled` 为 `false` | T17、T18 |
 
 外壳（`App.tsx`）只订阅一次 `app-switch`，把每条推送交给 `stores/appEventStore.ts`：它保存最近几行，
-并按 `id` 原地替换被更新的那一行，所以进行中的段就在原处长。`EventsPage` 分页读取数据库并把这份
-尾部数据放在最上面，因此打开页面时切应用会立即刷新，更早的历史也能继续加载。外壳同时渲染
+并按 `id` 原地替换被更新的那一行，所以进行中的段就在原处长。`EventsPage` 每次只读本地一天——对
+`started_at` 索引的一次范围查询——并把它画成时间线：上方是这一天的横向轴，下方只渲染视口里的行。
+推送会落在所属的那一天，因此打开页面时切应用会立即刷新，左右箭头则往前往后翻整天。外壳同时渲染
 `AlarmRinging`：它把最新一条 `alarm-triggered` 留在屏幕上，直到用户关闭或者过一分钟——窗口在后台
 时容易错过 Toast，而载荷本身就足够说明是哪个闹钟。
 

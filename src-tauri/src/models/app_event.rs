@@ -24,6 +24,8 @@ pub const HOUR_SECONDS: i64 = 3_600;
 /// Longest page the stream answers with.
 const MAX_PAGE: i64 = 100;
 
+pub const MAX_DAY: i64 = 20_000;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppEvent {
@@ -158,6 +160,28 @@ impl AppEvent {
                 limit + 1
             ),
             params![before],
+            Self::from_row,
+        )?;
+        let more = rows.len() as i64 > limit;
+
+        Ok(AppEventPage {
+            events: rows.into_iter().take(limit as usize).collect(),
+            more,
+        })
+    }
+
+    pub fn between(db: &Db, from: i64, to: i64, limit: i64) -> ApiResult<AppEventPage> {
+        let limit = limit.clamp(1, MAX_DAY);
+        let rows = repository::query_all(
+            db,
+            &format!(
+                "SELECT {COLUMNS} FROM app_events
+                 WHERE started_at >= ?1 AND started_at < ?2
+                 ORDER BY started_at DESC, id DESC
+                 LIMIT {}",
+                limit + 1
+            ),
+            params![from, to],
             Self::from_row,
         )?;
         let more = rows.len() as i64 > limit;
@@ -714,6 +738,39 @@ mod tests {
             [100]
         );
         assert!(!second.more);
+    }
+
+    #[test]
+    fn a_day_answers_only_the_rows_that_started_inside_it() {
+        let db = created();
+        episode(&db, "code", 100, Some(150));
+        episode(&db, "chrome", 200, Some(250));
+        episode(&db, "slack", 300, Some(350));
+
+        let day = AppEvent::between(&db, 150, 300, 10).expect("day");
+
+        assert_eq!(
+            day.events
+                .iter()
+                .map(|event| event.app_name.as_str())
+                .collect::<Vec<_>>(),
+            ["chrome"]
+        );
+        assert!(!day.more);
+    }
+
+    #[test]
+    fn a_day_cut_at_its_cap_says_it_was_truncated() {
+        let db = created();
+        for start in [100, 200, 300, 400] {
+            episode(&db, "code", start, Some(start + 50));
+        }
+
+        let day = AppEvent::between(&db, 0, 500, 3).expect("day");
+
+        assert_eq!(day.events.len(), 3);
+        assert_eq!(day.events[0].started_at, 400);
+        assert!(day.more);
     }
 
     #[test]

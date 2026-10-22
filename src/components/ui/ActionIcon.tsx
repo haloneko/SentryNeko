@@ -12,7 +12,9 @@ export type ActionIconName =
   | "edit"
   | "filter"
   | "grip"
+  | "next"
   | "plus"
+  | "previous"
   | "remove"
   | "reset"
   | "select"
@@ -56,6 +58,9 @@ const DRAWINGS: Record<ActionIconName, ReactNode> = {
   ),
   // Funnel: narrow a list down to a state or a tag.
   filter: <path d="M3.6 4.8h16.8L14 12.6v6.1l-4 2.2v-8.3z" />,
+  // Chevrons: the day before and the day after.
+  previous: <path d="M14.5 5 7.5 12l7 7" />,
+  next: <path d="M9.5 5 16.5 12l-7 7" />,
   // Two cards, the front one ticked: pick several of them at once.
   select: (
     <>
