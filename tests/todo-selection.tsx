@@ -104,6 +104,15 @@ mockIPC((command, payload) => {
     }
 
     data = todo ?? null;
+  } else if (command === "rename_todo") {
+    const todo = todos.find((item) => item.id === Number(args.id));
+
+    if (todo !== undefined) {
+      todo.title = String(args.title);
+      todo.updatedAt = Math.floor(Date.now() / 1000);
+    }
+
+    data = todo ?? null;
   } else if (command === "delete_todo") {
     const index = todos.findIndex((item) => item.id === Number(args.id));
 
