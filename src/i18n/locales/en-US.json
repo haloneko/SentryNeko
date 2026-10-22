@@ -210,6 +210,12 @@
     "year": "Year"
   },
   "events": {
+    "day": {
+      "empty": "Nothing was in front on this day.",
+      "next": "Next day",
+      "previous": "Previous day",
+      "today": "Back to today"
+    },
     "error": "The event stream could not be loaded.",
     "loading": "Loading…",
     "log": {
@@ -217,10 +223,11 @@
       "title": "Foreground app events",
       "untitled": "(no window title)"
     },
-    "more": {
-      "label": "Load older events",
-      "loading": "Loading…"
-    }
+    "timeline": {
+      "now": "In progress",
+      "scrubber": "Timeline position"
+    },
+    "truncated": "This day holds too many events; only the latest {{limit}} are shown."
   },
   "heatmap": {
     "cell": "{{date}} · {{minutes}} min focused · {{tasks}} tasks",

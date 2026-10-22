@@ -210,6 +210,12 @@
     "year": "年"
   },
   "events": {
+    "day": {
+      "empty": "这一天还没有前台应用记录。",
+      "next": "后一天",
+      "previous": "前一天",
+      "today": "回到今天"
+    },
     "error": "事件流加载失败。",
     "loading": "加载中…",
     "log": {
@@ -217,10 +223,11 @@
       "title": "前台应用事件",
       "untitled": "（无窗口标题）"
     },
-    "more": {
-      "label": "加载更早的事件",
-      "loading": "加载中…"
-    }
+    "timeline": {
+      "now": "进行中",
+      "scrubber": "时间轴位置"
+    },
+    "truncated": "这一天事件过多，只显示最近的 {{limit}} 条。"
   },
   "heatmap": {
     "cell": "{{date}} · 专注 {{minutes}} 分钟 · 完成 {{tasks}} 个任务",
