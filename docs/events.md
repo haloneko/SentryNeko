@@ -40,8 +40,10 @@ a new event: add the new name, migrate the listeners, then drop the old one.
 
 The shell (`App.tsx`) subscribes to `app-switch` once and hands every push to
 `stores/appEventStore.ts`, which keeps the newest rows and replaces the one a push updates by `id`,
-so the stretch in progress grows in place. `EventsPage` pages through the database and puts that
-tail on top, so a switch shows up while the page is open and older history stays browsable. It also
+so the stretch in progress grows in place. `EventsPage` reads one local day at a time — a single
+range query against the index on `started_at` — and draws it as a timeline: a horizontal axis of
+that day above a list that only renders the rows in sight. Pushes land on the day they belong to,
+so a switch shows up while the page is open and the arrows walk back through earlier days. It also
 renders `AlarmRinging`, which keeps the newest `alarm-triggered` push on screen for a minute or
 until dismissed: a toast can be missed while the window is in the background, and the payload is
 enough to say which alarm it was.
