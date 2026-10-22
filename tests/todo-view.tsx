@@ -33,6 +33,8 @@ const todos: Todo[] = [
   { id: 5, title: "Aardvark fix", completed: false, createdAt: now - 600, updatedAt: now - 600, tagIds: [], startAt: null, endAt: now - 600, starredAt: null, extra: {}, notes: null },
 ];
 
+let starClock = now;
+
 /** Totals recomputed from the list, the way the backend answers `todo_counts`. */
 function counts(): TodoCounts {
   const completed = todos.filter((todo) => todo.completed).length;
@@ -64,6 +66,16 @@ mockIPC((command, payload) => {
       { id: 1, name: "work", createdAt: now },
       { id: 2, name: "long-name-tag", createdAt: now },
     ];
+  } else if (command === "set_todo_starred") {
+    const todo = todos.find((item) => item.id === Number(args.id));
+
+    if (todo !== undefined) {
+      starClock += 1;
+      todo.starredAt = args.starred === true ? starClock : null;
+      todo.updatedAt = Math.floor(Date.now() / 1000);
+    }
+
+    data = todo ?? null;
   }
 
   return { code: "OK", data, details: null, message: "OK" };

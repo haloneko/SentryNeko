@@ -49,14 +49,8 @@ function byDeadline(a: Todo, b: Todo): number {
   return a.endAt - b.endAt;
 }
 
-/**
- * Compares two pins, or answers `null` when the chosen order still has to decide.
- *
- * A pin is a way of saying "this one matters now", so it stays in front whichever order is chosen:
- * sorting changes what happens below it, never whether it is pinned. The latest pin is the most
- * prominent one, and the row's id keeps two pins of the same second in a stable order.
- */
-function byPin(a: Todo, b: Todo): number | null {
+
+function pinnedFirst(a: Todo, b: Todo): number | null {
   if (a.starredAt === null && b.starredAt === null) {
     return null;
   }
@@ -69,16 +63,10 @@ function byPin(a: Todo, b: Todo): number | null {
     return -1;
   }
 
-  return b.starredAt - a.starredAt || b.id - a.id;
+  return null;
 }
 
-/**
- * Orders the tasks: pinned ones first, then by the chosen order.
- *
- * The default keeps the list as it has always read — newest first under the pins — while a chosen
- * order decides everything below them. A key that ties falls back to the newest task, so switching
- * orders never leaves two rows trading places between paints.
- */
+
 export function sortTodos(
   todos: readonly Todo[],
   sort: TodoSort = "default",
@@ -97,10 +85,10 @@ export function sortTodos(
       return a.title.localeCompare(b.title, language) || a.id - b.id;
     }
 
-    return 0;
+    return a.starredAt === null || b.starredAt === null ? 0 : b.starredAt - a.starredAt;
   };
 
-  return [...todos].sort((a, b) => byPin(a, b) ?? (byKey(a, b) || newestFirst(a, b)));
+  return [...todos].sort((a, b) => pinnedFirst(a, b) ?? (byKey(a, b) || newestFirst(a, b)));
 }
 
 /** The tasks the search leaves; the order they are drawn in is decided when they are grouped. */

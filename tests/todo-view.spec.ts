@@ -61,6 +61,42 @@ test("the filter card hangs under its icon and narrows the list in place", async
   expect(errors).toEqual([]);
 });
 
+test("the order also decides inside the pinned group", async ({ page }) => {
+  await page.goto("/tests/todo-view.html?theme=dark&language=en-US");
+  await expect(page.locator('[data-testid="todo-row"]')).toHaveCount(5);
+
+  // A second pin: under the default order the latest star leads the pinned group, above the older
+  // one — and both still sit above every task that is not pinned.
+  await page
+    .locator('[data-testid="todo-row"]', { hasText: "Zebra review" })
+    .getByTestId("todo-star")
+    .click();
+
+  await expect.poll(() => titles(page)).toEqual([
+    "Zebra review",
+    "Delta inbox",
+    "Beta write-up",
+    "Aardvark fix",
+    "Gamma archive",
+  ]);
+
+  // A chosen order decides the pins among themselves as well: A→Z puts Delta back in front of
+  // Zebra, while both stay above the unpinned tasks.
+  await page.getByTestId("todo-sort-button").click();
+  await page
+    .getByRole("dialog", { name: "Sort", exact: true })
+    .getByRole("button", { name: "Title A→Z", exact: true })
+    .click();
+
+  await expect.poll(() => titles(page)).toEqual([
+    "Delta inbox",
+    "Zebra review",
+    "Aardvark fix",
+    "Beta write-up",
+    "Gamma archive",
+  ]);
+});
+
 test("the sort card reorders the rows and keeps the pinned task in front", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
