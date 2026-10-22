@@ -6,24 +6,32 @@
  * other, and the day block asks for its two hourly series at once. No block folds rows itself.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AnalyticsPanel } from "../components/AnalyticsPanel";
 import { HourlyChart } from "../components/HourlyChart";
 import { TrendPanel } from "../components/TrendPanel";
+import { DateNavigator } from "../components/ui/DateNavigator";
 import { SegmentedControl } from "../components/ui/SegmentedControl";
 import { useDayUsage } from "../hooks/useDayUsage";
 import { useI18n } from "../hooks/useI18n";
 import type { HourlyKind } from "../types/hourly";
-import { addDays, dayTotals, HOURLY_KINDS, isSameDay } from "../types/hourly";
+import { dayTotals, HOURLY_KINDS } from "../types/hourly";
 import { formatDuration } from "./Analytics/format";
 import analyticsStyles from "./Analytics/analytics.module.css";
 
+/** Local midnight of today, in epoch seconds: the last day the page may show. */
+function todayStart(): number {
+  return Math.floor(new Date().setHours(0, 0, 0, 0) / 1000);
+}
+
 /** Renders the analytics page. */
 export function AnalyticsPage() {
-  const { language, t } = useI18n();
-  const [day, setDay] = useState(() => new Date());
+  const { t } = useI18n();
+  const [dayStart, setDayStart] = useState(todayStart);
   const [kind, setKind] = useState<HourlyKind>("apps");
+  // The hook reads a `Date`, but the day itself is one number: midnight on the calendar.
+  const day = useMemo(() => new Date(dayStart * 1000), [dayStart]);
   const {
     busy,
     error: hourlyError,
@@ -52,36 +60,13 @@ export function AnalyticsPage() {
               }))}
               value={kind}
             />
-            <nav className={analyticsStyles.dayNav}>
-              <button
-                aria-label={t("analytics.hourly.previous")}
-                className="btn"
-                onClick={() => {
-                  setDay((current) => addDays(current, -1));
-                }}
-                type="button"
-              >
-                ‹
-              </button>
-              <span className={analyticsStyles.dayLabel}>
-                {day.toLocaleDateString(language, {
-                  day: "numeric",
-                  month: "short",
-                  weekday: "short",
-                })}
-              </span>
-              <button
-                aria-label={t("analytics.hourly.next")}
-                className="btn"
-                disabled={isSameDay(day, new Date())}
-                onClick={() => {
-                  setDay((current) => addDays(current, 1));
-                }}
-                type="button"
-              >
-                ›
-              </button>
-            </nav>
+            <DateNavigator
+              align="end"
+              label={t("analytics.day.label")}
+              max={todayStart()}
+              onChange={setDayStart}
+              value={dayStart}
+            />
           </div>
         }
         busy={busy}

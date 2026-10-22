@@ -43,6 +43,9 @@
     }
   },
   "analytics": {
+    "day": {
+      "label": "选择日期"
+    },
     "duration": {
       "hours": "{{hours}} 小时 {{minutes}} 分",
       "minutes": "{{minutes}} 分钟"
@@ -55,10 +58,8 @@
         "focus": "专注时长",
         "label": "图表"
       },
-      "next": "后一天",
       "other": "其他应用",
       "peak": "最忙的一小时 {{minutes}} 分钟",
-      "previous": "前一天",
       "title": "按小时分布",
       "total": "共 {{minutes}} 分钟"
     },

@@ -43,6 +43,9 @@
     }
   },
   "analytics": {
+    "day": {
+      "label": "Choose a day"
+    },
     "duration": {
       "hours": "{{hours}} h {{minutes}} min",
       "minutes": "{{minutes}} min"
@@ -55,10 +58,8 @@
         "focus": "Focus minutes",
         "label": "Chart"
       },
-      "next": "Next day",
       "other": "Other apps",
       "peak": "Peak hour: {{minutes}} min",
-      "previous": "Previous day",
       "title": "Hour by hour",
       "total": "{{minutes}} min in total"
     },

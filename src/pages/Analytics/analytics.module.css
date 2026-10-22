@@ -74,20 +74,6 @@
   gap: var(--space-3);
 }
 
-.day-nav {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.day-label {
-  min-width: 104px;
-  font-size: 12px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
 /* Both charts share one frame: a caption, the plot and, when it has series, the legend. */
 .chart-figure {
   display: grid;
