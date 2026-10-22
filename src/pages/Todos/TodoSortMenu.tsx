@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 
+import { ActionIcon } from "../../components/ui/ActionIcon";
 import { useI18n } from "../../hooks/useI18n";
 import type { TodoSort } from "./todos";
 import { TodoMenu } from "./TodoMenu";
@@ -44,10 +45,7 @@ export function TodoSortMenu({ onChange, sort }: TodoSortMenuProps) {
         title={t("todo.view.sortOpen")}
         type="button"
       >
-        <svg aria-hidden="true" viewBox="0 0 16 16">
-          <path d="M5 3.4v9.2M2.8 5.6 5 3.4l2.2 2.2" />
-          <path d="M11 12.6V3.4M8.8 10.4 11 12.6l2.2-2.2" />
-        </svg>
+        <ActionIcon name="sort" />
         {sort === "default" ? null : (
           <span aria-hidden="true" className={todosStyles.todoViewDot} />
         )}
@@ -73,9 +71,7 @@ export function TodoSortMenu({ onChange, sort }: TodoSortMenuProps) {
             >
               <span>{t(SORT_LABELS[value])}</span>
               {sort === value ? (
-                <svg aria-hidden="true" className={todosStyles.todoMenuCheck} viewBox="0 0 12 12">
-                  <path d="m2.5 6.5 2.5 2.5 4.5-5.5" />
-                </svg>
+                <ActionIcon className={todosStyles.todoMenuCheck} name="check" />
               ) : null}
             </button>
           ))}

@@ -290,14 +290,12 @@
   color: var(--accent-text);
 }
 
+/* The drawings come from the action set, which is authored on a 24-unit grid: 16px of it and a
+ * 2.1 stroke leave the 1.4px line the rest of the page's small icons are drawn with. */
 .todo-view-button svg {
-  width: 15px;
-  height: 15px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.1;
 }
 
 .todo-view-dot {
@@ -423,15 +421,12 @@
   color: var(--accent-text);
 }
 
-.todo-menu-check {
-  width: 12px;
-  height: 12px;
+/* Same drawing as the tick of a confirm button, sized down: 2.6 on the 24-unit grid is 1.6px here. */
+.todo-menu-option .todo-menu-check {
+  width: 15px;
+  height: 15px;
   flex: none;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  stroke-width: 2.6;
 }
 
 /* Tags wrap and scroll in place: a long catalog never grows the card past the screen. */

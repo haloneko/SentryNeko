@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 
+import { ActionIcon } from "../../components/ui/ActionIcon";
 import { useI18n } from "../../hooks/useI18n";
 import type { Tag } from "../../types/tag";
 import type { TodoFilter } from "../../types/todo";
@@ -63,9 +64,7 @@ export function TodoFilterMenu({
         title={t("todo.view.filterOpen")}
         type="button"
       >
-        <svg aria-hidden="true" viewBox="0 0 16 16">
-          <path d="M2.4 3.2h11.2L9.3 8.4v4.1l-2.6 1.4V8.4z" />
-        </svg>
+        <ActionIcon name="filter" />
         {narrowed ? <span aria-hidden="true" className={todosStyles.todoViewDot} /> : null}
       </button>
       {open ? (
@@ -97,9 +96,7 @@ export function TodoFilterMenu({
               >
                 <span>{t(FILTER_LABELS[value])}</span>
                 {filter === value ? (
-                  <svg aria-hidden="true" className={todosStyles.todoMenuCheck} viewBox="0 0 12 12">
-                    <path d="m2.5 6.5 2.5 2.5 4.5-5.5" />
-                  </svg>
+                  <ActionIcon className={todosStyles.todoMenuCheck} name="check" />
                 ) : null}
               </button>
             ))}
