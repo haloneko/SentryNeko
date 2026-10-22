@@ -9,73 +9,24 @@
   width: 100%;
 }
 
-/* The card's own name, sized to a card rather than to a browser default heading: the day below it
- * is what the page is about, so the title stays a quiet label. */
+/* The card's own name and the day being read share one line: the title on the left, the picker on
+ * the right, both on the same baseline of a card header. */
 .log-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+/* Sized to a card rather than to a browser default heading: the day beside it is what the page is
+ * about, so the title stays a quiet label. */
+.log-title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.01em;
-}
-
-/* Day navigation: the page moves by whole days, never by pages of rows. */
-.day-nav {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-}
-
-.day-button {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--surface);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition:
-    border-color 140ms ease,
-    color 140ms ease;
-}
-
-.day-button svg {
-  width: 14px;
-  height: 14px;
-  stroke-width: 2.2;
-}
-
-.day-button:hover:not(:disabled) {
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-
-.day-button:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.day-title {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.day-jump {
-  margin-left: auto;
-  padding: 2px 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--accent-text);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.day-jump:hover {
-  background: var(--accent-soft);
+  white-space: nowrap;
 }
 
 /*

@@ -1,0 +1,367 @@
+/*
+ * A day with a day either side: two arrows around the date, and a month grid under it for the far
+ * jumps. It reads as one control, so the parts share a height, a corner, and a focus ring.
+ */
+
+.navigator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.step {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.step svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.step:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.step:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* The date itself is the door to the calendar, so it carries the calendar's mark. */
+.day {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding-inline: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.day svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 140ms ease;
+}
+
+.day:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.day:hover svg,
+.day[aria-expanded="true"] svg {
+  stroke: var(--accent-text);
+}
+
+.day[aria-expanded="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.day-text {
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The way back to today sits under the grid, where a jump belongs rather than as a step. */
+.calendar-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.today-button {
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    filter 140ms ease;
+}
+
+.today-button:hover:enabled {
+  border-color: var(--accent);
+  filter: brightness(1.06);
+}
+
+.today-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The month grid drops under the control instead of moving it: the page under the calendar stays put. */
+.calendar {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  width: 288px;
+  padding: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow:
+    0 18px 44px rgb(8 10 18 / 22%),
+    0 2px 6px rgb(12 16 28 / 10%);
+  animation: calendar-in 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* At a card's right edge the panel grows to the left instead, so it stays inside the card. */
+.navigator[data-align="end"] .calendar {
+  right: 0;
+  left: auto;
+}
+
+.calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+/* The month reads as a title but behaves as a switch: it opens the year, or closes it again. */
+.title-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding-inline: 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.title-button:hover,
+.title-button[aria-expanded="true"] {
+  border-color: var(--border);
+  background: var(--surface-hover);
+}
+
+.title-button svg {
+  flex: none;
+  width: 9px;
+  height: 6px;
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 140ms ease;
+}
+
+.title-button[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.month-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Twelve months where the days were: the panel keeps its size, so nothing jumps between the two. */
+.months {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  min-height: 188px;
+  align-content: start;
+}
+
+.month-cell {
+  height: 44px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--surface-hover);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.month-cell:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.month-cell[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.month-cell:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.month-step {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.month-step svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.month-step:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.month-step:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.weekdays,
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.weekday {
+  padding-block: 2px 6px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.blank {
+  height: 30px;
+}
+
+/* A date is a quiet square until it is pointed at, the one already chosen, or today. */
+.cell {
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.cell:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.cell[data-today="true"] {
+  border-color: var(--border-strong);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.cell[data-selected="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.cell[data-selected="true"]:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.cell:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+@keyframes calendar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar {
+    animation: none;
+  }
+}

@@ -39,22 +39,9 @@ export function dayWindow(day: Date): { from: number; to: number } {
   return { from: Math.floor(start.getTime() / 1000), to: Math.floor(end.getTime() / 1000) };
 }
 
-/** The same day, moved by `days`; a local calendar step, so a clock change cannot shift it. */
-export function addDays(day: Date, days: number): Date {
-  const moved = new Date(day);
-  moved.setDate(moved.getDate() + days);
-
-  return moved;
-}
-
 /** The local hour a UTC timestamp falls in, `0` to `23`. */
 export function localHour(seconds: number): number {
   return new Date(seconds * 1000).getHours();
-}
-
-/** Whether two instants fall on the same local day. */
-export function isSameDay(left: Date, right: Date): boolean {
-  return dayWindow(left).from === dayWindow(right).from;
 }
 
 /** One bar of the stack: which app it draws and what the legend calls it. */
