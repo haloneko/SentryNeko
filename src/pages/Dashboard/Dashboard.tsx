@@ -77,7 +77,6 @@ export function Dashboard() {
 
   return (
     <>
-      <h1>{t("nav.dashboard")}</h1>
       <div className={dashboardStyles.dashGrid}>
         <div
           className={dashboardStyles.dashCells}
