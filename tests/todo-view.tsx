@@ -24,9 +24,10 @@ const now = Math.floor(Date.now() / 1000);
 /**
  * Tasks chosen so every order the card offers reads differently: newest-first, due-soonest,
  * oldest-first and A→Z each put a different task in front of the same three, and one is pinned.
+ * One task has already started (ongoing), one is past its end (late), one is finished.
  */
 const todos: Todo[] = [
-  { id: 1, title: "Zebra review", completed: false, createdAt: now - 3000, updatedAt: now - 3000, tagIds: [1], startAt: null, endAt: now + 300, starredAt: null, extra: {}, notes: null },
+  { id: 1, title: "Zebra review", completed: false, createdAt: now - 3000, updatedAt: now - 3000, tagIds: [1], startAt: now - 300, endAt: now + 300, starredAt: null, extra: {}, notes: null },
   { id: 2, title: "Beta write-up", completed: false, createdAt: now - 100, updatedAt: now - 100, tagIds: [2], startAt: null, endAt: null, starredAt: null, extra: {}, notes: null },
   { id: 3, title: "Gamma archive", completed: true, createdAt: now - 86_400, updatedAt: now - 86_400, tagIds: [], startAt: null, endAt: null, starredAt: null, extra: {}, notes: null },
   { id: 4, title: "Delta inbox", completed: false, createdAt: now - 5000, updatedAt: now - 5000, tagIds: [], startAt: null, endAt: null, starredAt: now - 50, extra: {}, notes: null },

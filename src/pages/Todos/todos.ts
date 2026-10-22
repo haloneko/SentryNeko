@@ -4,7 +4,7 @@ import type { TFunction } from "i18next";
 
 import type { LanguageCode } from "../../types/i18n";
 import type { Tag } from "../../types/tag";
-import type { Todo } from "../../types/todo";
+import type { Todo, TodoFilter } from "../../types/todo";
 
 /** How long ago something happened, in the largest unit that still reads as "ago". */
 export type Age =
@@ -173,6 +173,50 @@ export function isLate(todo: Todo, now: number): boolean {
 /** How many of `todos` are overdue at `now`; the badge over the list and the row flags share this. */
 export function overdueCount(todos: readonly Todo[], now: number): number {
   return todos.filter((todo) => isLate(todo, now)).length;
+}
+
+/** The state a task is in at `now`; the two planned states sit inside "open". */
+export type TodoStatus = "open" | "ongoing" | "late" | "completed";
+
+/**
+ * Which of the four a task is at this minute.
+ *
+ * A task is ongoing while the clock is inside the window it was given: it has started, and its
+ * moment has not passed. A window with only a start counts — the task is under way with no end set
+ * — while one with only an end is still a plan for later, so it stays open until it is late.
+ */
+export function statusOf(todo: Todo, now: number): TodoStatus {
+  if (todo.completed) {
+    return "completed";
+  }
+
+  if (isLate(todo, now)) {
+    return "late";
+  }
+
+  if (todo.startAt !== null && todo.startAt <= now) {
+    return "ongoing";
+  }
+
+  return "open";
+}
+
+/**
+ * Whether a task belongs in the list a filter asks for.
+ *
+ * `open` is everything unfinished, so it holds the ongoing and the late tasks too; the planned
+ * states are the narrow answer, and the clock decides them.
+ */
+export function matchesFilter(todo: Todo, filter: TodoFilter, now: number): boolean {
+  if (filter === "all") {
+    return true;
+  }
+
+  if (filter === "open") {
+    return !todo.completed;
+  }
+
+  return statusOf(todo, now) === filter;
 }
 
 /**

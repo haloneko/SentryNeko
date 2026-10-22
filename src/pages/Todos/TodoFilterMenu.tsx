@@ -1,44 +1,42 @@
-/** The filter button, and the card it opens: which statuses, which tag, and whether only the late. */
+/** The filter button, and the card it opens: which state the task is in, and which tag it carries. */
 
 import { useRef, useState } from "react";
 
-import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { useI18n } from "../../hooks/useI18n";
 import type { Tag } from "../../types/tag";
 import type { TodoFilter } from "../../types/todo";
 import { TodoMenu } from "./TodoMenu";
 import todosStyles from "./todos.module.css";
 
-const FILTERS: readonly TodoFilter[] = ["all", "active", "completed"];
+/** The states the card offers, in the order a task moves through them. */
+const FILTERS: readonly TodoFilter[] = ["all", "open", "ongoing", "late", "completed"];
 
 const FILTER_LABELS: Record<TodoFilter, string> = {
   all: "todo.filter.all",
-  active: "todo.filter.active",
+  open: "todo.filter.open",
+  ongoing: "todo.filter.ongoing",
+  late: "todo.filter.late",
   completed: "todo.filter.completed",
 };
 
 export interface TodoFilterMenuProps {
-  /** The status the list is asked for, which the backend answers. */
+  /** The state the list is asked for. */
   filter: TodoFilter;
-  onFilterChange: (filter: TodoFilter) => void;
-  /** Clears the status and the two filters this card adds. */
+  /** Puts the status and the tag back to "everything". */
   onClear: () => void;
-  onOverdueChange: (overdueOnly: boolean) => void;
+  onFilterChange: (filter: TodoFilter) => void;
   onTagChange: (tagId: number | null) => void;
-  overdueOnly: boolean;
   /** The one tag the list is narrowed to, or `null` for every tag. */
   tagId: number | null;
   tags: readonly Tag[];
 }
 
-/** A funnel over the list: the statuses, the tags and the overdue flag, each set in place. */
+/** A funnel over the list: the four states of a task and the tag it carries, set in place. */
 export function TodoFilterMenu({
   filter,
   onClear,
   onFilterChange,
-  onOverdueChange,
   onTagChange,
-  overdueOnly,
   tagId,
   tags,
 }: TodoFilterMenuProps) {
@@ -47,7 +45,7 @@ export function TodoFilterMenu({
   const anchor = useRef<HTMLButtonElement>(null);
 
   // The funnel is lit whenever it narrows anything: one glance says the list is not everything.
-  const narrowed = filter !== "all" || tagId !== null || overdueOnly;
+  const narrowed = filter !== "all" || tagId !== null;
 
   return (
     <>
@@ -78,16 +76,33 @@ export function TodoFilterMenu({
             setOpen(false);
           }}
         >
-          <div className={todosStyles.todoMenuSection}>
+          <div
+            aria-label={t("todo.filter.label")}
+            className={todosStyles.todoMenuSection}
+            role="group"
+          >
             <span aria-hidden="true" className={todosStyles.todoMenuHeading}>
               {t("todo.view.status")}
             </span>
-            <SegmentedControl
-              label={t("todo.filter.label")}
-              onChange={onFilterChange}
-              options={FILTERS.map((value) => ({ label: t(FILTER_LABELS[value]), value }))}
-              value={filter}
-            />
+            {FILTERS.map((value) => (
+              <button
+                aria-pressed={filter === value}
+                className={todosStyles.todoMenuOption}
+                data-testid="todo-status-option"
+                key={value}
+                onClick={() => {
+                  onFilterChange(value);
+                }}
+                type="button"
+              >
+                <span>{t(FILTER_LABELS[value])}</span>
+                {filter === value ? (
+                  <svg aria-hidden="true" className={todosStyles.todoMenuCheck} viewBox="0 0 12 12">
+                    <path d="m2.5 6.5 2.5 2.5 4.5-5.5" />
+                  </svg>
+                ) : null}
+              </button>
+            ))}
           </div>
           {tags.length === 0 ? null : (
             <div className={todosStyles.todoMenuSection}>
@@ -126,21 +141,6 @@ export function TodoFilterMenu({
               </div>
             </div>
           )}
-          <button
-            aria-pressed={overdueOnly}
-            className={todosStyles.todoMenuOption}
-            onClick={() => {
-              onOverdueChange(!overdueOnly);
-            }}
-            type="button"
-          >
-            <span>{t("todo.view.overdue")}</span>
-            {overdueOnly ? (
-              <svg aria-hidden="true" className={todosStyles.todoMenuCheck} viewBox="0 0 12 12">
-                <path d="m2.5 6.5 2.5 2.5 4.5-5.5" />
-              </svg>
-            ) : null}
-          </button>
           {narrowed ? (
             <button className={todosStyles.todoMenuClear} onClick={onClear} type="button">
               {t("todo.view.clear")}

@@ -29,7 +29,7 @@ test("the filter card hangs under its icon and narrows the list in place", async
   expect(Math.abs((box?.x ?? 0) - (anchor?.x ?? 0))).toBeLessThan(2);
   expect(box?.y ?? 0).toBeGreaterThan((anchor?.y ?? 0) + (anchor?.height ?? 0));
 
-  // The status switch keeps its old job, now inside the card, and the card stays open for the rest.
+  // The states are picked in the card, and the card stays open for the rest.
   await card.getByRole("button", { name: "Completed", exact: true }).click();
   await expect(page.locator('[data-testid="todo-row"]')).toHaveCount(1);
   await expect.poll(() => titles(page)).toEqual(["Gamma archive"]);
@@ -44,9 +44,16 @@ test("the filter card hangs under its icon and narrows the list in place", async
   await card.getByRole("button", { name: "#work", exact: true }).click();
   await expect(page.locator('[data-testid="todo-row"]')).toHaveCount(5);
 
-  // Overdue only leaves the task whose moment has gone by.
-  await card.getByRole("button", { name: "Overdue only" }).click();
+  // The clock decides the two planned states: the started task is in progress, the past one is
+  // overdue, and both of them are still unfinished.
+  await card.getByRole("button", { name: "In progress", exact: true }).click();
+  await expect.poll(() => titles(page)).toEqual(["Zebra review"]);
+
+  await card.getByRole("button", { name: "Overdue", exact: true }).click();
   await expect.poll(() => titles(page)).toEqual(["Aardvark fix"]);
+
+  await card.getByRole("button", { name: "Open", exact: true }).click();
+  await expect(page.locator('[data-testid="todo-row"]')).toHaveCount(4);
 
   // Clearing is one click, and the icon stops advertising a narrowed list.
   await card.getByRole("button", { name: "Clear filters" }).click();

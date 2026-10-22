@@ -10,7 +10,7 @@ import { useTags } from "../../hooks/useTags";
 import { useTodos } from "../../hooks/useTodos";
 import type { Todo } from "../../types/todo";
 import type { TodoSort } from "./todos";
-import { groupTodos, isLate, overdueCount, searchTodos } from "./todos";
+import { groupTodos, matchesFilter, overdueCount, searchTodos } from "./todos";
 import { TodoFilterMenu } from "./TodoFilterMenu";
 import { TodoItem } from "./TodoItem";
 import { TodoSearch } from "./TodoSearch";
@@ -94,29 +94,28 @@ export function TodoList() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<number>>(() => new Set());
   const [leaving, setLeaving] = useState<ReadonlySet<number>>(() => new Set());
-  // The order the list is drawn in, and the two narrowings the filter card adds on top of the
-  // status the backend already answers.
+  // The order the list is drawn in, and the tag the filter card adds on top of the status. The
+  // status itself is the backend's answer, except for the two planned states, which the clock
+  // decides here: a task is ongoing or late at this minute, not when the list was loaded.
   const [sort, setSort] = useState<TodoSort>("default");
   const [tagId, setTagId] = useState<number | null>(null);
-  const [overdueOnly, setOverdueOnly] = useState(false);
 
   const visible = useMemo(() => {
     const searched = searchTodos(todos, tags, query);
     const tagged =
       tagId === null ? searched : searched.filter((todo) => todo.tagIds.includes(tagId));
 
-    return overdueOnly ? tagged.filter((todo) => isLate(todo, now)) : tagged;
-  }, [now, overdueOnly, query, tagId, tags, todos]);
+    return tagged.filter((todo) => matchesFilter(todo, filter, now));
+  }, [filter, now, query, tagId, tags, todos]);
   const groups = useMemo(
     () => groupTodos(visible, sort, language),
     [language, sort, visible],
   );
 
-  /** Puts the status and the two card filters back to "everything". */
+  /** Puts the status and the tag back to "everything". */
   const clearFilters = (): void => {
     setFilter("all");
     setTagId(null);
-    setOverdueOnly(false);
   };
 
   // Counted against the same minute the rows read, so the badge and the flags on the rows agree.
@@ -446,9 +445,7 @@ export function TodoList() {
           filter={filter}
           onClear={clearFilters}
           onFilterChange={setFilter}
-          onOverdueChange={setOverdueOnly}
           onTagChange={setTagId}
-          overdueOnly={overdueOnly}
           tagId={tagId}
           tags={tags}
         />
@@ -472,7 +469,7 @@ export function TodoList() {
           <span className={todosStyles.todoOverdue}>{t("todo.overdue", { count: overdue })}</span>
         ) : null}
         <span className={todosStyles.todoCount}>
-          {query === "" && tagId === null && !overdueOnly
+          {query === "" && tagId === null && filter !== "ongoing" && filter !== "late"
             ? t("todo.remaining", { remaining: counts.remaining })
             : t("todo.search.results", { count: visible.length })}
         </span>

@@ -41,17 +41,18 @@ const EMPTY_COUNTS: TodoCounts = { total: 0, remaining: 0, completed: 0 };
 
 const EMPTY_COMPLETIONS: TodoCompletions = { all: 0, today: 0 };
 
-/** Maps the UI filter to the `completed` argument the command takes. */
+/**
+ * Maps the UI filter to the `completed` argument the command takes.
+ *
+ * The planned states — ongoing and late — are both read off the open list; the clock, not the
+ * backend, says which open task is in which of them.
+ */
 function completionArgument(filter: TodoFilter): boolean | null {
-  if (filter === "active") {
-    return false;
+  if (filter === "all") {
+    return null;
   }
 
-  if (filter === "completed") {
-    return true;
-  }
-
-  return null;
+  return filter === "completed";
 }
 
 /** Runs a command, answering `UNSUPPORTED` outside Tauri so the UI can react the same way. */
@@ -67,20 +68,23 @@ async function request<T>(command: string, args: Record<string, unknown> = {}): 
  * Whether a task still belongs in the list the current filter shows.
  *
  * The list is always what the backend would answer for the filter, and a change made on the page
- * has to keep it that way: a task ticked off under "active" is left out, and a task added under
+ * has to keep it that way: a task ticked off under "open" is left out, and a task added under
  * "completed" is not slipped in. Under "all" every task belongs, which is what lets a ticked task
  * stay on the page and move between the two groups instead of leaving the list.
+ *
+ * The planned states share the open list with `open`, so a ticked task leaves it the same way. The
+ * page then asks the clock whether the task is still ongoing or already late.
  */
 function belongs(todo: Todo, filter: TodoFilter): boolean {
-  if (filter === "active") {
-    return !todo.completed;
+  if (filter === "all") {
+    return true;
   }
 
   if (filter === "completed") {
     return todo.completed;
   }
 
-  return true;
+  return !todo.completed;
 }
 
 /** The counts after a task appears, changes or goes away; a missing side is passed as `null`. */

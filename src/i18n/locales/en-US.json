@@ -363,13 +363,15 @@
     "error": "The list could not be loaded.",
     "filter": {
       "all": "All",
-      "active": "Active",
       "completed": "Completed",
       "empty": "Nothing under this filter.",
-      "label": "Filter by status"
+      "label": "Filter by status",
+      "late": "Overdue",
+      "ongoing": "In progress",
+      "open": "Open"
     },
     "group": {
-      "active": "Active",
+      "active": "Open",
       "completed": "Completed"
     },
     "loading": "Loading…",
@@ -436,7 +438,6 @@
       "clear": "Clear filters",
       "filter": "Filter",
       "filterOpen": "Filter tasks",
-      "overdue": "Overdue only",
       "sort": "Sort",
       "sortOpen": "Sort tasks",
       "status": "Status",
