@@ -499,13 +499,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The switch that turns the mode on keeps the accent while it is on, so the page says so. */
-.todo-select-toggle[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-
 /*
  * The bulk bar. It is in the flow all along and only unfolds, so switching modes is one move: the
  * rows below are pushed down by the grid row growing instead of jumping when a node appears.

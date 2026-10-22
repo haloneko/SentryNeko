@@ -15,6 +15,7 @@ export type ActionIconName =
   | "plus"
   | "remove"
   | "reset"
+  | "select"
   | "sort"
   | "undo";
 
@@ -55,6 +56,14 @@ const DRAWINGS: Record<ActionIconName, ReactNode> = {
   ),
   // Funnel: narrow a list down to a state or a tag.
   filter: <path d="M3.6 4.8h16.8L14 12.6v6.1l-4 2.2v-8.3z" />,
+  // Two cards, the front one ticked: pick several of them at once.
+  select: (
+    <>
+      <rect height="12.6" rx="3.4" width="12.6" x="3.4" y="8" />
+      <path d="M7.5 14.3l2.2 2.2 4.2-4.7" />
+      <path d="M8.4 4.2h7.6a3.8 3.8 0 0 1 3.8 3.8v7.6" />
+    </>
+  ),
   // Two arrows pointing opposite ways: the order the list is drawn in.
   sort: (
     <>

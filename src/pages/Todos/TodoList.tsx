@@ -458,9 +458,12 @@ export function TodoList() {
           tags={tags}
         />
         <TodoSortMenu onChange={setSort} sort={sort} />
+        {/* The switch turns into a cross while the mode is on, so its state reads without the title. */}
         <button
+          aria-label={selecting ? t("todo.select.exit") : t("todo.select.enter")}
           aria-pressed={selecting}
-          className={`btn btn-quiet ${todosStyles.todoSelectToggle}`}
+          className={todosStyles.todoViewButton}
+          data-active={selecting}
           data-testid="todo-select-toggle"
           onClick={() => {
             if (selecting) {
@@ -469,9 +472,10 @@ export function TodoList() {
               setSelecting(true);
             }
           }}
+          title={selecting ? t("todo.select.exit") : t("todo.select.enter")}
           type="button"
         >
-          {selecting ? t("todo.select.exit") : t("todo.select.enter")}
+          <ActionIcon name={selecting ? "cancel" : "select"} />
         </button>
         {overdue > 0 ? (
           <span className={todosStyles.todoOverdue}>{t("todo.overdue", { count: overdue })}</span>

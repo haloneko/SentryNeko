@@ -24,9 +24,13 @@ test("the filter card hangs under its icon and narrows the list in place", async
   const card = cardOf(page, "Filter");
   await expect(card).toBeVisible();
 
-  // Hung from the icon: the same left edge, one gap below it.
+  // Hung from the icon: never to the right of it, covering it, one gap below. It is pulled back
+  // only when the window edge is too close for the card's own width.
   const box = await card.boundingBox();
-  expect(Math.abs((box?.x ?? 0) - (anchor?.x ?? 0))).toBeLessThan(2);
+  expect(box?.x ?? 0).toBeLessThanOrEqual((anchor?.x ?? 0) + 1);
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeGreaterThanOrEqual(
+    (anchor?.x ?? 0) + (anchor?.width ?? 0),
+  );
   expect(box?.y ?? 0).toBeGreaterThan((anchor?.y ?? 0) + (anchor?.height ?? 0));
 
   // The states are picked in the card, and the card stays open for the rest.
