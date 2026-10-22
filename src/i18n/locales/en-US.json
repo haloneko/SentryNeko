@@ -390,7 +390,6 @@
       "startPanel": "Pick a start time",
       "until": "Due {{time}}"
     },
-    "remaining": "{{remaining}} left",
     "search": {
       "clear": "Clear search",
       "empty": "No tasks match “{{query}}”.",

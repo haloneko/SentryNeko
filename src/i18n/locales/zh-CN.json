@@ -390,7 +390,6 @@
       "startPanel": "选择开始时间",
       "until": "截止 {{time}}"
     },
-    "remaining": "剩余 {{remaining}} 项",
     "search": {
       "clear": "清空搜索",
       "empty": "没有匹配「{{query}}」的任务。",

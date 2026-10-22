@@ -112,6 +112,14 @@ export function TodoList() {
     [language, sort, visible],
   );
 
+  /**
+   * Whether the list on screen is narrower than the page head describes.
+   *
+   * The head already says how many tasks are left, so a second total beside the search would only
+   * repeat it. A narrowed list is a different number from that total, which is what earns this one.
+   */
+  const narrowed = query !== "" || tagId !== null || filter === "ongoing" || filter === "late";
+
   /** Puts the status and the tag back to "everything". */
   const clearFilters = (): void => {
     setFilter("all");
@@ -468,11 +476,11 @@ export function TodoList() {
         {overdue > 0 ? (
           <span className={todosStyles.todoOverdue}>{t("todo.overdue", { count: overdue })}</span>
         ) : null}
-        <span className={todosStyles.todoCount}>
-          {query === "" && tagId === null && filter !== "ongoing" && filter !== "late"
-            ? t("todo.remaining", { remaining: counts.remaining })
-            : t("todo.search.results", { count: visible.length })}
-        </span>
+        {narrowed ? (
+          <span className={todosStyles.todoCount}>
+            {t("todo.search.results", { count: visible.length })}
+          </span>
+        ) : null}
       </div>
 
       {/*
