@@ -29,6 +29,17 @@ pub fn list_app_events(
     AppEvent::page(&db, before, limit).into()
 }
 
+/// Returns the rows that started inside `[from, to)`, newest first: one day for the timeline.
+#[tauri::command]
+pub fn list_app_events_between(
+    db: State<'_, Db>,
+    from: i64,
+    to: i64,
+    limit: i64,
+) -> ApiResponse<AppEventPage> {
+    AppEvent::between(&db, from, to, limit).into()
+}
+
 fn usage(db: &Db, from: i64, to: i64, limit: i64) -> ApiResult<Vec<AppUsage>> {
     // A window reaching into the future would count hours that have not happened yet, so the end is
     // cut at the present.
