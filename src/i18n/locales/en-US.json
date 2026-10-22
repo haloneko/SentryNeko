@@ -363,13 +363,15 @@
     "error": "The list could not be loaded.",
     "filter": {
       "all": "All",
-      "active": "Active",
       "completed": "Completed",
       "empty": "Nothing under this filter.",
-      "label": "Filter by status"
+      "label": "Filter by status",
+      "late": "Overdue",
+      "ongoing": "In progress",
+      "open": "Open"
     },
     "group": {
-      "active": "Active",
+      "active": "Open",
       "completed": "Completed"
     },
     "loading": "Loading…",
@@ -388,7 +390,6 @@
       "startPanel": "Pick a start time",
       "until": "Due {{time}}"
     },
-    "remaining": "{{remaining}} left",
     "search": {
       "clear": "Clear search",
       "empty": "No tasks match “{{query}}”.",
@@ -405,6 +406,12 @@
       "exit": "Exit selection",
       "invert": "Invert",
       "item": "Select “{{title}}”"
+    },
+    "sort": {
+      "default": "Default (pinned first)",
+      "due": "Due soonest",
+      "oldest": "Oldest first",
+      "title": "Title A→Z"
     },
     "star": {
       "add": "Star this task",
@@ -424,7 +431,17 @@
       "minutes": "{{count}}m ago",
       "now": "just now"
     },
-    "toggle": "Mark as done"
+    "toggle": "Mark as done",
+    "view": {
+      "allTags": "All tags",
+      "clear": "Clear filters",
+      "filter": "Filter",
+      "filterOpen": "Filter tasks",
+      "sort": "Sort",
+      "sortOpen": "Sort tasks",
+      "status": "Status",
+      "tags": "Tags"
+    }
   },
   "window": {
     "minimize": "Minimize",

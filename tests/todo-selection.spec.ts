@@ -12,12 +12,12 @@ test("selection mode picks rows, acts on them and closes on Escape", async ({ pa
   await page.goto("/tests/todo-selection.html?theme=dark&language=en-US");
   await expect(page.getByRole("heading", { name: "Todos" })).toBeVisible();
 
-  // The switch keeps its class while its label changes, so it is addressed by the class.
+  // The switch draws an icon, so its state is read through the label it carries for a screen reader.
   const toggle = page.locator('[data-testid="todo-select-toggle"]');
-  await expect(toggle).toHaveText("Select tasks");
+  await expect(toggle).toHaveAttribute("aria-label", "Select tasks");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
-  await expect(toggle).toHaveText("Exit selection");
+  await expect(toggle).toHaveAttribute("aria-label", "Exit selection");
 
   const bar = page.getByRole("region", { name: "Select tasks" });
   await expect(bar.getByText("0 selected")).toBeVisible();

@@ -4,24 +4,18 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 import { ActionIcon } from "../../components/ui/ActionIcon";
 import { Popconfirm } from "../../components/ui/Popconfirm";
-import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { useI18n } from "../../hooks/useI18n";
 import { useMinuteClock } from "../../hooks/useMinuteClock";
 import { useTags } from "../../hooks/useTags";
 import { useTodos } from "../../hooks/useTodos";
-import type { Todo, TodoFilter } from "../../types/todo";
-import { groupTodos, overdueCount, searchTodos } from "./todos";
+import type { Todo } from "../../types/todo";
+import type { TodoSort } from "./todos";
+import { groupTodos, matchesFilter, overdueCount, searchTodos } from "./todos";
+import { TodoFilterMenu } from "./TodoFilterMenu";
 import { TodoItem } from "./TodoItem";
 import { TodoSearch } from "./TodoSearch";
+import { TodoSortMenu } from "./TodoSortMenu";
 import todosStyles from "./todos.module.css";
-
-const FILTERS: readonly TodoFilter[] = ["all", "active", "completed"];
-
-const FILTER_LABELS: Record<TodoFilter, string> = {
-  all: "todo.filter.all",
-  active: "todo.filter.active",
-  completed: "todo.filter.completed",
-};
 
 /** The two groups a task can sit in, in the order they are shown. */
 const GROUPS = ["active", "completed"] as const;
@@ -77,7 +71,7 @@ const SETTLE_MS = 640;
 
 /** Filter switch, the search, the groups themselves and the bulk actions. */
 export function TodoList() {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const {
     counts,
     error,
@@ -100,9 +94,37 @@ export function TodoList() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<number>>(() => new Set());
   const [leaving, setLeaving] = useState<ReadonlySet<number>>(() => new Set());
+  // The order the list is drawn in, and the tag the filter card adds on top of the status. The
+  // status itself is the backend's answer, except for the two planned states, which the clock
+  // decides here: a task is ongoing or late at this minute, not when the list was loaded.
+  const [sort, setSort] = useState<TodoSort>("default");
+  const [tagId, setTagId] = useState<number | null>(null);
 
-  const visible = useMemo(() => searchTodos(todos, tags, query), [todos, tags, query]);
-  const groups = useMemo(() => groupTodos(visible), [visible]);
+  const visible = useMemo(() => {
+    const searched = searchTodos(todos, tags, query);
+    const tagged =
+      tagId === null ? searched : searched.filter((todo) => todo.tagIds.includes(tagId));
+
+    return tagged.filter((todo) => matchesFilter(todo, filter, now));
+  }, [filter, now, query, tagId, tags, todos]);
+  const groups = useMemo(
+    () => groupTodos(visible, sort, language),
+    [language, sort, visible],
+  );
+
+  /**
+   * Whether the list on screen is narrower than the page head describes.
+   *
+   * The head already says how many tasks are left, so a second total beside the search would only
+   * repeat it. A narrowed list is a different number from that total, which is what earns this one.
+   */
+  const narrowed = query !== "" || tagId !== null || filter === "ongoing" || filter === "late";
+
+  /** Puts the status and the tag back to "everything". */
+  const clearFilters = (): void => {
+    setFilter("all");
+    setTagId(null);
+  };
 
   // Counted against the same minute the rows read, so the badge and the flags on the rows agree.
   // It covers what the search leaves: a count of tasks that are not on the screen beside them
@@ -426,15 +448,22 @@ export function TodoList() {
     <section className={todosStyles.todoPanel}>
       <div className={todosStyles.todoToolbar}>
         <TodoSearch onChange={setQuery} query={query} />
-        <SegmentedControl
-          label={t("todo.filter.label")}
-          onChange={setFilter}
-          options={FILTERS.map((value) => ({ label: t(FILTER_LABELS[value]), value }))}
-          value={filter}
+        {/* The status switch keeps its place inside the funnel: it is the narrowing used daily. */}
+        <TodoFilterMenu
+          filter={filter}
+          onClear={clearFilters}
+          onFilterChange={setFilter}
+          onTagChange={setTagId}
+          tagId={tagId}
+          tags={tags}
         />
+        <TodoSortMenu onChange={setSort} sort={sort} />
+        {/* The switch turns into a cross while the mode is on, so its state reads without the title. */}
         <button
+          aria-label={selecting ? t("todo.select.exit") : t("todo.select.enter")}
           aria-pressed={selecting}
-          className={`btn btn-quiet ${todosStyles.todoSelectToggle}`}
+          className={todosStyles.todoViewButton}
+          data-active={selecting}
           data-testid="todo-select-toggle"
           onClick={() => {
             if (selecting) {
@@ -443,18 +472,19 @@ export function TodoList() {
               setSelecting(true);
             }
           }}
+          title={selecting ? t("todo.select.exit") : t("todo.select.enter")}
           type="button"
         >
-          {selecting ? t("todo.select.exit") : t("todo.select.enter")}
+          <ActionIcon name={selecting ? "cancel" : "select"} />
         </button>
         {overdue > 0 ? (
           <span className={todosStyles.todoOverdue}>{t("todo.overdue", { count: overdue })}</span>
         ) : null}
-        <span className={todosStyles.todoCount}>
-          {query === ""
-            ? t("todo.remaining", { remaining: counts.remaining })
-            : t("todo.search.results", { count: visible.length })}
-        </span>
+        {narrowed ? (
+          <span className={todosStyles.todoCount}>
+            {t("todo.search.results", { count: visible.length })}
+          </span>
+        ) : null}
       </div>
 
       {/*

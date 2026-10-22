@@ -71,7 +71,11 @@ test("the star comes back with the row when the filter reloads the list", async 
   await expect(rowOf(page, REPORT)).toHaveAttribute("data-starred", "true");
 
   // A filter switch asks the backend again, so the answer has to carry the pin with it.
-  await page.getByRole("button", { name: "Completed", exact: true }).click();
+  await page.getByTestId("todo-filter-button").click();
+
+  const filter = page.getByRole("dialog", { name: "Filter", exact: true });
+
+  await filter.getByRole("button", { name: "Completed", exact: true }).click();
   await expect(page.locator('[data-testid="todo-row"]')).toHaveCount(2);
   await expect.poll(() => titlesInOrder(page)).toEqual([REPORT, REVIEW]);
   await expect(rowOf(page, REPORT).getByTestId("todo-star")).toHaveAttribute(
@@ -79,7 +83,7 @@ test("the star comes back with the row when the filter reloads the list", async 
     "true",
   );
 
-  await page.getByRole("button", { name: "All", exact: true }).click();
+  await filter.getByRole("button", { name: "All", exact: true }).click();
   await expect(page.locator('[data-testid="todo-row"]')).toHaveCount(4);
   await expect(rowOf(page, REPORT)).toHaveAttribute("data-starred", "true");
 });

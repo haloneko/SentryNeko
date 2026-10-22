@@ -37,8 +37,14 @@ export interface TodoCounts {
   completed: number;
 }
 
-/** Which tasks the page shows; `list_todos` takes the same three states. */
-export type TodoFilter = "all" | "active" | "completed";
+/**
+ * Which tasks the page shows.
+ *
+ * `open` is everything still to do, and `ongoing` and `late` are the two states a planned task can
+ * be in at this minute — both of them sit inside `open`. `list_todos` only knows the completion
+ * flag, so the planned states are drawn from the open list against the clock.
+ */
+export type TodoFilter = "all" | "open" | "ongoing" | "late" | "completed";
 
 /**
  * Finished tasks, mirrored from `models::todo::TodoCompletions`.

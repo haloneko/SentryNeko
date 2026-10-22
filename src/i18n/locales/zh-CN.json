@@ -363,13 +363,15 @@
     "error": "列表加载失败。",
     "filter": {
       "all": "全部",
-      "active": "进行中",
       "completed": "已完成",
       "empty": "这个筛选下还没有任务。",
-      "label": "按状态筛选"
+      "label": "按状态筛选",
+      "late": "已逾期",
+      "ongoing": "进行中",
+      "open": "未完成"
     },
     "group": {
-      "active": "进行中",
+      "active": "未完成",
       "completed": "已完成"
     },
     "loading": "加载中…",
@@ -388,7 +390,6 @@
       "startPanel": "选择开始时间",
       "until": "截止 {{time}}"
     },
-    "remaining": "剩余 {{remaining}} 项",
     "search": {
       "clear": "清空搜索",
       "empty": "没有匹配「{{query}}」的任务。",
@@ -405,6 +406,12 @@
       "exit": "退出选择",
       "invert": "反选",
       "item": "选择「{{title}}」"
+    },
+    "sort": {
+      "default": "默认（置顶优先）",
+      "due": "截止时间最近",
+      "oldest": "最早创建在前",
+      "title": "标题 A→Z"
     },
     "star": {
       "add": "标为星标",
@@ -424,7 +431,17 @@
       "minutes": "{{count}} 分钟前",
       "now": "刚刚"
     },
-    "toggle": "标记为完成"
+    "toggle": "标记为完成",
+    "view": {
+      "allTags": "全部标签",
+      "clear": "清除筛选",
+      "filter": "筛选",
+      "filterOpen": "筛选任务",
+      "sort": "排序",
+      "sortOpen": "排序方式",
+      "status": "状态",
+      "tags": "标签"
+    }
   },
   "window": {
     "minimize": "最小化",

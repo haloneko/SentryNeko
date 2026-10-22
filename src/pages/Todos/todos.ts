@@ -4,7 +4,7 @@ import type { TFunction } from "i18next";
 
 import type { LanguageCode } from "../../types/i18n";
 import type { Tag } from "../../types/tag";
-import type { Todo } from "../../types/todo";
+import type { Todo, TodoFilter } from "../../types/todo";
 
 /** How long ago something happened, in the largest unit that still reads as "ago". */
 export type Age =
@@ -28,48 +28,98 @@ export function matchesQuery(todo: Todo, tags: readonly Tag[], query: string): b
   return todo.tagIds.some((id) => names.get(id)?.includes(needle) ?? false);
 }
 
-/**
- * Starred tasks first, the most recently starred on top; everything else newest first, so a task
- * that was just added arrives at the top of its group.
- *
- * A pin is a way of saying "this one matters now", so the latest pin is the most prominent one. The
- * order of the unpinned tasks is untouched: pinning something never rearranges the rest.
- */
-export function sortTodos(todos: readonly Todo[]): readonly Todo[] {
-  return [...todos].sort((a, b) => {
-    if (a.starredAt !== null || b.starredAt !== null) {
-      if (a.starredAt === null) {
-        return 1;
-      }
+/** How the page orders the tasks inside a group. */
+export type TodoSort = "default" | "due" | "oldest" | "title";
 
-      if (b.starredAt === null) {
-        return -1;
-      }
-
-      return b.starredAt - a.starredAt || b.id - a.id;
-    }
-
-    return b.createdAt - a.createdAt || b.id - a.id;
-  });
+/** Newest first, which is how a task that was just added arrives at the top of its group. */
+function newestFirst(a: Todo, b: Todo): number {
+  return b.createdAt - a.createdAt || b.id - a.id;
 }
 
-/** The tasks the search leaves, in the order the page shows them. */
+/** The tasks planned to end soonest first; a task with no end waits behind the ones that have one. */
+function byDeadline(a: Todo, b: Todo): number {
+  if (a.endAt === null || b.endAt === null) {
+    if (a.endAt === b.endAt) {
+      return 0;
+    }
+
+    return a.endAt === null ? 1 : -1;
+  }
+
+  return a.endAt - b.endAt;
+}
+
+
+function pinnedFirst(a: Todo, b: Todo): number | null {
+  if (a.starredAt === null && b.starredAt === null) {
+    return null;
+  }
+
+  if (a.starredAt === null) {
+    return 1;
+  }
+
+  if (b.starredAt === null) {
+    return -1;
+  }
+
+  return null;
+}
+
+
+export function sortTodos(
+  todos: readonly Todo[],
+  sort: TodoSort = "default",
+  language: LanguageCode = "zh-CN",
+): readonly Todo[] {
+  const byKey = (a: Todo, b: Todo): number => {
+    if (sort === "due") {
+      return byDeadline(a, b);
+    }
+
+    if (sort === "oldest") {
+      return a.createdAt - b.createdAt || a.id - b.id;
+    }
+
+    if (sort === "title") {
+      return a.title.localeCompare(b.title, language) || a.id - b.id;
+    }
+
+    return a.starredAt === null || b.starredAt === null ? 0 : b.starredAt - a.starredAt;
+  };
+
+  return [...todos].sort((a, b) => pinnedFirst(a, b) ?? (byKey(a, b) || newestFirst(a, b)));
+}
+
+/** The tasks the search leaves; the order they are drawn in is decided when they are grouped. */
 export function searchTodos(
   todos: readonly Todo[],
   tags: readonly Tag[],
   query: string,
 ): readonly Todo[] {
-  return sortTodos(todos.filter((todo) => matchesQuery(todo, tags, query)));
+  return todos.filter((todo) => matchesQuery(todo, tags, query));
 }
 
 /** The two groups the list is drawn in; the backend filter decides whether both can be non-empty. */
-export function groupTodos(todos: readonly Todo[]): {
+export function groupTodos(
+  todos: readonly Todo[],
+  sort: TodoSort = "default",
+  language: LanguageCode = "zh-CN",
+): {
   active: readonly Todo[];
   completed: readonly Todo[];
 } {
   return {
-    active: sortTodos(todos.filter((todo) => !todo.completed)),
-    completed: sortTodos(todos.filter((todo) => todo.completed)),
+    active: sortTodos(
+      todos.filter((todo) => !todo.completed),
+      sort,
+      language,
+    ),
+    completed: sortTodos(
+      todos.filter((todo) => todo.completed),
+      sort,
+      language,
+    ),
   };
 }
 
@@ -123,6 +173,50 @@ export function isLate(todo: Todo, now: number): boolean {
 /** How many of `todos` are overdue at `now`; the badge over the list and the row flags share this. */
 export function overdueCount(todos: readonly Todo[], now: number): number {
   return todos.filter((todo) => isLate(todo, now)).length;
+}
+
+/** The state a task is in at `now`; the two planned states sit inside "open". */
+export type TodoStatus = "open" | "ongoing" | "late" | "completed";
+
+/**
+ * Which of the four a task is at this minute.
+ *
+ * A task is ongoing while the clock is inside the window it was given: it has started, and its
+ * moment has not passed. A window with only a start counts — the task is under way with no end set
+ * — while one with only an end is still a plan for later, so it stays open until it is late.
+ */
+export function statusOf(todo: Todo, now: number): TodoStatus {
+  if (todo.completed) {
+    return "completed";
+  }
+
+  if (isLate(todo, now)) {
+    return "late";
+  }
+
+  if (todo.startAt !== null && todo.startAt <= now) {
+    return "ongoing";
+  }
+
+  return "open";
+}
+
+/**
+ * Whether a task belongs in the list a filter asks for.
+ *
+ * `open` is everything unfinished, so it holds the ongoing and the late tasks too; the planned
+ * states are the narrow answer, and the clock decides them.
+ */
+export function matchesFilter(todo: Todo, filter: TodoFilter, now: number): boolean {
+  if (filter === "all") {
+    return true;
+  }
+
+  if (filter === "open") {
+    return !todo.completed;
+  }
+
+  return statusOf(todo, now) === filter;
 }
 
 /**
