@@ -162,11 +162,48 @@
   border-color: var(--accent);
 }
 
-/* The title turns into this field while it is being renamed. */
+/*
+ * The title turns into this field while it is being renamed. It draws no box: no border, no fill, no
+ * padding to shift the text, and the same type as the line it replaces, so the row does not move
+ * when the field takes over. The height follows the text, which the field measures as it is typed.
+ */
 .todo-input-inline {
+  display: block;
   width: 100%;
-  padding: 4px var(--space-3);
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
   font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  caret-color: var(--accent);
+  resize: none;
+}
+
+/* The ring belongs to the card while the field is open; the text itself stays bare. */
+.todo-input-inline:focus-visible {
+  border: 0;
+  outline: none;
+}
+
+/*
+ * Editing is the row's state, not a box's: the card takes the accent and its meta steps back, so
+ * what is left is the text being written.
+ */
+.todo-card[data-editing="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.todo-card[data-editing="true"] .todo-meta {
+  opacity: 0.4;
 }
 
 /*
@@ -636,7 +673,10 @@
   font: inherit;
   font-size: 14.5px;
   font-weight: 500;
+  line-height: 1.55;
   text-align: start;
+  /* A title may hold the line breaks the field below can open; what a title wraps into is its own. */
+  white-space: pre-line;
   overflow-wrap: anywhere;
   cursor: text;
   transition: color 160ms ease;
@@ -655,6 +695,7 @@
   gap: var(--space-2);
   color: var(--text-muted);
   font-size: 11.5px;
+  transition: opacity 160ms ease;
 }
 
 .todo-time {

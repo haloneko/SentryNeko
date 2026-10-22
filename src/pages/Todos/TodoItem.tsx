@@ -1,7 +1,7 @@
 /** One task: complete it, edit it, tag it, or take it off the list. */
 
-import { useState } from "react";
-import type { CSSProperties, MouseEvent } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
+import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
 
 import { ActionIcon } from "../../components/ui/ActionIcon";
 import { Popconfirm } from "../../components/ui/Popconfirm";
@@ -64,6 +64,38 @@ export function TodoItem({
   const [draft, setDraft] = useState<string | null>(null);
   const [tagging, setTagging] = useState(false);
   const [planning, setPlanning] = useState(false);
+  const field = useRef<HTMLTextAreaElement | null>(null);
+  const opened = useRef(false);
+  /** Where the title was last clicked, so the caret can be put back under the same spot. */
+  const clicked = useRef<{ x: number; y: number } | null>(null);
+
+  /*
+   * The title is edited in place, so the field may not draw a box of its own: it has to keep the
+   * height of the text it holds instead, which a textarea only does when it is measured.
+   */
+  useLayoutEffect(() => {
+    const element = field.current;
+
+    if (element === null) {
+      opened.current = false;
+      return;
+    }
+
+    element.style.height = "auto";
+    element.style.height = `${element.scrollHeight}px`;
+
+
+    if (!opened.current) {
+      const point = clicked.current;
+
+      opened.current = true;
+      clicked.current = null;
+
+      const caret = point === null ? element.value.length : caretIndexAt(element, point.x, point.y);
+
+      element.setSelectionRange(caret, caret);
+    }
+  }, [draft]);
 
   const age = ageOf(todo.createdAt, now);
   const names = tagNamesOf(todo, tags);
@@ -78,6 +110,32 @@ export function TodoItem({
 
     if (title !== "" && title !== todo.title) {
       onRename(todo, title);
+    }
+  };
+
+
+  const openField = (point: { x: number; y: number } | null): void => {
+    clicked.current = point;
+    setDraft(todo.title);
+  };
+
+  /**
+   * Enter stores the title, Shift+Enter opens a new line; a title that outgrows its row wraps either
+   * way. An IME owns Enter while its candidate list is open, so that keydown is not the task's.
+   */
+  const handleFieldKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (event.nativeEvent.isComposing) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      setDraft(null);
+      return;
+    }
+
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      commit();
     }
   };
 
@@ -110,6 +168,7 @@ export function TodoItem({
       <div
         className={todosStyles.todoCard}
         data-completed={todo.completed}
+        data-editing={draft !== null}
         data-enter={entering}
         data-testid="todo-card"
         onClick={selecting ? handleCardClick : undefined}
@@ -144,8 +203,8 @@ export function TodoItem({
             <button
               className={todosStyles.todoTitle}
               data-testid="todo-title"
-              onClick={() => {
-                setDraft(todo.title);
+              onClick={(event) => {
+                openField(event.detail === 0 ? null : { x: event.clientX, y: event.clientY });
               }}
               tabIndex={selecting ? -1 : 0}
               type="button"
@@ -153,7 +212,7 @@ export function TodoItem({
               {todo.title}
             </button>
           ) : (
-            <input
+            <textarea
               aria-label={t("todo.edit")}
               autoFocus
               className={`${todosStyles.todoInput} ${todosStyles.todoInputInline}`}
@@ -162,15 +221,9 @@ export function TodoItem({
               onChange={(event) => {
                 setDraft(event.target.value);
               }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  commit();
-                }
-
-                if (event.key === "Escape") {
-                  setDraft(null);
-                }
-              }}
+              onKeyDown={handleFieldKeyDown}
+              ref={field}
+              rows={1}
               value={draft}
             />
           )}
@@ -248,7 +301,7 @@ export function TodoItem({
             aria-label={t("todo.edit")}
             className={todosStyles.todoAction}
             onClick={() => {
-              setDraft(todo.title);
+              openField(null);
             }}
             title={t("todo.edit")}
             type="button"
@@ -315,4 +368,66 @@ export function TodoItem({
       </div>
     </li>
   );
+}
+
+function caretIndexAt(element: HTMLTextAreaElement, x: number, y: number): number {
+  const style = getComputedStyle(element);
+  const box = element.getBoundingClientRect();
+  const mirror = document.createElement("div");
+
+  mirror.textContent = element.value;
+  mirror.style.cssText = [
+    "position: fixed",
+    `left: ${box.left}px`,
+    `top: ${box.top}px`,
+    `width: ${box.width}px`,
+    "margin: 0",
+    "padding: 0",
+    "border: 0",
+    "box-sizing: border-box",
+    "white-space: pre-wrap",
+    "overflow-wrap: anywhere",
+    `font-family: ${style.fontFamily}`,
+    `font-size: ${style.fontSize}`,
+    `font-style: ${style.fontStyle}`,
+    `font-weight: ${style.fontWeight}`,
+    `letter-spacing: ${style.letterSpacing}`,
+    `line-height: ${style.lineHeight}`,
+    "opacity: 0",
+    "z-index: 9999",
+  ].join(";");
+  document.body.append(mirror);
+
+  try {
+    const text = mirror.firstChild;
+
+    return text instanceof Text ? caretIndexIn(text, x, y) : element.value.length;
+  } finally {
+    mirror.remove();
+  }
+}
+
+/** Where a point lands in a laid-out text node; the browsers name this call differently. */
+function caretIndexIn(text: Text, x: number, y: number): number {
+  const lookup = document as unknown as {
+    caretPositionFromPoint?: (
+      x: number,
+      y: number,
+    ) => { offset: number; offsetNode: Node } | null;
+    caretRangeFromPoint?: (x: number, y: number) => Range | null;
+  };
+  const position = lookup.caretPositionFromPoint?.(x, y) ?? null;
+
+  if (position !== null && position.offsetNode === text) {
+    return position.offset;
+  }
+
+  const range = lookup.caretRangeFromPoint?.(x, y) ?? null;
+
+  if (range !== null && range.startContainer === text) {
+    return range.startOffset;
+  }
+
+  // The point missed the text: the field opens with the caret at the end, as it always did.
+  return text.data.length;
 }
