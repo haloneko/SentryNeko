@@ -4,24 +4,18 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 import { ActionIcon } from "../../components/ui/ActionIcon";
 import { Popconfirm } from "../../components/ui/Popconfirm";
-import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { useI18n } from "../../hooks/useI18n";
 import { useMinuteClock } from "../../hooks/useMinuteClock";
 import { useTags } from "../../hooks/useTags";
 import { useTodos } from "../../hooks/useTodos";
-import type { Todo, TodoFilter } from "../../types/todo";
-import { groupTodos, overdueCount, searchTodos } from "./todos";
+import type { Todo } from "../../types/todo";
+import type { TodoSort } from "./todos";
+import { groupTodos, isLate, overdueCount, searchTodos } from "./todos";
+import { TodoFilterMenu } from "./TodoFilterMenu";
 import { TodoItem } from "./TodoItem";
 import { TodoSearch } from "./TodoSearch";
+import { TodoSortMenu } from "./TodoSortMenu";
 import todosStyles from "./todos.module.css";
-
-const FILTERS: readonly TodoFilter[] = ["all", "active", "completed"];
-
-const FILTER_LABELS: Record<TodoFilter, string> = {
-  all: "todo.filter.all",
-  active: "todo.filter.active",
-  completed: "todo.filter.completed",
-};
 
 /** The two groups a task can sit in, in the order they are shown. */
 const GROUPS = ["active", "completed"] as const;
@@ -77,7 +71,7 @@ const SETTLE_MS = 640;
 
 /** Filter switch, the search, the groups themselves and the bulk actions. */
 export function TodoList() {
-  const { t } = useI18n();
+  const { language, t } = useI18n();
   const {
     counts,
     error,
@@ -100,9 +94,30 @@ export function TodoList() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<ReadonlySet<number>>(() => new Set());
   const [leaving, setLeaving] = useState<ReadonlySet<number>>(() => new Set());
+  // The order the list is drawn in, and the two narrowings the filter card adds on top of the
+  // status the backend already answers.
+  const [sort, setSort] = useState<TodoSort>("default");
+  const [tagId, setTagId] = useState<number | null>(null);
+  const [overdueOnly, setOverdueOnly] = useState(false);
 
-  const visible = useMemo(() => searchTodos(todos, tags, query), [todos, tags, query]);
-  const groups = useMemo(() => groupTodos(visible), [visible]);
+  const visible = useMemo(() => {
+    const searched = searchTodos(todos, tags, query);
+    const tagged =
+      tagId === null ? searched : searched.filter((todo) => todo.tagIds.includes(tagId));
+
+    return overdueOnly ? tagged.filter((todo) => isLate(todo, now)) : tagged;
+  }, [now, overdueOnly, query, tagId, tags, todos]);
+  const groups = useMemo(
+    () => groupTodos(visible, sort, language),
+    [language, sort, visible],
+  );
+
+  /** Puts the status and the two card filters back to "everything". */
+  const clearFilters = (): void => {
+    setFilter("all");
+    setTagId(null);
+    setOverdueOnly(false);
+  };
 
   // Counted against the same minute the rows read, so the badge and the flags on the rows agree.
   // It covers what the search leaves: a count of tasks that are not on the screen beside them
@@ -426,12 +441,18 @@ export function TodoList() {
     <section className={todosStyles.todoPanel}>
       <div className={todosStyles.todoToolbar}>
         <TodoSearch onChange={setQuery} query={query} />
-        <SegmentedControl
-          label={t("todo.filter.label")}
-          onChange={setFilter}
-          options={FILTERS.map((value) => ({ label: t(FILTER_LABELS[value]), value }))}
-          value={filter}
+        {/* The status switch keeps its place inside the funnel: it is the narrowing used daily. */}
+        <TodoFilterMenu
+          filter={filter}
+          onClear={clearFilters}
+          onFilterChange={setFilter}
+          onOverdueChange={setOverdueOnly}
+          onTagChange={setTagId}
+          overdueOnly={overdueOnly}
+          tagId={tagId}
+          tags={tags}
         />
+        <TodoSortMenu onChange={setSort} sort={sort} />
         <button
           aria-pressed={selecting}
           className={`btn btn-quiet ${todosStyles.todoSelectToggle}`}
@@ -451,7 +472,7 @@ export function TodoList() {
           <span className={todosStyles.todoOverdue}>{t("todo.overdue", { count: overdue })}</span>
         ) : null}
         <span className={todosStyles.todoCount}>
-          {query === ""
+          {query === "" && tagId === null && !overdueOnly
             ? t("todo.remaining", { remaining: counts.remaining })
             : t("todo.search.results", { count: visible.length })}
         </span>

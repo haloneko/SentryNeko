@@ -406,6 +406,12 @@
       "invert": "Invert",
       "item": "Select “{{title}}”"
     },
+    "sort": {
+      "default": "Default (pinned first)",
+      "due": "Due soonest",
+      "oldest": "Oldest first",
+      "title": "Title A→Z"
+    },
     "star": {
       "add": "Star this task",
       "remove": "Remove the star"
@@ -424,7 +430,18 @@
       "minutes": "{{count}}m ago",
       "now": "just now"
     },
-    "toggle": "Mark as done"
+    "toggle": "Mark as done",
+    "view": {
+      "allTags": "All tags",
+      "clear": "Clear filters",
+      "filter": "Filter",
+      "filterOpen": "Filter tasks",
+      "overdue": "Overdue only",
+      "sort": "Sort",
+      "sortOpen": "Sort tasks",
+      "status": "Status",
+      "tags": "Tags"
+    }
   },
   "window": {
     "minimize": "Minimize",

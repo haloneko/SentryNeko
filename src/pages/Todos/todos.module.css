@@ -255,6 +255,237 @@
   stroke-linecap: round;
 }
 
+/*
+ * The filter and the order are icons: both are set once in a while, and two words that are only
+ * ever clicked do not deserve the width the search field needs.
+ */
+.todo-view-button {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.todo-view-button:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+/* Open or at work: one accent pair says both, the dot says it also without the pointer. */
+.todo-view-button[aria-expanded="true"],
+.todo-view-button[data-active="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.todo-view-button svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.todo-view-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/*
+ * The card is hung under the icon it belongs to and points back at it: a small label card, not a
+ * dialog, so the list behind stays readable while an order or a filter is chosen.
+ */
+.todo-menu {
+  position: fixed;
+  z-index: 61;
+  display: grid;
+  gap: 10px;
+  width: 244px;
+  max-width: calc(100vw - 16px);
+  padding: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 18px 44px rgb(0 0 0 / 30%);
+  animation: todo-menu-in 140ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* The caret is a rotated square sharing the card's border, so the two outlines read as one. */
+.todo-menu::before {
+  content: "";
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  background: var(--surface);
+}
+
+.todo-menu[data-placement="bottom"]::before {
+  top: -5px;
+  left: calc(var(--caret, 24px) - 4.5px);
+  border-top: 1px solid var(--border-strong);
+  border-left: 1px solid var(--border-strong);
+  transform: rotate(45deg);
+}
+
+.todo-menu[data-placement="top"]::before {
+  bottom: -5px;
+  left: calc(var(--caret, 24px) - 4.5px);
+  border-right: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
+  transform: rotate(45deg);
+}
+
+@keyframes todo-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Invisible: it only catches the click that means "never mind". */
+.todo-menu-mask {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+}
+
+.todo-menu-label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.todo-menu-section {
+  display: grid;
+  gap: 7px;
+}
+
+.todo-menu-heading {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.todo-menu-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.todo-menu-option:hover {
+  background: var(--surface-hover);
+}
+
+.todo-menu-option[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.todo-menu-check {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Tags wrap and scroll in place: a long catalog never grows the card past the screen. */
+.todo-menu-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 96px;
+  overflow-y: auto;
+}
+
+.todo-chip {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.todo-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.todo-chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.todo-menu-clear {
+  justify-self: start;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.todo-menu-clear:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
 .todo-count {
   color: var(--text-muted);
   font-size: 12.5px;

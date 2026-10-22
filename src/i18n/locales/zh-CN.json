@@ -406,6 +406,12 @@
       "invert": "反选",
       "item": "选择「{{title}}」"
     },
+    "sort": {
+      "default": "默认（置顶优先）",
+      "due": "截止时间最近",
+      "oldest": "最早创建在前",
+      "title": "标题 A→Z"
+    },
     "star": {
       "add": "标为星标",
       "remove": "取消星标"
@@ -424,7 +430,18 @@
       "minutes": "{{count}} 分钟前",
       "now": "刚刚"
     },
-    "toggle": "标记为完成"
+    "toggle": "标记为完成",
+    "view": {
+      "allTags": "全部标签",
+      "clear": "清除筛选",
+      "filter": "筛选",
+      "filterOpen": "筛选任务",
+      "overdue": "只看逾期",
+      "sort": "排序",
+      "sortOpen": "排序方式",
+      "status": "状态",
+      "tags": "标签"
+    }
   },
   "window": {
     "minimize": "最小化",

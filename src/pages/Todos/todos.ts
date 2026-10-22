@@ -28,48 +28,110 @@ export function matchesQuery(todo: Todo, tags: readonly Tag[], query: string): b
   return todo.tagIds.some((id) => names.get(id)?.includes(needle) ?? false);
 }
 
-/**
- * Starred tasks first, the most recently starred on top; everything else newest first, so a task
- * that was just added arrives at the top of its group.
- *
- * A pin is a way of saying "this one matters now", so the latest pin is the most prominent one. The
- * order of the unpinned tasks is untouched: pinning something never rearranges the rest.
- */
-export function sortTodos(todos: readonly Todo[]): readonly Todo[] {
-  return [...todos].sort((a, b) => {
-    if (a.starredAt !== null || b.starredAt !== null) {
-      if (a.starredAt === null) {
-        return 1;
-      }
+/** How the page orders the tasks inside a group. */
+export type TodoSort = "default" | "due" | "oldest" | "title";
 
-      if (b.starredAt === null) {
-        return -1;
-      }
-
-      return b.starredAt - a.starredAt || b.id - a.id;
-    }
-
-    return b.createdAt - a.createdAt || b.id - a.id;
-  });
+/** Newest first, which is how a task that was just added arrives at the top of its group. */
+function newestFirst(a: Todo, b: Todo): number {
+  return b.createdAt - a.createdAt || b.id - a.id;
 }
 
-/** The tasks the search leaves, in the order the page shows them. */
+/** The tasks planned to end soonest first; a task with no end waits behind the ones that have one. */
+function byDeadline(a: Todo, b: Todo): number {
+  if (a.endAt === null || b.endAt === null) {
+    if (a.endAt === b.endAt) {
+      return 0;
+    }
+
+    return a.endAt === null ? 1 : -1;
+  }
+
+  return a.endAt - b.endAt;
+}
+
+/**
+ * Compares two pins, or answers `null` when the chosen order still has to decide.
+ *
+ * A pin is a way of saying "this one matters now", so it stays in front whichever order is chosen:
+ * sorting changes what happens below it, never whether it is pinned. The latest pin is the most
+ * prominent one, and the row's id keeps two pins of the same second in a stable order.
+ */
+function byPin(a: Todo, b: Todo): number | null {
+  if (a.starredAt === null && b.starredAt === null) {
+    return null;
+  }
+
+  if (a.starredAt === null) {
+    return 1;
+  }
+
+  if (b.starredAt === null) {
+    return -1;
+  }
+
+  return b.starredAt - a.starredAt || b.id - a.id;
+}
+
+/**
+ * Orders the tasks: pinned ones first, then by the chosen order.
+ *
+ * The default keeps the list as it has always read — newest first under the pins — while a chosen
+ * order decides everything below them. A key that ties falls back to the newest task, so switching
+ * orders never leaves two rows trading places between paints.
+ */
+export function sortTodos(
+  todos: readonly Todo[],
+  sort: TodoSort = "default",
+  language: LanguageCode = "zh-CN",
+): readonly Todo[] {
+  const byKey = (a: Todo, b: Todo): number => {
+    if (sort === "due") {
+      return byDeadline(a, b);
+    }
+
+    if (sort === "oldest") {
+      return a.createdAt - b.createdAt || a.id - b.id;
+    }
+
+    if (sort === "title") {
+      return a.title.localeCompare(b.title, language) || a.id - b.id;
+    }
+
+    return 0;
+  };
+
+  return [...todos].sort((a, b) => byPin(a, b) ?? (byKey(a, b) || newestFirst(a, b)));
+}
+
+/** The tasks the search leaves; the order they are drawn in is decided when they are grouped. */
 export function searchTodos(
   todos: readonly Todo[],
   tags: readonly Tag[],
   query: string,
 ): readonly Todo[] {
-  return sortTodos(todos.filter((todo) => matchesQuery(todo, tags, query)));
+  return todos.filter((todo) => matchesQuery(todo, tags, query));
 }
 
 /** The two groups the list is drawn in; the backend filter decides whether both can be non-empty. */
-export function groupTodos(todos: readonly Todo[]): {
+export function groupTodos(
+  todos: readonly Todo[],
+  sort: TodoSort = "default",
+  language: LanguageCode = "zh-CN",
+): {
   active: readonly Todo[];
   completed: readonly Todo[];
 } {
   return {
-    active: sortTodos(todos.filter((todo) => !todo.completed)),
-    completed: sortTodos(todos.filter((todo) => todo.completed)),
+    active: sortTodos(
+      todos.filter((todo) => !todo.completed),
+      sort,
+      language,
+    ),
+    completed: sortTodos(
+      todos.filter((todo) => todo.completed),
+      sort,
+      language,
+    ),
   };
 }
 
