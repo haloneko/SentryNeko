@@ -193,6 +193,16 @@
       "usage": "应用"
     }
   },
+  "datePicker": {
+    "months": "选择年月",
+    "nextDay": "后一天",
+    "nextMonth": "下个月",
+    "nextYear": "后一年",
+    "previousDay": "前一天",
+    "previousMonth": "上个月",
+    "previousYear": "前一年",
+    "today": "今天"
+  },
   "dueDate": {
     "clear": "清除",
     "close": "关闭",
@@ -212,9 +222,7 @@
   "events": {
     "day": {
       "empty": "这一天还没有前台应用记录。",
-      "next": "后一天",
-      "previous": "前一天",
-      "today": "回到今天"
+      "label": "选择日期"
     },
     "error": "事件流加载失败。",
     "loading": "加载中…",

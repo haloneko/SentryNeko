@@ -140,9 +140,37 @@ test("the arrows move by a day, and nothing loads by page", async ({ page }) => 
   expect(await viewport(page).evaluate((element) => element.scrollHeight)).toBe(12 * 36);
   await expect(next).toBeEnabled();
 
-  await page.getByRole("button", { name: "Back to today" }).click();
+  // The jump back to today is the calendar's, so it is opened rather than clicked in the row.
+  await page.getByRole("button", { name: /^Choose a day: / }).click();
+  await page.getByRole("button", { name: "Today" }).click();
   expect(await viewport(page).evaluate((element) => element.scrollHeight)).toBe(DAY_HEIGHT);
   await expect(next).toBeDisabled();
+});
+
+test("the calendar jumps to a day the arrows would have to walk to", async ({ page }) => {
+  await page.goto("/tests/events-timeline.html?theme=dark&language=en-US");
+  await expect(rows(page).first()).toBeVisible();
+
+  await page.getByRole("button", { name: /^Choose a day: / }).click();
+
+  const calendar = page.getByRole("dialog", { name: "Choose a day" });
+  const others = calendar.locator('[data-day]:enabled:not([data-selected="true"])');
+
+  // The fixture only holds today and yesterday, so a pick other than today lands on an empty day.
+  // On the first of the month there is no such day left in it, so the grid walks back one.
+  if ((await others.count()) === 0) {
+    await calendar.getByRole("button", { name: "Previous month" }).click();
+  }
+
+  await calendar.locator('[data-day]:enabled:not([data-selected="true"])').first().click();
+
+  await expect(page.getByText("Nothing was in front on this day.")).toBeVisible();
+
+  // Opening the calendar again offers the way back to today, whatever day was picked.
+  await page.getByRole("button", { name: /^Choose a day: / }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Choose a day" }).getByRole("button", { name: "Today" }),
+  ).toBeVisible();
 });
 
 test("a day with nothing in front says so, and a cut day says it was cut", async ({ page }) => {
