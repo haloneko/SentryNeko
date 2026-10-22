@@ -29,8 +29,16 @@ export function EventsPage() {
 
   return (
     <section className="card">
-      <h2 className={eventsStyles.logHead}>{t("events.log.title")}</h2>
-      <DateNavigator label={t("events.day.label")} max={today} onChange={setDay} value={day} />
+      <div className={eventsStyles.logHead}>
+        <h2 className={eventsStyles.logTitle}>{t("events.log.title")}</h2>
+        <DateNavigator
+          align="end"
+          label={t("events.day.label")}
+          max={today}
+          onChange={setDay}
+          value={day}
+        />
+      </div>
       {loading ? <p className="muted">{t("events.loading")}</p> : null}
       {error !== null ? <p className="error">{t("events.error")}</p> : null}
       {!loading && error === null ? (

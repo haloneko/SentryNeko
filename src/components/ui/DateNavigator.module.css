@@ -149,6 +149,12 @@
   animation: calendar-in 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* At a card's right edge the panel grows to the left instead, so it stays inside the card. */
+.navigator[data-align="end"] .calendar {
+  right: 0;
+  left: auto;
+}
+
 .calendar-head {
   display: flex;
   align-items: center;

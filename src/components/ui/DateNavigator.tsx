@@ -6,6 +6,8 @@ import { daysInMonth } from "./dueDate";
 import dateNavigatorStyles from "./DateNavigator.module.css";
 
 export interface DateNavigatorProps {
+  /** Which edge the calendar hangs from; a navigator at a card's right edge opens inwards. */
+  align?: "end" | "start";
   label: string;
   onChange: (day: number) => void;
   max?: number;
@@ -98,7 +100,14 @@ function monthCells(cursor: number): Cell[] {
  * where any day inside that range can be picked. Only two things are state here: whether the
  * calendar is open, and which month it shows — the chosen day always comes from the caller.
  */
-export function DateNavigator({ label, max, min, onChange, value }: DateNavigatorProps) {
+export function DateNavigator({
+  align = "start",
+  label,
+  max,
+  min,
+  onChange,
+  value,
+}: DateNavigatorProps) {
   const { language, t } = useI18n();
   const root = useRef<HTMLDivElement | null>(null);
   const grid = useRef<HTMLDivElement | null>(null);
@@ -349,7 +358,7 @@ export function DateNavigator({ label, max, min, onChange, value }: DateNavigato
   };
 
   return (
-    <div className={dateNavigatorStyles.navigator} ref={root}>
+    <div className={dateNavigatorStyles.navigator} data-align={align} ref={root}>
       <button
         aria-label={t("datePicker.previousDay")}
         className={dateNavigatorStyles.step}

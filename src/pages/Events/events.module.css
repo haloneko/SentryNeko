@@ -9,13 +9,24 @@
   width: 100%;
 }
 
-/* The card's own name, sized to a card rather than to a browser default heading: the day below it
- * is what the page is about, so the title stays a quiet label. */
+/* The card's own name and the day being read share one line: the title on the left, the picker on
+ * the right, both on the same baseline of a card header. */
 .log-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+/* Sized to a card rather than to a browser default heading: the day beside it is what the page is
+ * about, so the title stays a quiet label. */
+.log-title {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 /*
