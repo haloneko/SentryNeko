@@ -155,7 +155,7 @@ fn require_free_name(db: &Db, name: &str, ignore: Option<i64>) -> ApiResult<()> 
 mod tests {
     use super::*;
     use crate::db::schema;
-    use crate::models::todo::Todo;
+    use crate::models::todo::{NewTodo, Todo};
 
     fn migrated() -> Db {
         let db = Db::open_in_memory().expect("in-memory database opens");
@@ -203,7 +203,7 @@ mod tests {
         let db = migrated();
         let work = Tag::add(&db, "work").expect("stored");
         let home = Tag::add(&db, "home").expect("stored");
-        let todo = Todo::add(&db, "write the report", None, None).expect("stored");
+        let todo = Todo::add(&db, NewTodo::new("write the report")).expect("stored");
 
         Todo::set_tags(&db, todo.id, &[home.id, work.id, work.id]).expect("tags are linked");
 
@@ -222,7 +222,7 @@ mod tests {
         let db = migrated();
         let work = Tag::add(&db, "work").expect("stored");
         let home = Tag::add(&db, "home").expect("stored");
-        let todo = Todo::add(&db, "plan the week", None, None).expect("stored");
+        let todo = Todo::add(&db, NewTodo::new("plan the week")).expect("stored");
 
         Todo::set_tags(&db, todo.id, &[work.id, home.id]).expect("tags are linked");
         Tag::delete(&db, work.id).expect("deleted");

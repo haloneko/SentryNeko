@@ -22,7 +22,7 @@ export function AddTodoForm() {
       return;
     }
 
-    void add(trimmed, null, null).then((stored) => {
+    void add({ title: trimmed }).then((stored) => {
       if (stored) {
         setTitle("");
       }

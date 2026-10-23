@@ -66,12 +66,16 @@ function pinnedFirst(a: Todo, b: Todo): number | null {
   return null;
 }
 
+/** How a task list is ordered; every field is defaulted. */
+export interface ListOrder {
+  /** Which key orders the tasks. */
+  sort?: TodoSort;
+  /** The language titles are compared in. */
+  language?: LanguageCode;
+}
 
-export function sortTodos(
-  todos: readonly Todo[],
-  sort: TodoSort = "default",
-  language: LanguageCode = "zh-CN",
-): readonly Todo[] {
+export function sortTodos(todos: readonly Todo[], order: ListOrder = {}): readonly Todo[] {
+  const { language = "zh-CN", sort = "default" } = order;
   const byKey = (a: Todo, b: Todo): number => {
     if (sort === "due") {
       return byDeadline(a, b);
@@ -103,8 +107,7 @@ export function searchTodos(
 /** The two groups the list is drawn in; the backend filter decides whether both can be non-empty. */
 export function groupTodos(
   todos: readonly Todo[],
-  sort: TodoSort = "default",
-  language: LanguageCode = "zh-CN",
+  order: ListOrder = {},
 ): {
   active: readonly Todo[];
   completed: readonly Todo[];
@@ -112,13 +115,11 @@ export function groupTodos(
   return {
     active: sortTodos(
       todos.filter((todo) => !todo.completed),
-      sort,
-      language,
+      order,
     ),
     completed: sortTodos(
       todos.filter((todo) => todo.completed),
-      sort,
-      language,
+      order,
     ),
   };
 }
@@ -219,6 +220,12 @@ export function matchesFilter(todo: Todo, filter: TodoFilter, now: number): bool
   return statusOf(todo, now) === filter;
 }
 
+/** What a plan is worded with: the language its dates are drawn in, and the translator around them. */
+export interface PlanWording {
+  language: LanguageCode;
+  t: TFunction;
+}
+
 /**
  * The planned window of a task, or `null` when it has none.
  *
@@ -227,12 +234,8 @@ export function matchesFilter(todo: Todo, filter: TodoFilter, now: number): bool
  * would look like it belonged to the same day. A lone end is the deadline most tasks carry, so it
  * is worded as one rather than drawn as a range with an empty side.
  */
-export function planSummary(
-  todo: Todo,
-  now: number,
-  language: LanguageCode,
-  t: TFunction,
-): PlanSummary | null {
+export function planSummary(todo: Todo, now: number, wording: PlanWording): PlanSummary | null {
+  const { language, t } = wording;
   const { endAt, startAt } = todo;
 
   if (startAt === null && endAt === null) {
