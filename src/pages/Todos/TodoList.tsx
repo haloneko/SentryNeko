@@ -108,7 +108,7 @@ export function TodoList() {
     return tagged.filter((todo) => matchesFilter(todo, filter, now));
   }, [filter, now, query, tagId, tags, todos]);
   const groups = useMemo(
-    () => groupTodos(visible, sort, language),
+    () => groupTodos(visible, { language, sort }),
     [language, sort, visible],
   );
 

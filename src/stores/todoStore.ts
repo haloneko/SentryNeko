@@ -5,7 +5,7 @@ import { create } from "zustand";
 
 import { isOk } from "../types";
 import type { ApiCode, ApiResponse } from "../types";
-import type { Todo, TodoCompletions, TodoCounts, TodoFilter } from "../types/todo";
+import type { NewTodo, Todo, TodoCompletions, TodoCounts, TodoFilter } from "../types/todo";
 
 export interface TodoState {
   todos: readonly Todo[];
@@ -23,7 +23,8 @@ export interface TodoState {
   refresh: () => Promise<void>;
   /** Reloads the finished counts alone, for the panels that show nothing else. */
   refreshCompletions: () => Promise<void>;
-  add: (title: string, startAt: number | null, endAt: number | null) => Promise<boolean>;
+  /** Creates a task; the draft carries only what the caller decided, the rest is defaulted. */
+  add: (draft: NewTodo) => Promise<boolean>;
   rename: (id: number, title: string) => Promise<boolean>;
   /** Sets or clears when a task starts; the stored row replaces the one on the page. */
   setStartAt: (id: number, startAt: number | null) => Promise<boolean>;
@@ -159,10 +160,15 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     );
   },
 
-  add: async (title, startAt, endAt) => {
+  add: async (draft) => {
     set({ error: null });
 
-    const response = await request<Todo>("add_todo", { endAt, startAt, title });
+    // The command still takes its three flat arguments, so the defaults are settled here.
+    const response = await request<Todo>("add_todo", {
+      endAt: draft.endAt ?? null,
+      startAt: draft.startAt ?? null,
+      title: draft.title,
+    });
 
     if (!isOk(response)) {
       set({ error: response.code });

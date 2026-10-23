@@ -30,6 +30,15 @@ export interface Todo {
   notes: string | null;
 }
 
+/** What a new task is made of; a field added later leaves existing call sites alone. */
+export interface NewTodo {
+  title: string;
+  /** Planned start, UTC epoch seconds. */
+  startAt?: number | null;
+  /** Planned end, UTC epoch seconds. */
+  endAt?: number | null;
+}
+
 /** Totals shown beside the list. */
 export interface TodoCounts {
   total: number;

@@ -351,7 +351,7 @@ mod tests {
     use super::*;
     use crate::db::schema;
     use crate::models::focus_usage::FocusUsage;
-    use crate::models::todo::Todo;
+    use crate::models::todo::{NewTodo, Todo};
 
     fn created() -> Db {
         let db = Db::open_in_memory().expect("in-memory database opens");
@@ -434,7 +434,7 @@ mod tests {
         FocusUsage::record(&db, FocusUsage::hour_of(time::now_seconds()), 600)
             .expect("the tick recorded the focus");
 
-        let todo = Todo::add(&db, "ship the tray", None, None).expect("added");
+        let todo = Todo::add(&db, NewTodo::new("ship the tray")).expect("added");
         Todo::set_completed(&db, todo.id, true).expect("completed");
 
         let (focus_seconds, completed_tasks) =

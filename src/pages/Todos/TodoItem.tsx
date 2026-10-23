@@ -99,7 +99,7 @@ export function TodoItem({
 
   const age = ageOf(todo.createdAt, now);
   const names = tagNamesOf(todo, tags);
-  const plan = planSummary(todo, now, language, t);
+  const plan = planSummary(todo, now, { language, t });
   const starred = todo.starredAt !== null;
 
   /** Leaves the field and stores what was typed, unless nothing changed. */

@@ -47,6 +47,41 @@ pub struct Todo {
     pub notes: Option<String>,
 }
 
+/// What a new task is made of; a field added later leaves existing call sites alone.
+#[derive(Debug, Default)]
+pub struct NewTodo {
+    /// The listed text; trimmed, refused when blank.
+    pub title: String,
+    /// Planned start, UTC epoch seconds.
+    pub start_at: Option<i64>,
+    /// Planned end, UTC epoch seconds.
+    pub end_at: Option<i64>,
+}
+
+impl NewTodo {
+    /// A task known by its title alone.
+    pub fn new(title: impl Into<String>) -> Self {
+        Self {
+            title: title.into(),
+            ..Self::default()
+        }
+    }
+
+    /// Sets when the task is planned to start.
+    #[must_use]
+    pub fn starting_at(mut self, start_at: Option<i64>) -> Self {
+        self.start_at = start_at;
+        self
+    }
+
+    /// Sets when the task is planned to end.
+    #[must_use]
+    pub fn ending_at(mut self, end_at: Option<i64>) -> Self {
+        self.end_at = end_at;
+        self
+    }
+}
+
 /// Totals shown beside the list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -112,15 +147,10 @@ impl Todo {
     }
 
     /// Inserts a task and answers with the stored row; a blank title is `INVALID_INPUT`.
-    pub fn add(
-        db: &Db,
-        title: &str,
-        start_at: Option<i64>,
-        end_at: Option<i64>,
-    ) -> ApiResult<Self> {
-        let title = validate_title(title)?;
-        let start_at = validate_instant(start_at, "start_at")?;
-        let end_at = validate_instant(end_at, "end_at")?;
+    pub fn add(db: &Db, new: NewTodo) -> ApiResult<Self> {
+        let title = validate_title(&new.title)?;
+        let start_at = validate_instant(new.start_at, "start_at")?;
+        let end_at = validate_instant(new.end_at, "end_at")?;
         let now = time::now_seconds();
         let id = repository::insert(
             db,
@@ -421,12 +451,12 @@ mod tests {
     fn add_trims_the_title_and_rejects_a_blank_one() {
         let db = migrated();
 
-        let todo = Todo::add(&db, "  write the docs  ", None, None).expect("the task is stored");
+        let todo = Todo::add(&db, NewTodo::new("  write the docs  ")).expect("the task is stored");
         assert_eq!(todo.title, "write the docs");
         assert!(!todo.completed);
         assert_eq!(todo.created_at, todo.updated_at);
 
-        let error = Todo::add(&db, "   ", None, None).expect_err("a blank title is refused");
+        let error = Todo::add(&db, NewTodo::new("   ")).expect_err("a blank title is refused");
         assert_eq!(error.code(), ApiCode::InvalidInput);
         assert_eq!(Todo::list(&db, None).expect("list").len(), 1);
     }
@@ -435,8 +465,8 @@ mod tests {
     fn list_puts_open_tasks_first_and_filters_by_completion() {
         let db = migrated();
 
-        let first = Todo::add(&db, "first", None, None).expect("stored");
-        Todo::add(&db, "second", None, None).expect("stored");
+        let first = Todo::add(&db, NewTodo::new("first")).expect("stored");
+        Todo::add(&db, NewTodo::new("second")).expect("stored");
         Todo::set_completed(&db, first.id, true).expect("completed");
 
         let all = Todo::list(&db, None).expect("list");
@@ -459,7 +489,7 @@ mod tests {
     #[test]
     fn rename_and_set_completed_touch_the_stored_row() {
         let db = migrated();
-        let todo = Todo::add(&db, "draft", None, None).expect("stored");
+        let todo = Todo::add(&db, NewTodo::new("draft")).expect("stored");
 
         let renamed = Todo::rename(&db, todo.id, " final ").expect("renamed");
         assert_eq!(renamed.title, "final");
@@ -518,7 +548,7 @@ mod tests {
     #[test]
     fn starring_stamps_the_moment_and_unstarring_clears_it() {
         let db = migrated();
-        let todo = Todo::add(&db, "important", None, None).expect("stored");
+        let todo = Todo::add(&db, NewTodo::new("important")).expect("stored");
 
         assert_eq!(todo.starred_at, None, "a new task is not starred");
 
@@ -543,9 +573,9 @@ mod tests {
     #[test]
     fn starred_tasks_sit_on_top_of_their_group_most_recent_first() {
         let db = migrated();
-        let first = Todo::add(&db, "first", None, None).expect("stored");
-        let second = Todo::add(&db, "second", None, None).expect("stored");
-        let third = Todo::add(&db, "third", None, None).expect("stored");
+        let first = Todo::add(&db, NewTodo::new("first")).expect("stored");
+        let second = Todo::add(&db, NewTodo::new("second")).expect("stored");
+        let third = Todo::add(&db, NewTodo::new("third")).expect("stored");
 
         // Nothing starred: newest id first, as before the pin existed.
         assert_eq!(titles(&db, None), ["third", "second", "first"]);
@@ -589,7 +619,7 @@ mod tests {
     #[test]
     fn a_new_task_carries_an_empty_bag() {
         let db = migrated();
-        let todo = Todo::add(&db, "plain", None, None).expect("stored");
+        let todo = Todo::add(&db, NewTodo::new("plain")).expect("stored");
 
         assert!(todo.extra.is_empty(), "a fresh row starts with no attributes");
         assert_eq!(Todo::find(&db, todo.id).expect("found").extra, todo.extra);
@@ -598,7 +628,7 @@ mod tests {
     #[test]
     fn extra_merges_keeps_what_it_does_not_know_and_clears_on_null() {
         let db = migrated();
-        let todo = Todo::add(&db, "annotated", None, None).expect("stored");
+        let todo = Todo::add(&db, NewTodo::new("annotated")).expect("stored");
 
         let first = Todo::set_extra(
             &db,
@@ -633,7 +663,7 @@ mod tests {
     #[test]
     fn extra_refuses_a_key_it_could_not_read_and_an_oversized_bag() {
         let db = migrated();
-        let todo = Todo::add(&db, "annotated", None, None).expect("stored");
+        let todo = Todo::add(&db, NewTodo::new("annotated")).expect("stored");
 
         for key in ["Source", "9lives", "with space", "quote\"d"] {
             let error = Todo::set_extra(&db, todo.id, &patch(vec![(key, Value::from(1))]))
@@ -656,7 +686,7 @@ mod tests {
     #[test]
     fn an_empty_patch_leaves_the_row_alone() {
         let db = migrated();
-        let todo = Todo::add(&db, "annotated", None, None).expect("stored");
+        let todo = Todo::add(&db, NewTodo::new("annotated")).expect("stored");
         let annotated =
             Todo::set_extra(&db, todo.id, &patch(vec![("source", Value::from("import"))]))
                 .expect("merged");
@@ -680,7 +710,7 @@ mod tests {
     #[test]
     fn the_column_refuses_a_payload_that_is_not_an_object() {
         let db = migrated();
-        let todo = Todo::add(&db, "annotated", None, None).expect("stored");
+        let todo = Todo::add(&db, NewTodo::new("annotated")).expect("stored");
 
         let refused = repository::execute(
             &db,
@@ -698,7 +728,7 @@ mod tests {
     #[test]
     fn a_note_column_starts_empty_and_reads_back() {
         let db = migrated();
-        let todo = Todo::add(&db, "noted", None, None).expect("stored");
+        let todo = Todo::add(&db, NewTodo::new("noted")).expect("stored");
 
         assert_eq!(todo.notes, None, "a new task carries no note");
         assert_eq!(Todo::find(&db, todo.id).expect("found").notes, None);
@@ -718,8 +748,8 @@ mod tests {
             }
         );
 
-        let first = Todo::add(&db, "first", None, None).expect("stored");
-        Todo::add(&db, "second", None, None).expect("stored");
+        let first = Todo::add(&db, NewTodo::new("first")).expect("stored");
+        Todo::add(&db, NewTodo::new("second")).expect("stored");
         Todo::set_completed(&db, first.id, true).expect("completed");
 
         assert_eq!(
@@ -804,7 +834,7 @@ mod tests {
     #[test]
     fn set_tags_sorts_dedups_and_keeps_the_link_table_in_step() {
         let db = migrated();
-        let todo = Todo::add(&db, "tagged", None, None).expect("stored");
+        let todo = Todo::add(&db, NewTodo::new("tagged")).expect("stored");
         let work = crate::models::tag::Tag::add(&db, "work").expect("stored");
         let home = crate::models::tag::Tag::add(&db, "home").expect("stored");
 
@@ -830,7 +860,7 @@ mod tests {
     #[test]
     fn set_tags_rejects_unknown_ids_and_malformed_caches_are_reported() {
         let db = migrated();
-        let todo = Todo::add(&db, "tagged", None, None).expect("stored");
+        let todo = Todo::add(&db, NewTodo::new("tagged")).expect("stored");
 
         let unknown_tag = Todo::set_tags(&db, todo.id, &[404]).expect_err("unknown tag");
         assert_eq!(unknown_tag.code(), ApiCode::NotFound);
@@ -854,16 +884,25 @@ mod tests {
     fn start_and_end_times_are_optional_and_stored() {
         let db = migrated();
 
-        let planned =
-            Todo::add(&db, "planned", Some(1_800_000_000), Some(1_800_003_600)).expect("stored");
+        let planned = Todo::add(
+            &db,
+            NewTodo::new("planned")
+                .starting_at(Some(1_800_000_000))
+                .ending_at(Some(1_800_003_600)),
+        )
+        .expect("stored");
         assert_eq!(planned.start_at, Some(1_800_000_000));
         assert_eq!(planned.end_at, Some(1_800_003_600));
 
-        let undated = Todo::add(&db, "undated", None, None).expect("stored");
+        let undated = Todo::add(&db, NewTodo::new("undated")).expect("stored");
         assert_eq!(undated.start_at, None);
         assert_eq!(undated.end_at, None);
 
-        let only_end = Todo::add(&db, "only end", None, Some(1_800_007_200)).expect("stored");
+        let only_end = Todo::add(
+            &db,
+            NewTodo::new("only end").ending_at(Some(1_800_007_200)),
+        )
+        .expect("stored");
         assert_eq!(only_end.start_at, None);
         assert_eq!(only_end.end_at, Some(1_800_007_200));
 
@@ -873,7 +912,7 @@ mod tests {
     #[test]
     fn start_and_end_times_set_clear_and_report_a_missing_task() {
         let db = migrated();
-        let todo = Todo::add(&db, "draft", None, None).expect("stored");
+        let todo = Todo::add(&db, NewTodo::new("draft")).expect("stored");
 
         let started = Todo::set_start_at(&db, todo.id, Some(1_800_000_000)).expect("started");
         assert_eq!(started.start_at, Some(1_800_000_000));

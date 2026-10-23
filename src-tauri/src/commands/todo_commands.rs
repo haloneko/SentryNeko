@@ -4,7 +4,7 @@ use serde_json::{Map, Value};
 use tauri::State;
 
 use crate::db::connection::Db;
-use crate::models::todo::{Todo, TodoCompletions, TodoCounts};
+use crate::models::todo::{NewTodo, Todo, TodoCompletions, TodoCounts};
 use crate::utils::response::ApiResponse;
 use crate::utils::time;
 
@@ -14,7 +14,7 @@ pub fn list_todos(db: State<'_, Db>, completed: Option<bool>) -> ApiResponse<Vec
     Todo::list(&db, completed).into()
 }
 
-/// Creates a task from a title and optional planning moments.
+/// Creates a task; the flat arguments are the IPC contract, collected into [`NewTodo`] here.
 #[tauri::command]
 pub fn add_todo(
     db: State<'_, Db>,
@@ -22,7 +22,9 @@ pub fn add_todo(
     start_at: Option<i64>,
     end_at: Option<i64>,
 ) -> ApiResponse<Todo> {
-    Todo::add(&db, &title, start_at, end_at).into()
+    let new = NewTodo::new(title).starting_at(start_at).ending_at(end_at);
+
+    Todo::add(&db, new).into()
 }
 
 /// Renames a task.
