@@ -334,40 +334,63 @@ export function TodoList() {
     [filter, retire],
   );
 
-  const handleToggle = (todo: Todo): void => {
-    act([todo.id], () => toggle(todo));
-  };
+  // The rows are memoized, so every handler is kept stable: a fresh identity per render would send
+  // the whole list through React again for a change that only touched one row.
+  const handleToggle = useCallback(
+    (todo: Todo): void => {
+      act([todo.id], () => toggle(todo));
+    },
+    [act, toggle],
+  );
 
-  const handleRemove = (todo: Todo): void => {
-    retire([todo.id], () => remove(todo.id));
-  };
+  const handleRemove = useCallback(
+    (todo: Todo): void => {
+      retire([todo.id], () => remove(todo.id));
+    },
+    [remove, retire],
+  );
 
   /**
    * Pinning never takes a row off the page, so the row is left where it is and the flip above
    * carries it to the top of its group.
    */
-  const handleStar = (todo: Todo): void => {
-    void setStarred(todo.id, todo.starredAt === null);
-  };
+  const handleStar = useCallback(
+    (todo: Todo): void => {
+      void setStarred(todo.id, todo.starredAt === null);
+    },
+    [setStarred],
+  );
 
-  const handleRename = (todo: Todo, title: string): void => {
-    void rename(todo.id, title);
-  };
+  const handleRename = useCallback(
+    (todo: Todo, title: string): void => {
+      void rename(todo.id, title);
+    },
+    [rename],
+  );
 
-  const handleUpdateTags = (todo: Todo, tagIds: readonly number[]): void => {
-    void updateTags(todo.id, tagIds);
-  };
+  const handleUpdateTags = useCallback(
+    (todo: Todo, tagIds: readonly number[]): void => {
+      void updateTags(todo.id, tagIds);
+    },
+    [updateTags],
+  );
 
   /** The two ends are separate commands, so the row is patched by the answer of the one that moved. */
-  const handleSetStartAt = (todo: Todo, startAt: number | null): void => {
-    void setStartAt(todo.id, startAt);
-  };
+  const handleSetStartAt = useCallback(
+    (todo: Todo, startAt: number | null): void => {
+      void setStartAt(todo.id, startAt);
+    },
+    [setStartAt],
+  );
 
-  const handleSetEndAt = (todo: Todo, endAt: number | null): void => {
-    void setEndAt(todo.id, endAt);
-  };
+  const handleSetEndAt = useCallback(
+    (todo: Todo, endAt: number | null): void => {
+      void setEndAt(todo.id, endAt);
+    },
+    [setEndAt],
+  );
 
-  const handleSelect = (id: number): void => {
+  const handleSelect = useCallback((id: number): void => {
     setSelected((current) => {
       const next = new Set(current);
 
@@ -379,7 +402,7 @@ export function TodoList() {
 
       return next;
     });
-  };
+  }, []);
 
   const exitSelecting = (): void => {
     setSelecting(false);
