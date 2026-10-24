@@ -117,23 +117,25 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     // swaps its result in quietly, so the rows stay put and their animations are left alone.
     set({ loading: get().todos.length === 0, error: null });
 
-    const list = await request<Todo[]>("list_todos", {
-      completed: completionArgument(get().filter),
-    });
+    // The three answers do not depend on each other, so they are asked for together: waiting for
+    // each in turn made one refresh cost three round trips.
+    const [list, counts, completions] = await Promise.all([
+      request<Todo[]>("list_todos", {
+        completed: completionArgument(get().filter),
+      }),
+      request<TodoCounts>("todo_counts"),
+      request<TodoCompletions>("todo_completions"),
+    ]);
 
     if (!isOk(list)) {
       set({ loading: false, error: list.code });
       return;
     }
 
-    const counts = await request<TodoCounts>("todo_counts");
-
     if (!isOk(counts)) {
       set({ loading: false, error: counts.code });
       return;
     }
-
-    const completions = await request<TodoCompletions>("todo_completions");
 
     if (!isOk(completions)) {
       set({ loading: false, error: completions.code });

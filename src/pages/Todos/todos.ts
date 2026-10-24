@@ -11,8 +11,16 @@ export type Age =
   | { unit: "now" }
   | { count: number; unit: "minutes" | "hours" | "days" };
 
+/** Tag names lowercased and keyed by id, so a search reads them without a pass per task. */
+export type TagLookup = ReadonlyMap<number, string>;
+
+/** The lookup a search matches tag names against. */
+export function tagLookup(tags: readonly Tag[]): TagLookup {
+  return new Map(tags.map((tag) => [tag.id, tag.name.toLowerCase()]));
+}
+
 /** Whether `todo` matches `query`, by title or by the name of any tag it carries. */
-export function matchesQuery(todo: Todo, tags: readonly Tag[], query: string): boolean {
+export function matchesQuery(todo: Todo, lookup: TagLookup, query: string): boolean {
   const needle = query.trim().toLowerCase();
 
   if (needle === "") {
@@ -23,9 +31,7 @@ export function matchesQuery(todo: Todo, tags: readonly Tag[], query: string): b
     return true;
   }
 
-  const names = new Map(tags.map((tag) => [tag.id, tag.name.toLowerCase()]));
-
-  return todo.tagIds.some((id) => names.get(id)?.includes(needle) ?? false);
+  return todo.tagIds.some((id) => lookup.get(id)?.includes(needle) ?? false);
 }
 
 /** How the page orders the tasks inside a group. */
@@ -101,7 +107,9 @@ export function searchTodos(
   tags: readonly Tag[],
   query: string,
 ): readonly Todo[] {
-  return todos.filter((todo) => matchesQuery(todo, tags, query));
+  const lookup = tagLookup(tags);
+
+  return todos.filter((todo) => matchesQuery(todo, lookup, query));
 }
 
 /** The two groups the list is drawn in; the backend filter decides whether both can be non-empty. */

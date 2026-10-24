@@ -1,6 +1,6 @@
 /** One task: complete it, edit it, tag it, or take it off the list. */
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
 
 import { ActionIcon } from "../../components/ui/ActionIcon";
@@ -41,7 +41,7 @@ export interface TodoItemProps {
   todo: Todo;
 }
 
-export function TodoItem({
+export const TodoItem = memo(function TodoItem({
   entering,
   leaving,
   now,
@@ -84,7 +84,6 @@ export function TodoItem({
     element.style.height = "auto";
     element.style.height = `${element.scrollHeight}px`;
 
-
     if (!opened.current) {
       const point = clicked.current;
 
@@ -112,7 +111,6 @@ export function TodoItem({
       onRename(todo, title);
     }
   };
-
 
   const openField = (point: { x: number; y: number } | null): void => {
     clicked.current = point;
@@ -368,7 +366,7 @@ export function TodoItem({
       </div>
     </li>
   );
-}
+});
 
 function caretIndexAt(element: HTMLTextAreaElement, x: number, y: number): number {
   const style = getComputedStyle(element);
