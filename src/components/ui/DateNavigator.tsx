@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 
 import { useI18n } from "../../hooks/useI18n";
+import { dateFormatter } from "../../utils/intl";
 import { daysInMonth } from "./dueDate";
 import dateNavigatorStyles from "./DateNavigator.module.css";
 
@@ -130,36 +131,57 @@ export function DateNavigator({
   const shown = new Date(day * 1000);
   const cursorDate = new Date(cursor * 1000);
 
-  const shortDate = new Intl.DateTimeFormat(language, {
-    day: "numeric",
-    month: "short",
-    weekday: "short",
-    year: "numeric",
-  }).format(shown);
-  const longDate = new Intl.DateTimeFormat(language, {
-    day: "numeric",
-    month: "long",
-    weekday: "long",
-    year: "numeric",
-  }).format(shown);
-  const monthTitle = new Intl.DateTimeFormat(language, { month: "long", year: "numeric" }).format(
-    cursorDate,
+  // The closed trigger draws only `shortDate`, and the open calendar the rest: neither set is rebuilt
+  // for a render that did not move the day or the month it shows.
+  const shortDate = useMemo(
+    () =>
+      dateFormatter(language, {
+        day: "numeric",
+        month: "short",
+        weekday: "short",
+        year: "numeric",
+      }).format(shown),
+    [language, shown],
+  );
+  const longDate = useMemo(
+    () =>
+      dateFormatter(language, {
+        day: "numeric",
+        month: "long",
+        weekday: "long",
+        year: "numeric",
+      }).format(shown),
+    [language, shown],
+  );
+  const monthTitle = useMemo(
+    () =>
+      dateFormatter(language, { month: "long", year: "numeric" }).format(cursorDate),
+    [language, cursorDate],
+  );
+  const yearTitle = useMemo(
+    () => dateFormatter(language, { year: "numeric" }).format(new Date(yearCursor, 0, 1)),
+    [language, yearCursor],
   );
   // 2024-01-01 was a Monday, which is where the grid's columns start.
-  const weekdays = Array.from({ length: 7 }, (_, index) =>
-    new Intl.DateTimeFormat(language, { weekday: "narrow" }).format(new Date(2024, 0, 1 + index)),
+  const weekdays = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, index) =>
+        dateFormatter(language, { weekday: "narrow" }).format(new Date(2024, 0, 1 + index)),
+      ),
+    [language],
+  );
+  const monthNames = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, index) =>
+        dateFormatter(language, { month: "short" }).format(new Date(2024, index, 1)),
+      ),
+    [language],
   );
 
-  const cells = monthCells(cursor);
+  const cells = useMemo(() => monthCells(cursor), [cursor]);
   const nextMonthStart = shiftMonth(cursor, 1);
   const canBackMonth = lowest === null || lowest < cursor;
   const canForwardMonth = highest === null || highest >= nextMonthStart;
-  const yearTitle = new Intl.DateTimeFormat(language, { year: "numeric" }).format(
-    new Date(yearCursor, 0, 1),
-  );
-  const monthNames = Array.from({ length: 12 }, (_, index) =>
-    new Intl.DateTimeFormat(language, { month: "short" }).format(new Date(2024, index, 1)),
-  );
   const shownMonth = cursorDate.getMonth() + 1;
   const shownYear = cursorDate.getFullYear();
 
@@ -527,7 +549,7 @@ export function DateNavigator({
                   ) : (
                     <button
                       aria-current={cell === today ? "date" : undefined}
-                      aria-label={new Intl.DateTimeFormat(language, {
+                      aria-label={dateFormatter(language, {
                         day: "numeric",
                         month: "long",
                         weekday: "long",

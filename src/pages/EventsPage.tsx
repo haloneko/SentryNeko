@@ -1,6 +1,6 @@
 /** Foreground application event stream page: one local day, drawn as a timeline. */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AppEventTimeline } from "../components/AppEventTimeline";
 import { DateNavigator } from "../components/ui/DateNavigator";
@@ -19,13 +19,19 @@ export function EventsPage() {
   const live = useAppEventStore((state) => state.live);
 
   const end = nextDayStart(day);
-  const known = new Set(events.map((event) => event.id));
-  const rows = [
-    ...live.filter(
-      (event) => event.startedAt >= day && event.startedAt < end && !known.has(event.id),
-    ),
-    ...events,
-  ];
+
+  // The stream pushes a new switch every few seconds, and a day can hold tens of thousands of them:
+  // the ids the live tail is read against are kept for the loaded day instead of rebuilt per push.
+  const rows = useMemo(() => {
+    const known = new Set(events.map((event) => event.id));
+
+    return [
+      ...live.filter(
+        (event) => event.startedAt >= day && event.startedAt < end && !known.has(event.id),
+      ),
+      ...events,
+    ];
+  }, [day, end, events, live]);
 
   return (
     <section className="card">
