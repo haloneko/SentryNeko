@@ -284,11 +284,18 @@ impl Todo {
         ids.sort_unstable();
         ids.dedup();
 
-        for tag_id in &ids {
-            let known = repository::exists(db, "SELECT 1 FROM tags WHERE id = ?1", [*tag_id])?;
+        // One query for the whole set: asking tag by tag cost a round trip per id.
+        if !ids.is_empty() {
+            let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(", ");
+            let stored = repository::query_all(
+                db,
+                &format!("SELECT id FROM tags WHERE id IN ({placeholders})"),
+                rusqlite::params_from_iter(ids.iter().copied()),
+                |row| Ok(row.get::<_, i64>(0)?),
+            )?;
 
-            if !known {
-                return Err(ApiError::not_found(format!("no tag with id {tag_id}")));
+            if let Some(unknown) = ids.iter().find(|id| !stored.contains(id)) {
+                return Err(ApiError::not_found(format!("no tag with id {unknown}")));
             }
         }
 

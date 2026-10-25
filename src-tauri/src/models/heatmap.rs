@@ -86,9 +86,12 @@ fn days(db: &Db, from: i64, to: i64) -> ApiResult<Vec<Day>> {
         cursor = next_day(cursor)?;
     }
 
-    add_focus(db, first, to, &mut days)?;
-    add_app(db, first, to, &mut days)?;
-    add_completed(db, first, to, &mut days)?;
+    // Built once for the three passes below, each of which reads the whole window.
+    let positions = positions(&days);
+
+    add_focus(db, first, to, &mut days, &positions)?;
+    add_app(db, first, to, &mut days, &positions)?;
+    add_completed(db, first, to, &mut days, &positions)?;
 
     Ok(days)
 }
@@ -98,9 +101,13 @@ fn days(db: &Db, from: i64, to: i64) -> ApiResult<Vec<Day>> {
 /// The buckets are written a minute at a time by the focus tick, so a running phase and a stopped
 /// one are both already here: nothing has to be cut at `now` or at the window end. An hour belongs
 /// to the local day of its start, which keeps a stretch that crosses midnight on the day it began.
-fn add_focus(db: &Db, first: i64, to: i64, days: &mut [Day]) -> ApiResult<()> {
-    let positions = positions(days);
-
+fn add_focus(
+    db: &Db,
+    first: i64,
+    to: i64,
+    days: &mut [Day],
+    positions: &HashMap<i64, usize>,
+) -> ApiResult<()> {
     for (hour_start, seconds) in FocusUsage::hours(db, first, to)? {
         let day = local_day(hour_start)?;
 
@@ -111,9 +118,13 @@ fn add_focus(db: &Db, first: i64, to: i64, days: &mut [Day]) -> ApiResult<()> {
 
     Ok(())
 }
-fn add_app(db: &Db, first: i64, to: i64, days: &mut [Day]) -> ApiResult<()> {
-    let positions = positions(days);
-
+fn add_app(
+    db: &Db,
+    first: i64,
+    to: i64,
+    days: &mut [Day],
+    positions: &HashMap<i64, usize>,
+) -> ApiResult<()> {
     for (hour_start, seconds) in AppUsage::hourly_totals(db, first, to)? {
         let day = local_day(hour_start)?;
 
@@ -126,9 +137,13 @@ fn add_app(db: &Db, first: i64, to: i64, days: &mut [Day]) -> ApiResult<()> {
 }
 
 /// Counts the tasks whose completion falls inside the window.
-fn add_completed(db: &Db, first: i64, to: i64, days: &mut [Day]) -> ApiResult<()> {
-    let positions = positions(days);
-
+fn add_completed(
+    db: &Db,
+    first: i64,
+    to: i64,
+    days: &mut [Day],
+    positions: &HashMap<i64, usize>,
+) -> ApiResult<()> {
     let completions = repository::query_all(
         db,
         "SELECT completed_at FROM todos

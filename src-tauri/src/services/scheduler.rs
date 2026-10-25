@@ -5,7 +5,7 @@
 //! per alarm, and the instant is recomputed whenever the row changed — editing an alarm takes
 //! effect on the next tick, without the window telling the loop.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -105,25 +105,31 @@ impl<T: ToastSink, C: Chime> AlarmScheduler<T, C> {
         self.beep_if_due(now);
 
         let alarms = Alarm::list(&self.db)?;
-        let known: Vec<i64> = alarms.iter().map(|alarm| alarm.id).collect();
+        let known: HashSet<i64> = alarms.iter().map(|alarm| alarm.id).collect();
         self.due.retain(|id, _| known.contains(id));
 
         let mut fired = Vec::new();
 
         for alarm in alarms {
-            let next_fire = match self.due.get(&alarm.id) {
-                Some(due) if due.alarm == alarm => due.next_fire,
+            let previous = self.due.get(&alarm.id);
+            // A row that reads the same as the one already kept is left alone: cloning every alarm
+            // every second is work the comparison has just shown to be pointless.
+            let unchanged = previous.is_some_and(|due| due.alarm == alarm);
+            let next_fire = match previous {
+                Some(due) if unchanged => due.next_fire,
                 // A row read a moment after its time still rings, within [`GRACE_SECONDS`].
                 _ => alarm.next_fire(now - GRACE_SECONDS),
             };
 
-            self.due.insert(
-                alarm.id,
-                Due {
-                    alarm: alarm.clone(),
-                    next_fire,
-                },
-            );
+            if !unchanged {
+                self.due.insert(
+                    alarm.id,
+                    Due {
+                        alarm: alarm.clone(),
+                        next_fire,
+                    },
+                );
+            }
 
             if next_fire.is_some_and(|at| at <= now) {
                 fired.push(self.ring(&alarm, now));
