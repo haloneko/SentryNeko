@@ -83,6 +83,9 @@ export interface AppColor {
   tint: string;
 }
 
+/** The colours handed out so far, so a name is hashed once rather than for every mark it draws. */
+const COLORS = new Map<string, AppColor>();
+
 /**
  * The colour an app is drawn in.
  *
@@ -92,9 +95,15 @@ export interface AppColor {
  * because a colour alone must never be the only thing carrying the meaning.
  */
 export function appColor(appName: string): AppColor {
-  const hue = 20 + (hash(appName) % 321);
+  let color = COLORS.get(appName);
 
-  return { strong: `hsl(${hue} 60% 56%)`, tint: `hsl(${hue} 60% 56% / 16%)` };
+  if (color === undefined) {
+    const hue = 20 + (hash(appName) % 321);
+    color = { strong: `hsl(${hue} 60% 56%)`, tint: `hsl(${hue} 60% 56% / 16%)` };
+    COLORS.set(appName, color);
+  }
+
+  return color;
 }
 
 /** One run of the axis: an app's colour held across a slice of the window, as ratios of it. */

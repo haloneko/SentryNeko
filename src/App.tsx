@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   HashRouter,
   Navigate,
@@ -89,12 +89,15 @@ function Shell() {
   const loadPomodoro = usePomodoroStore((state) => state.load);
   const startPomodoro = usePomodoroStore((state) => state.start);
   const sidebarLayout = useSidebarLayoutStore((state) => state.layout);
-  const visiblePages = [
-    ...sidebarLayout
-      .filter(({ visible }) => visible)
-      .map(({ id }) => ({ ...SIDEBAR_PANELS[id], icon: id })),
-    SETTINGS_ENTRY,
-  ];
+  const visiblePages = useMemo(
+    () => [
+      ...sidebarLayout
+        .filter(({ visible }) => visible)
+        .map(({ id }) => ({ ...SIDEBAR_PANELS[id], icon: id })),
+      SETTINGS_ENTRY,
+    ],
+    [sidebarLayout],
+  );
   const navigate = useNavigate();
   const contentRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLElement>(null);

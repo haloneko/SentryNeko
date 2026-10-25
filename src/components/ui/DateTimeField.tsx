@@ -1,9 +1,10 @@
 /** A text field with a picker button: type a moment by hand, or choose it from the panel. */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 
 import { useI18n } from "../../hooks/useI18n";
+import { dateFormatter } from "../../utils/intl";
 import {
   daysInMonth,
   instantOf,
@@ -49,6 +50,22 @@ const PLACEHOLDERS: Record<DateTimeMode, string> = {
   datetime: "YYYY-MM-DD HH:mm",
   time: "HH:mm",
 };
+
+/** One option of a select: what the reader sees, and the value it stands for. */
+interface Option {
+  label: string;
+  value: number;
+}
+
+/** The hours and the minutes of a clock, which never change and so are built once. */
+const HOUR_OPTIONS: Option[] = Array.from({ length: 24 }, (_, hour) => ({
+  label: String(hour).padStart(2, "0"),
+  value: hour,
+}));
+const MINUTE_OPTIONS: Option[] = Array.from({ length: 60 }, (_, minute) => ({
+  label: String(minute).padStart(2, "0"),
+  value: minute,
+}));
 
 type ParsedDraft =
   | { kind: "empty" }
@@ -465,38 +482,44 @@ export function DateTimeField({
   const withDate = mode !== "time";
   const withTime = mode !== "date";
   const pickedDay = value === null ? null : isoDay(shownDate);
-  const monthNames = new Intl.DateTimeFormat(language, { month: "long" });
   const lastDay = daysInMonth(shown.year, shown.month);
 
   const currentYear = splitDay(todayDay())?.year ?? shown.year;
-  const years: number[] = [];
 
-  for (let year = currentYear - YEARS_BEFORE; year <= currentYear + YEARS_AFTER; year += 1) {
-    years.push(year);
-  }
+  // The lists are the same for every render of the same month, so they are kept rather than rebuilt
+  // each time the panel redraws — which it does on every keystroke in the text field beside it.
+  const years = useMemo(() => {
+    const list: number[] = [];
 
-  if (!years.includes(shown.year)) {
-    years.push(shown.year);
-    years.sort((a, b) => a - b);
-  }
+    for (let year = currentYear - YEARS_BEFORE; year <= currentYear + YEARS_AFTER; year += 1) {
+      list.push(year);
+    }
 
-  const yearOptions = years.map((year) => ({ label: String(year), value: year }));
-  const monthOptions = Array.from({ length: 12 }, (_, index) => ({
-    label: monthNames.format(new Date(2000, index, 1)),
-    value: index + 1,
-  }));
-  const dayOptions = Array.from({ length: lastDay }, (_, index) => ({
-    label: String(index + 1),
-    value: index + 1,
-  }));
-  const hourOptions = Array.from({ length: 24 }, (_, index) => ({
-    label: pad(index),
-    value: index,
-  }));
-  const minuteOptions = Array.from({ length: 60 }, (_, index) => ({
-    label: pad(index),
-    value: index,
-  }));
+    if (!list.includes(shown.year)) {
+      list.push(shown.year);
+      list.sort((a, b) => a - b);
+    }
+
+    return list;
+  }, [currentYear, shown.year]);
+
+  const yearOptions = useMemo(
+    () => years.map((year) => ({ label: String(year), value: year })),
+    [years],
+  );
+  const monthOptions = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, index) => ({
+        label: dateFormatter(language, { month: "long" }).format(new Date(2000, index, 1)),
+        value: index + 1,
+      })),
+    [language],
+  );
+  const dayOptions = useMemo(
+    () =>
+      Array.from({ length: lastDay }, (_, index) => ({ label: String(index + 1), value: index + 1 })),
+    [lastDay],
+  );
 
   /** Writes local calendar fields as one instant; the day is clamped to the month it lands in. */
   const applyFields = (
@@ -684,7 +707,7 @@ export function DateTimeField({
                         shown.minute,
                       );
                     }}
-                    options={hourOptions}
+                    options={HOUR_OPTIONS}
                     value={shown.hour}
                   />
                   <DueSelect
@@ -701,7 +724,7 @@ export function DateTimeField({
                         (shown.minute + delta + 60) % 60,
                       );
                     }}
-                    options={minuteOptions}
+                    options={MINUTE_OPTIONS}
                     value={shown.minute}
                   />
                 </div>

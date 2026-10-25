@@ -1,6 +1,6 @@
 /** One task: complete it, edit it, tag it, or take it off the list. */
 
-import { memo, useLayoutEffect, useRef, useState } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent, MouseEvent } from "react";
 
 import { ActionIcon } from "../../components/ui/ActionIcon";
@@ -97,8 +97,10 @@ export const TodoItem = memo(function TodoItem({
   }, [draft]);
 
   const age = ageOf(todo.createdAt, now);
-  const names = tagNamesOf(todo, tags);
-  const plan = planSummary(todo, now, { language, t });
+  // The tag names are the same for every row of the page, so a row that redraws — the clock moves
+  // every minute — does not walk the whole tag list again to spell the few it carries.
+  const names = useMemo(() => tagNamesOf(todo, tags), [tags, todo]);
+  const plan = useMemo(() => planSummary(todo, now, { language, t }), [language, now, t, todo]);
   const starred = todo.starredAt !== null;
 
   /** Leaves the field and stores what was typed, unless nothing changed. */

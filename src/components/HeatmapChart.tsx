@@ -1,6 +1,9 @@
 /** GitHub-style heatmap: one cell per bucket, shaded by the focus time inside it. */
 
+import { memo, useMemo } from "react";
+
 import { useI18n } from "../hooks/useI18n";
+import { dateFormatter } from "../utils/intl";
 import type { HeatmapBucket, HeatmapGranularity } from "../types/heatmap";
 import heatmapStyles from "../pages/Heatmap/heatmap.module.css";
 
@@ -21,6 +24,13 @@ function peakOf(buckets: readonly HeatmapBucket[]): number {
   return buckets.reduce((peak, bucket) => Math.max(peak, bucket.focusSeconds), 0);
 }
 
+/** What the tick under a strip's cell spells: a month, or a day of one. */
+function tickOptions(granularity: HeatmapGranularity): Intl.DateTimeFormatOptions {
+  return granularity === "month"
+    ? { month: "short", year: "2-digit" }
+    : { day: "numeric", month: "short" };
+}
+
 interface HeatmapCellProps {
   /** Shade step, `0` for a bucket without focus time. */
   level: number;
@@ -29,11 +39,11 @@ interface HeatmapCellProps {
 }
 
 /** One shaded square; the tooltip carries the numbers, because the cell cannot show them. */
-function HeatmapCell({ level, title }: HeatmapCellProps) {
+const HeatmapCell = memo(function HeatmapCell({ level, title }: HeatmapCellProps) {
   const shade = heatmapStyles[`level${level}`] ?? "";
 
   return <span className={`${heatmapStyles.heatmapCell} ${shade}`.trim()} title={title} />;
-}
+});
 
 interface HeatmapChartProps {
   /** Buckets of the window, oldest first and dense. */
@@ -49,24 +59,22 @@ export function HeatmapChart({ buckets, granularity }: HeatmapChartProps) {
   const { language, t } = useI18n();
   const peak = peakOf(buckets);
 
-  const describe = (bucket: HeatmapBucket): string => {
-    const date = new Date(bucket.start * 1000).toLocaleDateString(language, {
-      dateStyle: "medium",
-    });
-
-    return t("heatmap.cell", {
-      date,
-      minutes: Math.round(bucket.focusSeconds / 60),
-      tasks: bucket.completedTasks,
-    });
-  };
-
-  const cell = (bucket: HeatmapBucket) => (
-    <HeatmapCell
-      key={bucket.start}
-      level={level(bucket.focusSeconds, peak)}
-      title={describe(bucket)}
-    />
+  // One entry per bucket, worked out once per window: the shade and the tooltip only move when the
+  // buckets do, so a chart that redraws for a reason of its own formats nothing again.
+  const cells = useMemo(
+    () =>
+      buckets.map((bucket) => ({
+        bucket,
+        shade: level(bucket.focusSeconds, peak),
+        title: t("heatmap.cell", {
+          date: dateFormatter(language, { dateStyle: "medium" }).format(
+            new Date(bucket.start * 1000),
+          ),
+          minutes: Math.round(bucket.focusSeconds / 60),
+          tasks: bucket.completedTasks,
+        }),
+      })),
+    [buckets, language, peak, t],
   );
 
   const legend = (
@@ -90,7 +98,9 @@ export function HeatmapChart({ buckets, granularity }: HeatmapChartProps) {
           {Array.from({ length: leading }, (_, blank) => (
             <span className={heatmapStyles.heatmapBlank} key={`blank-${blank}`} />
           ))}
-          {buckets.map(cell)}
+          {cells.map(({ bucket, shade, title }) => (
+            <HeatmapCell key={bucket.start} level={shade} title={title} />
+          ))}
         </div>
         {legend}
       </>
@@ -100,15 +110,12 @@ export function HeatmapChart({ buckets, granularity }: HeatmapChartProps) {
   return (
     <>
       <ol className={heatmapStyles.heatmapStrip}>
-        {buckets.map((bucket) => (
+        {cells.map(({ bucket, shade, title }) => (
           <li key={bucket.start}>
-            {cell(bucket)}
+            <HeatmapCell level={shade} title={title} />
             <span className={heatmapStyles.heatmapTick}>
-              {new Date(bucket.start * 1000).toLocaleDateString(
-                language,
-                granularity === "month"
-                  ? { month: "short", year: "2-digit" }
-                  : { day: "numeric", month: "short" },
+              {dateFormatter(language, tickOptions(granularity)).format(
+                new Date(bucket.start * 1000),
               )}
             </span>
           </li>

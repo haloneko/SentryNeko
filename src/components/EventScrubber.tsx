@@ -4,7 +4,7 @@
  * playhead on the switch under it.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent, PointerEvent } from "react";
 
 import { useI18n } from "../hooks/useI18n";
@@ -51,7 +51,11 @@ export function EventScrubber({ day, events, onSeek, selectedId }: EventScrubber
   const span = ZOOM_STEPS[step] ?? 86_400;
   const start = clamp(windowStart, day, Math.max(day, dayEnd - span));
   const end = start + span;
-  const selected = events.find((event) => event.id === selectedId) ?? events.at(0);
+  // One pass answers both questions the axis asks of the list: which event the playhead sits on,
+  // and where that one sits. The list is newest first, so the head is the fallback.
+  const selectedIndex =
+    selectedId === null ? 0 : events.findIndex((event) => event.id === selectedId);
+  const selected = events[selectedIndex === -1 ? 0 : selectedIndex];
 
   // Another day starts as a whole day again.
   useEffect(() => {
@@ -104,9 +108,11 @@ export function EventScrubber({ day, events, onSeek, selectedId }: EventScrubber
     return null;
   }
 
-  const index = selected === undefined ? 0 : events.findIndex((event) => event.id === selected.id);
+  const index = selectedIndex === -1 ? 0 : selectedIndex;
   const playhead = selected === undefined ? null : (selected.startedAt - start) / span;
-  const ticks = axisTicks(events, start, end);
+  // The runs are cut from the whole day, which is a pass over every event: they are kept for as long
+  // as the window and the day behind it stay put, so a redraw of the axis redraws no runs.
+  const ticks = useMemo(() => axisTicks(events, start, end), [end, events, start]);
 
   const ratioAt = (clientX: number): number => {
     const box = track.current?.getBoundingClientRect();
