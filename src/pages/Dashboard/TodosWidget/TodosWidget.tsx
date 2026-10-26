@@ -4,13 +4,14 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 
 import { useI18n } from "../../../hooks/useI18n";
-import { useTodos } from "../../../hooks/useTodos";
+import { useTodoActions, useTodoCounts } from "../../../hooks/useTodos";
 import dashboardStyles from "../dashboard.module.css";
 
 /** Remaining task count with a link to the full list. */
 export function TodosWidget() {
   const { t } = useI18n();
-  const { counts, refresh } = useTodos();
+  const counts = useTodoCounts();
+  const { refresh } = useTodoActions();
 
   useEffect(() => {
     void refresh();

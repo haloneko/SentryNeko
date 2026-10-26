@@ -3,13 +3,14 @@
 import { useEffect } from "react";
 
 import { useI18n } from "../../../hooks/useI18n";
-import { useTodos } from "../../../hooks/useTodos";
+import { useTodoActions, useTodoCompletions } from "../../../hooks/useTodos";
 import dashboardStyles from "../dashboard.module.css";
 
 /** Today's finished count, with the lifetime count as its note. */
 export function CompletionWidget() {
   const { t } = useI18n();
-  const { completions, completionsError, completionsLoading, refreshCompletions } = useTodos();
+  const { completions, error, loading } = useTodoCompletions();
+  const { refreshCompletions } = useTodoActions();
 
   useEffect(() => {
     void refreshCompletions();
@@ -18,9 +19,9 @@ export function CompletionWidget() {
   return (
     <section className={dashboardStyles.dashPanel} data-dash-panel>
       <p className={dashboardStyles.dashKicker}>{t("dashboard.done.title")}</p>
-      {completionsLoading ? <p className={dashboardStyles.dashMuted}>{t("dashboard.loading")}</p> : null}
-      {completionsError !== null ? <p className="error">{t("dashboard.error")}</p> : null}
-      {!completionsLoading && completionsError === null ? (
+      {loading ? <p className={dashboardStyles.dashMuted}>{t("dashboard.loading")}</p> : null}
+      {error !== null ? <p className="error">{t("dashboard.error")}</p> : null}
+      {!loading && error === null ? (
         <>
           <p className={dashboardStyles.dashCount}>
             {completions.today}

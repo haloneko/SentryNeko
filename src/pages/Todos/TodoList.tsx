@@ -7,7 +7,7 @@ import { Popconfirm } from "../../components/ui/Popconfirm";
 import { useI18n } from "../../hooks/useI18n";
 import { useMinuteClock } from "../../hooks/useMinuteClock";
 import { useTags } from "../../hooks/useTags";
-import { useTodos } from "../../hooks/useTodos";
+import { useTodoActions, useTodoList } from "../../hooks/useTodos";
 import type { Todo } from "../../types/todo";
 import type { TodoSort } from "./todos";
 import { groupTodos, matchesFilter, overdueCount, searchTodos } from "./todos";
@@ -72,21 +72,17 @@ const SETTLE_MS = 640;
 /** Filter switch, the search, the groups themselves and the bulk actions. */
 export function TodoList() {
   const { language, t } = useI18n();
+  const { counts, error, filter, loading, todos } = useTodoList();
   const {
-    counts,
-    error,
-    filter,
-    loading,
     remove,
     rename,
     setEndAt,
     setFilter,
     setStarred,
     setStartAt,
-    todos,
     toggle,
     updateTags,
-  } = useTodos();
+  } = useTodoActions();
   const { tags } = useTags();
   const now = useMinuteClock();
 

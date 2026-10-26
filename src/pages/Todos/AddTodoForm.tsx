@@ -4,13 +4,13 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 
 import { useI18n } from "../../hooks/useI18n";
-import { useTodos } from "../../hooks/useTodos";
+import { useTodoActions } from "../../hooks/useTodos";
 import todosStyles from "./todos.module.css";
 
 /** Stores the typed title and clears the field once it landed. */
 export function AddTodoForm() {
   const { t } = useI18n();
-  const { add } = useTodos();
+  const { add } = useTodoActions();
   const [title, setTitle] = useState("");
 
   const submit = (event: FormEvent) => {
