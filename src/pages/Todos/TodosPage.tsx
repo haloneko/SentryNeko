@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 import { useI18n } from "../../hooks/useI18n";
 import { useTags } from "../../hooks/useTags";
-import { useTodos } from "../../hooks/useTodos";
+import { useTodoActions, useTodoSummary } from "../../hooks/useTodos";
 import { AddTodoForm } from "./AddTodoForm";
 import { TodoList } from "./TodoList";
 import todosStyles from "./todos.module.css";
@@ -12,7 +12,8 @@ import todosStyles from "./todos.module.css";
 /** Renders the page head with today's finished count, the composer and the tasks. */
 export function TodosPage() {
   const { t } = useI18n();
-  const { completions, counts, filter, refresh } = useTodos();
+  const { completions, counts, filter } = useTodoSummary();
+  const { refresh } = useTodoActions();
   const { refresh: refreshTags } = useTags();
 
   // One load per filter change; the components below only read the result.
