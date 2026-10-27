@@ -17,6 +17,21 @@ export interface FocusHour {
   seconds: number;
 }
 
+/**
+ * One basket of the focus stack: the hours of one category, as `models/focus_usage.rs` answers.
+ *
+ * An hour that held more than one category answers once per category, which is what the stack
+ * draws; the unnamed work arrives as the empty category.
+ */
+export interface FocusCategoryHour {
+  /** UTC epoch seconds of the hour's start. */
+  hourStart: number;
+  /** The category the stretch was started under; empty for the work nobody named. */
+  category: string;
+  /** Seconds of that hour filed under the category. */
+  seconds: number;
+}
+
 /** The two measures the hourly panel can draw. */
 export type HourlyKind = "apps" | "focus";
 
@@ -26,8 +41,8 @@ export const HOURLY_KINDS = ["apps", "focus"] as const satisfies readonly Hourly
 /** Hours a local day can draw. */
 export const HOURS_PER_DAY = 24;
 
-/** How many apps a stack keeps before the rest are folded into one slice. */
-export const MAX_STACKED_APPS = 5;
+/** How many slices a stack keeps apart before the rest are folded into one slice. */
+export const MAX_STACKED_SLICES = 5;
 
 /** Local-calendar window of one day, in UTC epoch seconds. */
 export function dayWindow(day: Date): { from: number; to: number } {
@@ -44,65 +59,69 @@ export function localHour(seconds: number): number {
   return new Date(seconds * 1000).getHours();
 }
 
-/** One bar of the stack: which app it draws and what the legend calls it. */
-export interface StackedApp {
-  /** Key of the app inside a row; an index, so an app name never collides with `hour`. */
+/** One slice of a stack: the key it draws under and what the legend calls it. */
+export interface StackedSlice {
+  /** Key of the slice inside a row; an index, so a name never collides with `hour`. */
   key: string;
   name: string;
-  /** `true` for the slice that carries every app the stack left out. */
+  /** `true` for the slice that carries every name the stack left out. */
   other?: boolean;
 }
 
-/** One row of the stack: the hour and the seconds of every app drawn above it. */
+/** One row of the stack: the hour and the seconds of every slice drawn above it. */
 export type StackedRow = { hour: number } & Record<string, number>;
 
-/** A stack ready for the chart: the apps to draw and one row per hour. */
-export interface AppStack {
-  /** Busiest first, plus the folded slice when some apps were left out. */
-  apps: StackedApp[];
+/** A stack ready for the chart: the slices to draw and one row per hour. */
+export interface Stack {
+  /** Busiest first, plus the folded slice when some names were left out. */
+  slices: StackedSlice[];
   rows: StackedRow[];
 }
 
+/** One slice's seconds inside one hour, whatever the slice is named. */
+interface SliceBucket {
+  hourStart: number;
+  name: string;
+  seconds: number;
+}
+
 /**
- * Pivots the buckets into twenty-four rows, keeping the busiest apps apart and folding the rest.
+ * Pivots the buckets into twenty-four rows, keeping the busiest slices apart and folding the rest.
  *
- * The apps are ranked by their total for the day, so the shape of the stack is the same across
- * every hour; a day with more than [`MAX_STACKED_APPS`] apps still stays readable.
+ * The slices are ranked by their total for the day, so the shape of the stack is the same across
+ * every hour; a day with more than [`MAX_STACKED_SLICES`] of them still stays readable.
  */
-export function stackHours(
-  usage: readonly HourlyUsage[],
-  otherLabel: string,
-): AppStack {
+function stackBuckets(buckets: readonly SliceBucket[], otherLabel: string): Stack {
   const totals = new Map<string, number>();
 
-  for (const bucket of usage) {
-    totals.set(bucket.appName, (totals.get(bucket.appName) ?? 0) + bucket.seconds);
+  for (const bucket of buckets) {
+    totals.set(bucket.name, (totals.get(bucket.name) ?? 0) + bucket.seconds);
   }
 
   const ranked = [...totals.entries()].sort(
     (left, right) => right[1] - left[1] || left[0].localeCompare(right[0]),
   );
-  const shown = ranked.slice(0, MAX_STACKED_APPS).map(([name]) => name);
-  const apps: StackedApp[] = shown.map((name, index) => ({ key: `a${index}`, name }));
-  const folded = `a${shown.length}`;
+  const shown = ranked.slice(0, MAX_STACKED_SLICES).map(([name]) => name);
+  const slices: StackedSlice[] = shown.map((name, index) => ({ key: `s${index}`, name }));
+  const folded = `s${shown.length}`;
 
   if (ranked.length > shown.length) {
-    apps.push({ key: folded, name: otherLabel, other: true });
+    slices.push({ key: folded, name: otherLabel, other: true });
   }
 
   const rows: StackedRow[] = Array.from({ length: HOURS_PER_DAY }, (_, hour) => {
     const row: StackedRow = { hour };
 
-    for (const app of apps) {
-      row[app.key] = 0;
+    for (const slice of slices) {
+      row[slice.key] = 0;
     }
 
     return row;
   });
 
-  for (const bucket of usage) {
-    const position = shown.indexOf(bucket.appName);
-    const key = position === -1 ? folded : `a${position}`;
+  for (const bucket of buckets) {
+    const position = shown.indexOf(bucket.name);
+    const key = position === -1 ? folded : `s${position}`;
     const row = rows[localHour(bucket.hourStart)];
 
     if (row !== undefined) {
@@ -110,13 +129,40 @@ export function stackHours(
     }
   }
 
-  return { apps, rows };
+  return { slices, rows };
 }
 
-/** One point of the focus line. */
-export interface FocusRow {
-  hour: number;
-  seconds: number;
+/** Stacks a day's app buckets, the app that held the foreground the longest first. */
+export function stackHours(usage: readonly HourlyUsage[], otherLabel: string): Stack {
+  return stackBuckets(
+    usage.map((bucket) => ({
+      hourStart: bucket.hourStart,
+      name: bucket.appName,
+      seconds: bucket.seconds,
+    })),
+    otherLabel,
+  );
+}
+
+/**
+ * Stacks a day's focus buckets, the category that took the most time first.
+ *
+ * The work nobody named keeps its empty category on the wire, so it is drawn under
+ * `unnamedLabel` instead of as a legend entry with no text.
+ */
+export function stackFocus(
+  hours: readonly FocusCategoryHour[],
+  otherLabel: string,
+  unnamedLabel: string,
+): Stack {
+  return stackBuckets(
+    hours.map((bucket) => ({
+      hourStart: bucket.hourStart,
+      name: bucket.category === "" ? unnamedLabel : bucket.category,
+      seconds: bucket.seconds,
+    })),
+    otherLabel,
+  );
 }
 
 /** The day at a glance: what both measures add up to and where the time went. */
@@ -159,22 +205,4 @@ export function dayTotals(
   }
 
   return { apps, focus: focus.reduce((sum, bucket) => sum + bucket.seconds, 0), top };
-}
-
-/** Fills the day's hours with the focus seconds read from the buckets. */
-export function focusRows(hours: readonly FocusHour[]): FocusRow[] {
-  const rows: FocusRow[] = Array.from({ length: HOURS_PER_DAY }, (_, hour) => ({
-    hour,
-    seconds: 0,
-  }));
-
-  for (const bucket of hours) {
-    const row = rows[localHour(bucket.hourStart)];
-
-    if (row !== undefined) {
-      row.seconds += bucket.seconds;
-    }
-  }
-
-  return rows;
 }

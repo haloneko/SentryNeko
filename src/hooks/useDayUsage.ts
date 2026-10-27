@@ -5,12 +5,14 @@ import { useEffect, useRef, useState } from "react";
 
 import { isOk } from "../types";
 import type { ApiCode, ApiResponse } from "../types";
-import type { FocusHour, HourlyUsage } from "../types/hourly";
+import type { FocusCategoryHour, FocusHour, HourlyUsage } from "../types/hourly";
 import { dayWindow } from "../types/hourly";
 
 export interface DayUsageState {
   usage: readonly HourlyUsage[];
   focus: readonly FocusHour[];
+  /** The same focus seconds split by category, for the stacked chart. */
+  focusCategories: readonly FocusCategoryHour[];
   loading: boolean;
   busy: boolean;
   error: ApiCode | null;
@@ -21,6 +23,7 @@ export function useDayUsage(day: Date): DayUsageState {
     busy: false,
     error: null,
     focus: [],
+    focusCategories: [],
     loading: true,
     usage: [],
   });
@@ -40,33 +43,49 @@ export function useDayUsage(day: Date): DayUsageState {
 
     if (!isTauri()) {
       answered.current = true;
-      setState({ busy: false, error: "UNSUPPORTED", focus: [], loading: false, usage: [] });
+      setState({
+        busy: false,
+        error: "UNSUPPORTED",
+        focus: [],
+        focusCategories: [],
+        loading: false,
+        usage: [],
+      });
       return;
     }
 
     void Promise.all([
       invoke<ApiResponse<HourlyUsage[]>>("app_usage_hours", bounds),
       invoke<ApiResponse<FocusHour[]>>("focus_hours", bounds),
+      invoke<ApiResponse<FocusCategoryHour[]>>("focus_category_hours", bounds),
     ])
-      .then(([usage, focus]) => {
+      .then(([usage, focus, categories]) => {
         if (cancelled) {
           return;
         }
 
         answered.current = true;
 
-        if (!isOk(usage) || !isOk(focus)) {
+        if (!isOk(usage) || !isOk(focus) || !isOk(categories)) {
           setState({
             busy: false,
-            error: isOk(usage) ? focus.code : usage.code,
+            error: isOk(usage) ? (isOk(focus) ? categories.code : focus.code) : usage.code,
             focus: [],
+            focusCategories: [],
             loading: false,
             usage: [],
           });
           return;
         }
 
-        setState({ busy: false, error: null, focus: focus.data, loading: false, usage: usage.data });
+        setState({
+          busy: false,
+          error: null,
+          focus: focus.data,
+          focusCategories: categories.data,
+          loading: false,
+          usage: usage.data,
+        });
       })
       .catch(() => {
         if (cancelled) {
@@ -74,7 +93,14 @@ export function useDayUsage(day: Date): DayUsageState {
         }
 
         answered.current = true;
-        setState({ busy: false, error: "INTERNAL", focus: [], loading: false, usage: [] });
+        setState({
+          busy: false,
+          error: "INTERNAL",
+          focus: [],
+          focusCategories: [],
+          loading: false,
+          usage: [],
+        });
       });
 
     return () => {

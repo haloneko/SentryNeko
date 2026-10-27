@@ -52,13 +52,13 @@
     },
     "hourly": {
       "error": "The hourly breakdown could not be loaded.",
-      "focusMinutes": "Focus",
       "kind": {
         "apps": "Stacked by app",
-        "focus": "Focus minutes",
+        "focus": "Stacked by category",
         "label": "Chart"
       },
       "other": "Other apps",
+      "otherCategory": "Other categories",
       "peak": "Peak hour: {{minutes}} min",
       "title": "Hour by hour",
       "total": "{{minutes}} min in total"
