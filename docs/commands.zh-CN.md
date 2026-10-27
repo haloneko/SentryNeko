@@ -92,7 +92,9 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 `get_running_pomodoro_session` 回答仍在进行的那一段，让重新打开的窗口接着跑；`stop_pomodoro_session`
 关闭它——秒数取自后端自己的时间戳，而不是窗口传来的数字。暂停和休息用同样的方式关段，
 `collectors/focus_tick.rs` 里的分钟线程在运行期间把秒数写入 `focus_usage_hours`。没有任何行记录这一段，
-所以崩溃最多损失当前这一分钟。倒计时本身由前端按时间戳推进，不依赖 tick 计数，且由 store 驱动而非页面，
+所以崩溃最多损失当前这一分钟。开段时带上分类，秒数就记在这个分类下——自由文本、去掉首尾空白、最长 64
+个字符，且可为空：不认识分类的窗口照旧能开段，不传即「没起名字的那件事」。`focus_categories` 把一个时间窗
+按分类读回来（耗时长的在前），「每个分类干了多久」由此回答。倒计时本身由前端按时间戳推进，不依赖 tick 计数，且由 store 驱动而非页面，
 因此切换页面不会中断。时长是设置 `pomodoro.durations`，在设置页编辑。通知这一组就是 Toast 通道：`send_test_notification`
 是诊断命令，`notify_pomodoro_phase` 由计时器在阶段结束时调用。两者成功返回 `toast`；系统拒绝
 时推送 `notification-fallback`（见 `docs/events.md`）并返回 `fallback`，番茄钟无论如何都会继续流转。
@@ -156,9 +158,10 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 | `set_todo_tags` | `tag_commands` | `id: i64`、`tagIds: i64[]` | `Todo` | T33 |
 | `todo_tags` | `tag_commands` | `todoId: i64` | `Tag[]` | T33 |
 | `todos_with_tag` | `tag_commands` | `tagId: i64` | `Todo[]` | T33 |
-| `start_pomodoro_session` | `pomodoro_commands` | `phase: Phase`、`plannedSeconds: i64` | `Running`（`{ phase, startedAt, plannedSeconds }`） | T11 |
+| `start_pomodoro_session` | `pomodoro_commands` | `phase: Phase`、`plannedSeconds: i64`、`category: String?` | `Running`（`{ phase, startedAt, plannedSeconds, category }`） | T11 |
 | `get_running_pomodoro_session` | `pomodoro_commands` | — | `Running` 或 `null` | T11 |
 | `stop_pomodoro_session` | `pomodoro_commands` | — | —（推送 `pomodoro-finished`） | T11 |
+| `focus_categories` | `pomodoro_commands` | `from: i64`、`to: i64` | `FocusCategory[]`（`{ category, seconds }`） | T11 |
 | `send_test_notification` | `notification_commands` | — | `Outcome`（`"toast"` 或 `"fallback"`） | T14 |
 | `notify_pomodoro_phase` | `notification_commands` | `phase: Phase` | `Outcome`（`"toast"` 或 `"fallback"`） | T14 |
 | `get_uptime` | `system_commands` | — | `Uptime`（`{ bootAt, todaySeconds, totalSeconds }`） | T13 |

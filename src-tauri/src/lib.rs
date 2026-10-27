@@ -128,6 +128,7 @@ pub fn run() {
             pomodoro_commands::start_pomodoro_session,
             pomodoro_commands::stop_pomodoro_session,
             pomodoro_commands::get_running_pomodoro_session,
+            pomodoro_commands::focus_categories,
             system_commands::get_uptime,
             app_event_commands::app_usage,
             app_event_commands::app_usage_hours,

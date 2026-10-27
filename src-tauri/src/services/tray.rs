@@ -350,7 +350,7 @@ fn tray_error(context: &str, error: tauri::Error) -> ApiError {
 mod tests {
     use super::*;
     use crate::db::schema;
-    use crate::models::focus_usage::FocusUsage;
+    use crate::models::focus_usage::{FocusFile, FocusUsage};
     use crate::models::todo::{NewTodo, Todo};
 
     fn created() -> Db {
@@ -431,8 +431,13 @@ mod tests {
         );
 
         // Ten minutes the minute tick has already written into the hour.
-        FocusUsage::record(&db, FocusUsage::hour_of(time::now_seconds()), 600)
-            .expect("the tick recorded the focus");
+        FocusUsage::record(
+            &db,
+            FocusUsage::hour_of(time::now_seconds()),
+            600,
+            &FocusFile::default(),
+        )
+        .expect("the tick recorded the focus");
 
         let todo = Todo::add(&db, NewTodo::new("ship the tray")).expect("added");
         Todo::set_completed(&db, todo.id, true).expect("completed");

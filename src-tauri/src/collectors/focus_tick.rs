@@ -11,7 +11,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use crate::db::connection::Db;
-use crate::models::focus_usage::FocusUsage;
+use crate::models::focus_usage::{FocusFile, FocusUsage};
 use crate::models::pomodoro::{Phase, Running, MAX_SECONDS};
 use crate::services::event_bus::EventBus;
 use crate::utils::response::{ApiError, ApiResult};
@@ -30,6 +30,9 @@ const MAX_GAP: i64 = 90;
 /// A running stretch together with the instant it was last written up to.
 struct Stretch {
     running: Running,
+    /// What its seconds are filed under, kept beside the payload so the file can grow a dimension
+    /// without the event a window listens to growing one too.
+    file: FocusFile,
     settled_at: i64,
 }
 
@@ -78,7 +81,11 @@ impl FocusTicker {
     }
 
     /// Starts a stretch, stopping the one already running.
-    pub fn start(&self, phase: Phase, planned_seconds: i64) -> ApiResult<Running> {
+    ///
+    /// `file` is what the stretch's seconds are filed under. It is kept beside the payload rather
+    /// than folded into it, so a dimension it learns later reaches the buckets without changing
+    /// what a window is told.
+    pub fn start(&self, phase: Phase, planned_seconds: i64, file: FocusFile) -> ApiResult<Running> {
         if !(1..=MAX_SECONDS).contains(&planned_seconds) {
             return Err(ApiError::invalid_input(format!(
                 "plannedSeconds must be between 1 and {MAX_SECONDS}"
@@ -93,10 +100,12 @@ impl FocusTicker {
             phase,
             started_at: now,
             planned_seconds,
+            category: file.category.clone(),
         };
 
         *self.lock()? = Some(Stretch {
             running: running.clone(),
+            file,
             settled_at: now,
         });
 
@@ -164,7 +173,7 @@ fn settle(db: &Db, slot: &Mutex<Option<Stretch>>, now: i64) -> Option<Running> {
         let counted_to = to.min(stretch.settled_at + MAX_GAP);
 
         if stretch.running.phase == Phase::Focus {
-            let _ = FocusUsage::record_span(db, stretch.settled_at, counted_to);
+            let _ = FocusUsage::record_span(db, stretch.settled_at, counted_to, &stretch.file);
         }
 
         stretch.settled_at = to;
@@ -188,7 +197,7 @@ fn flush(db: &Db, stretch: &Stretch, now: i64) -> ApiResult<()> {
     if to > stretch.settled_at && stretch.running.phase == Phase::Focus {
         let counted_to = to.min(stretch.settled_at + MAX_GAP);
 
-        FocusUsage::record_span(db, stretch.settled_at, counted_to)?;
+        FocusUsage::record_span(db, stretch.settled_at, counted_to, &stretch.file)?;
     }
 
     Ok(())
@@ -198,6 +207,7 @@ fn flush(db: &Db, stretch: &Stretch, now: i64) -> ApiResult<()> {
 mod tests {
     use super::*;
     use crate::db::schema;
+    use crate::models::focus_usage::FocusCategory;
 
     fn created() -> Db {
         let db = Db::open_in_memory().expect("in-memory database opens");
@@ -209,13 +219,20 @@ mod tests {
         EventBus::new(crate::services::event_bus::testing::Recorder::default())
     }
 
+    /// A stretch of the given shape, filed under the unnamed work unless the test says otherwise.
     fn stretch(phase: Phase, started_at: i64, planned_seconds: i64) -> Stretch {
+        stretch_of(phase, started_at, planned_seconds, FocusFile::default())
+    }
+
+    fn stretch_of(phase: Phase, started_at: i64, planned_seconds: i64, file: FocusFile) -> Stretch {
         Stretch {
             running: Running {
                 phase,
                 started_at,
                 planned_seconds,
+                category: file.category.clone(),
             },
+            file,
             settled_at: started_at,
         }
     }
@@ -235,6 +252,27 @@ mod tests {
             FocusUsage::hours(&db, 0, 7_200).expect("hours"),
             [(0, 100), (3_600, 60)],
             "the second minute is cut at the hour it crosses"
+        );
+    }
+
+    #[test]
+    fn a_settlement_files_the_minute_under_the_category_it_ran_with() {
+        let db = created();
+        let slot = Mutex::new(Some(stretch_of(
+            Phase::Focus,
+            3_500,
+            1_500,
+            FocusFile::new().under("reading"),
+        )));
+
+        assert!(settle(&db, &slot, 3_560).is_none());
+
+        assert_eq!(
+            FocusUsage::categories(&db, 0, 7_200).expect("categories"),
+            [FocusCategory {
+                category: "reading".to_owned(),
+                seconds: 60,
+            }]
         );
     }
 
@@ -297,15 +335,21 @@ mod tests {
 
         assert!(ticker.running().is_none());
 
-        let started = ticker.start(Phase::Focus, 1_500).expect("started");
+        let started = ticker
+            .start(Phase::Focus, 1_500, FocusFile::default())
+            .expect("started");
         assert_eq!(started.phase, Phase::Focus);
+        assert_eq!(
+            started.category, "",
+            "a stretch without a category starts anyway"
+        );
         assert!(ticker.running().is_some());
 
         ticker.stop().expect("stopped");
         assert!(ticker.running().is_none());
 
         let broken = ticker
-            .start(Phase::Focus, 0)
+            .start(Phase::Focus, 0, FocusFile::default())
             .expect_err("a zero length phase is refused");
         assert_eq!(broken.code(), crate::utils::response::ApiCode::InvalidInput);
 

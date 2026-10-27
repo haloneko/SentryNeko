@@ -106,7 +106,11 @@ starts and answers it, `get_running_pomodoro_session` answers the one still runn
 window can resume it, and `stop_pomodoro_session` stops it — the seconds come from the backend's
 own timestamps, not from the window. A pause and a rest stop a stretch the same way, and the minute
 tick in `collectors/focus_tick.rs` writes its seconds into `focus_usage_hours` while it runs. No row
-records the stretch, so a crash costs the current minute instead of the phase. The countdown itself
+records the stretch, so a crash costs the current minute instead of the phase. A stretch is opened
+with the category its seconds are filed under — free text, trimmed, at most 64 characters, and
+optional, so a window that knows nothing of categories keeps starting stretches; nothing files the
+work nobody named. `focus_categories` reads a window back per category, busiest first, which is how
+time spent on each category is answered. The countdown itself
 runs in the frontend from timestamps, not from a tick count, and is driven from the store rather
 than the page, so switching pages does not stop it. The durations are the setting
 `pomodoro.durations`, edited on the settings page. The notification
@@ -186,9 +190,10 @@ answering with what is now in force. A registry that refuses the write is `PERMI
 | `set_todo_tags` | `tag_commands` | `id: i64`, `tagIds: i64[]` | `Todo` | T33 |
 | `todo_tags` | `tag_commands` | `todoId: i64` | `Tag[]` | T33 |
 | `todos_with_tag` | `tag_commands` | `tagId: i64` | `Todo[]` | T33 |
-| `start_pomodoro_session` | `pomodoro_commands` | `phase: Phase`, `plannedSeconds: i64` | `Running` (`{ phase, startedAt, plannedSeconds }`) | T11 |
+| `start_pomodoro_session` | `pomodoro_commands` | `phase: Phase`, `plannedSeconds: i64`, `category: String?` | `Running` (`{ phase, startedAt, plannedSeconds, category }`) | T11 |
 | `get_running_pomodoro_session` | `pomodoro_commands` | — | `Running` or `null` | T11 |
 | `stop_pomodoro_session` | `pomodoro_commands` | — | — (pushes `pomodoro-finished`) | T11 |
+| `focus_categories` | `pomodoro_commands` | `from: i64`, `to: i64` | `FocusCategory[]` (`{ category, seconds }`) | T11 |
 | `send_test_notification` | `notification_commands` | — | `Outcome` (`"toast"` or `"fallback"`) | T14 |
 | `notify_pomodoro_phase` | `notification_commands` | `phase: Phase` | `Outcome` (`"toast"` or `"fallback"`) | T14 |
 | `get_uptime` | `system_commands` | — | `Uptime` (`{ bootAt, todaySeconds, totalSeconds }`) | T13 |
