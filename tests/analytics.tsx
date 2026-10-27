@@ -31,7 +31,11 @@ useI18nStore.setState({ language });
 Object.defineProperty(window, "isTauri", { value: true });
 
 mockIPC((command, payload) => {
-  if (command === "app_usage_hours" || command === "focus_hours") {
+  if (
+    command === "app_usage_hours" ||
+    command === "focus_hours" ||
+    command === "focus_category_hours"
+  ) {
     window.__hourlyFrom = (payload as { from: number }).from;
   }
 
