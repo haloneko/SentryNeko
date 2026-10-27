@@ -35,12 +35,11 @@ export function AnalyticsPage() {
   const {
     busy,
     error: hourlyError,
-    focus,
     focusCategories,
     loading: hourlyLoading,
     usage,
   } = useDayUsage(day);
-  const totals = dayTotals(usage, focus);
+  const totals = dayTotals(usage, focusCategories);
 
   const duration = (seconds: number): string => formatDuration(seconds, t);
 

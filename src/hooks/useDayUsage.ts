@@ -5,13 +5,12 @@ import { useEffect, useRef, useState } from "react";
 
 import { isOk } from "../types";
 import type { ApiCode, ApiResponse } from "../types";
-import type { FocusCategoryHour, FocusHour, HourlyUsage } from "../types/hourly";
+import type { FocusCategoryHour, HourlyUsage } from "../types/hourly";
 import { dayWindow } from "../types/hourly";
 
 export interface DayUsageState {
   usage: readonly HourlyUsage[];
-  focus: readonly FocusHour[];
-  /** The same focus seconds split by category, for the stacked chart. */
+  /** The day's focus seconds, split by category; the stack and the total both read them. */
   focusCategories: readonly FocusCategoryHour[];
   loading: boolean;
   busy: boolean;
@@ -22,7 +21,6 @@ export function useDayUsage(day: Date): DayUsageState {
   const [state, setState] = useState<DayUsageState>({
     busy: false,
     error: null,
-    focus: [],
     focusCategories: [],
     loading: true,
     usage: [],
@@ -46,7 +44,6 @@ export function useDayUsage(day: Date): DayUsageState {
       setState({
         busy: false,
         error: "UNSUPPORTED",
-        focus: [],
         focusCategories: [],
         loading: false,
         usage: [],
@@ -56,21 +53,19 @@ export function useDayUsage(day: Date): DayUsageState {
 
     void Promise.all([
       invoke<ApiResponse<HourlyUsage[]>>("app_usage_hours", bounds),
-      invoke<ApiResponse<FocusHour[]>>("focus_hours", bounds),
       invoke<ApiResponse<FocusCategoryHour[]>>("focus_category_hours", bounds),
     ])
-      .then(([usage, focus, categories]) => {
+      .then(([usage, categories]) => {
         if (cancelled) {
           return;
         }
 
         answered.current = true;
 
-        if (!isOk(usage) || !isOk(focus) || !isOk(categories)) {
+        if (!isOk(usage) || !isOk(categories)) {
           setState({
             busy: false,
-            error: isOk(usage) ? (isOk(focus) ? categories.code : focus.code) : usage.code,
-            focus: [],
+            error: isOk(usage) ? categories.code : usage.code,
             focusCategories: [],
             loading: false,
             usage: [],
@@ -81,7 +76,6 @@ export function useDayUsage(day: Date): DayUsageState {
         setState({
           busy: false,
           error: null,
-          focus: focus.data,
           focusCategories: categories.data,
           loading: false,
           usage: usage.data,
@@ -96,7 +90,6 @@ export function useDayUsage(day: Date): DayUsageState {
         setState({
           busy: false,
           error: "INTERNAL",
-          focus: [],
           focusCategories: [],
           loading: false,
           usage: [],

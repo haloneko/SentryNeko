@@ -108,9 +108,8 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 事件流读的是 `app_events`：`list_app_events` 倒序返回一页，`before` 传上一页
 最后一行的 id，采集器持续插入时翻页也不会错位。热力图这一组回答图表要什么：`heatmap` 接收窗口和 `granularity`
 （`day`、`week`、`month`），按本地日、周一或月初返回每个桶——空桶也返回——桶里带在该处开始的
-专注秒数和在该处完成的任务数；规则写在 `docs/database.md`。`focus_hours` 把同一批专注桶按小时
-返回，供小时图汇总当天的专注总量；`focus_category_hours` 把同一批桶按分类拆开，专注图因此能像
-应用图一样堆叠。闹钟这一组维护调度器盯着的那批提醒：
+专注秒数和在该处完成的任务数；规则写在 `docs/database.md`。`focus_category_hours` 把同一批专注桶按小时和分类展开，专注图因此能像
+应用图一样堆叠，当天的专注总量就是这些行相加的结果。闹钟这一组维护调度器盯着的那批提醒：
 `list_alarms`、`add_alarm`、`update_alarm`、`set_alarm_enabled`、`delete_alarm`。`hour` 和
 `minute` 是本地墙钟时间，`repeatDays` 是星期掩码（`0` 表示单次）；这里没有任何命令会响铃——
 真正响铃的是 `services/scheduler.rs`，跑在拥有时钟的那个线程上，所以页面开没开都不影响闹钟。
@@ -170,7 +169,6 @@ fn toggle(id: i64) -> ApiResult<Todo> {
 | `app_usage_hours` | `app_event_commands` | `from: i64`、`to: i64` | `HourlyUsage[]`（`{ hourStart, appName, seconds }`） | T35 |
 | `list_app_events` | `app_event_commands` | `before: i64?`、`limit: i64` | `AppEventPage`（`{ events, more }`） | T23 |
 | `heatmap` | `heatmap_commands` | `from: i64`、`to: i64`、`granularity: "day" \| "week" \| "month"` | `HeatmapBucket[]`（`{ start, focusSeconds, completedTasks }`） | T19 |
-| `focus_hours` | `heatmap_commands` | `from: i64`、`to: i64` | `FocusHour[]`（`{ hourStart, seconds }`） | T35 |
 | `focus_category_hours` | `heatmap_commands` | `from: i64`、`to: i64` | `FocusCategoryHour[]`（`{ hourStart, category, seconds }`） | T35 |
 | `list_alarms` | `alarm_commands` | — | `Alarm[]`（`{ id, label, hour, minute, repeatDays, enabled, createdAt }`） | T17 |
 | `add_alarm` | `alarm_commands` | `label: String`、`hour: i64`、`minute: i64`、`repeatDays: i64` | `Alarm` | T17 |

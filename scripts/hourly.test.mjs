@@ -15,10 +15,7 @@ const focus = (category, hour, minutes) => ({ category, hourStart: at(hour), sec
 test("both measures are added up and the busiest app is named", () => {
   const totals = dayTotals(
     [usage("Code", 9, 40), usage("Code", 10, 20), usage("Chrome", 9, 30)],
-    [
-      { hourStart: at(9), seconds: 600 },
-      { hourStart: at(10), seconds: 1_200 },
-    ],
+    [focus("writing", 9, 10), focus("", 10, 20)],
   );
 
   assert.deepEqual(totals, {

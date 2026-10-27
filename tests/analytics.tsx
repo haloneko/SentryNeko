@@ -1,5 +1,5 @@
 /**
- * The analytics page on its own, with the three queries it asks for answered empty. The window the
+ * The analytics page on its own, with the two queries it asks for answered empty. The window the
  * day block asked for is kept on `window` so a test can check which day reached the database.
  */
 
@@ -31,11 +31,7 @@ useI18nStore.setState({ language });
 Object.defineProperty(window, "isTauri", { value: true });
 
 mockIPC((command, payload) => {
-  if (
-    command === "app_usage_hours" ||
-    command === "focus_hours" ||
-    command === "focus_category_hours"
-  ) {
+  if (command === "app_usage_hours" || command === "focus_category_hours") {
     window.__hourlyFrom = (payload as { from: number }).from;
   }
 

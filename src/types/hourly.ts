@@ -9,14 +9,6 @@ export interface HourlyUsage {
   seconds: number;
 }
 
-/** One hour of focus, read from the buckets the minute tick fills. */
-export interface FocusHour {
-  /** UTC epoch seconds of the hour's start. */
-  hourStart: number;
-  /** Seconds of that hour spent in a focus phase. */
-  seconds: number;
-}
-
 /**
  * One basket of the focus stack: the hours of one category, as `models/focus_usage.rs` answers.
  *
@@ -178,11 +170,13 @@ export interface DayTotals {
 /**
  * Folds a day's buckets into the numbers the summary row prints.
  *
- * Ties are broken by name, so the same day always names the same app as its busiest one.
+ * The focus seconds are added up from the category buckets the stack already reads, so the total
+ * and the drawn slices can never disagree. Ties are broken by name, so the same day always names
+ * the same app as its busiest one.
  */
 export function dayTotals(
   usage: readonly HourlyUsage[],
-  focus: readonly FocusHour[],
+  focusCategories: readonly FocusCategoryHour[],
 ): DayTotals {
   const perApp = new Map<string, number>();
   let apps = 0;
@@ -204,5 +198,9 @@ export function dayTotals(
     }
   }
 
-  return { apps, focus: focus.reduce((sum, bucket) => sum + bucket.seconds, 0), top };
+  return {
+    apps,
+    focus: focusCategories.reduce((sum, bucket) => sum + bucket.seconds, 0),
+    top,
+  };
 }
