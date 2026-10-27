@@ -47,7 +47,7 @@ app.manage(db);
 
 | Setting | Value |
 | --- | --- |
-| File | `<app data dir>/sentryneko-<version>.db` (i.e. `%APPDATA%\com.sentryneko.desktop\sentryneko-0.1.0.db`) unless `config.json` points elsewhere |
+| File | `<app data dir>/sentryneko-<version>.db` (i.e. `%APPDATA%\com.sentryneko.desktop\sentryneko-0.2.0.db`) unless `config.json` points elsewhere |
 | Pool | 4 connections, 5 s checkout timeout |
 | Per connection | `foreign_keys = ON`, `journal_mode = WAL`, `synchronous = NORMAL`, `busy_timeout = 5000 ms` |
 | Timestamps | UTC epoch seconds |
@@ -59,7 +59,7 @@ app.manage(db);
 
 ```json
 {
-  "databasePath": "C:\\Users\\you\\AppData\\Roaming\\com.sentryneko.desktop\\sentryneko-0.1.0.db",
+  "databasePath": "C:\\Users\\you\\AppData\\Roaming\\com.sentryneko.desktop\\sentryneko-0.2.0.db",
   "language": "en-US",
   "colorMode": "system"
 }
@@ -265,7 +265,7 @@ creates a schema, whether the file is brand new or was just carried forward.
 
 ## One database file per version
 
-The version a database belongs to is written into its file name — `sentryneko-0.1.0.db` — and
+The version a database belongs to is written into its file name — `sentryneko-0.2.0.db` — and
 `config.json` records the path. Every start, `db/upgrade.rs` reads that name and compares it with
 the version compiled into the binary:
 

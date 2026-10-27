@@ -42,7 +42,7 @@ app.manage(db);
 
 | 项 | 取值 |
 | --- | --- |
-| 文件 | `<应用数据目录>/sentryneko-<版本>.db`（即 `%APPDATA%\com.sentryneko.desktop\sentryneko-0.1.0.db`），除非 `config.json` 另指路径 |
+| 文件 | `<应用数据目录>/sentryneko-<版本>.db`（即 `%APPDATA%\com.sentryneko.desktop\sentryneko-0.2.0.db`），除非 `config.json` 另指路径 |
 | 连接池 | 4 条连接，取用超时 5 秒 |
 | 每条连接 | `foreign_keys = ON`、`journal_mode = WAL`、`synchronous = NORMAL`、`busy_timeout = 5000 ms` |
 | 时间戳 | UTC 纪元秒 |
@@ -54,7 +54,7 @@ app.manage(db);
 
 ```json
 {
-  "databasePath": "C:\\Users\\you\\AppData\\Roaming\\com.sentryneko.desktop\\sentryneko-0.1.0.db",
+  "databasePath": "C:\\Users\\you\\AppData\\Roaming\\com.sentryneko.desktop\\sentryneko-0.2.0.db",
   "language": "en-US",
   "colorMode": "system"
 }
@@ -216,7 +216,7 @@ app.manage(db);
 
 ## 一个版本一个数据库文件
 
-数据库属于哪个版本，写在它的文件名里——`sentryneko-0.1.0.db`；`config.json` 只记路径。每次启动，
+数据库属于哪个版本，写在它的文件名里——`sentryneko-0.2.0.db`；`config.json` 只记路径。每次启动，
 `db/upgrade.rs` 读出这个名字，和编译进二进制的版本比对：
 
 | 记下的文件名是 | 会发生什么 |

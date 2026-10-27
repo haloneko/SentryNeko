@@ -1,6 +1,6 @@
 //! Opens the database this build reads, carrying an older file forward when it finds one.
 //!
-//! The version a database belongs to is written into its file name — `sentryneko-0.1.0.db` — and
+//! The version a database belongs to is written into its file name — `sentryneko-0.2.0.db` — and
 //! `config.json` records the path. Every start compares the name with
 //! [`crate::version::PROGRAM_VERSION`]: a match opens the file as it stands, and anything else — an
 //! older build, a newer one, or a name that carries no version at all — is carried into a fresh
