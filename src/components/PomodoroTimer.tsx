@@ -4,7 +4,14 @@ import { Link } from "react-router-dom";
 
 import { useI18n } from "../hooks/useI18n";
 import { usePomodoro } from "../hooks/usePomodoro";
-import { PHASES_PER_CYCLE, POMODORO_PHASES, phaseAfter, phaseSeconds } from "../types/pomodoro";
+import {
+  MAX_CATEGORY_LENGTH,
+  PHASES_PER_CYCLE,
+  POMODORO_PHASES,
+  phaseAfter,
+  phaseSeconds,
+} from "../types/pomodoro";
+import { LineInput } from "./ui/LineInput";
 import { SegmentedControl } from "./ui/SegmentedControl";
 import pomodoroStyles from "../pages/Pomodoro/pomodoro.module.css";
 import todosStyles from "../pages/Todos/todos.module.css";
@@ -19,6 +26,7 @@ const MAJOR_INNER = 96;
 export function PomodoroTimer() {
   const { t } = useI18n();
   const {
+    category,
     durations,
     endsAt,
     error,
@@ -28,10 +36,13 @@ export function PomodoroTimer() {
     remainingMs,
     reset,
     selectPhase,
+    setCategory,
     start,
   } = usePomodoro();
 
   const running = endsAt !== null;
+  // Only a focus stretch files its seconds under the name, so only that stretch closes the line.
+  const locked = running && phase === "focus";
   const totalMs = Math.max(1, phaseSeconds(durations, phase) * 1000);
   const ratio = Math.min(1, Math.max(0, 1 - remainingMs / totalMs));
   const seconds = Math.max(0, Math.ceil(remainingMs / 1000));
@@ -92,6 +103,24 @@ export function PomodoroTimer() {
           }))}
           value={phase}
         />
+        {/*
+          The name belongs to the focus stretch that was started, so the line is closed while one
+          runs: editing it then would promise a change the buckets never receive. A break is left
+          open — that is when the next block is named — and the name rides along when it starts.
+        */}
+        <div className={pomodoroStyles.pomoBlock}>
+          <LineInput
+            emptyLabel={t("pomodoro.category.unnamed")}
+            id="pomodoro-category"
+            label={t("pomodoro.category.label")}
+            lead="#"
+            locked={locked}
+            maxLength={MAX_CATEGORY_LENGTH}
+            onChange={setCategory}
+            placeholder={t("pomodoro.category.placeholder")}
+            value={category}
+          />
+        </div>
         <div className={pomodoroStyles.pomoBlock}>
           <p className={pomodoroStyles.pomoKicker}>{t("pomodoro.cycle.label")}</p>
           <p className={pomodoroStyles.pomoValue}>

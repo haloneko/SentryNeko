@@ -286,6 +286,11 @@
     "increase": "增大{{label}}"
   },
   "pomodoro": {
+    "category": {
+      "label": "分类",
+      "placeholder": "这段时间在做什么",
+      "unnamed": "未分类"
+    },
     "cycle": {
       "label": "本轮进度",
       "value": "{{done}} / {{total}} 个专注"

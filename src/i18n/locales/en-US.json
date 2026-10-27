@@ -286,6 +286,11 @@
     "increase": "Increase {{label}}"
   },
   "pomodoro": {
+    "category": {
+      "label": "Category",
+      "placeholder": "What this block is for",
+      "unnamed": "Unnamed"
+    },
     "cycle": {
       "label": "This cycle",
       "value": "{{done}} of {{total}} focus blocks"

@@ -53,12 +53,15 @@ function phaseLength(value: unknown, fallback: number): number {
     : fallback;
 }
 
+export const MAX_CATEGORY_LENGTH = 64;
+
 /** The stretch the backend is timing; mirrors `Running` in `models/pomodoro.rs`. */
 export interface RunningPomodoro {
   phase: PomodoroPhase;
   /** UTC epoch seconds. */
   startedAt: number;
   plannedSeconds: number;
+  category: string;
 }
 
 /** Every phase, in the order the segmented control shows them. */
