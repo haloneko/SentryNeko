@@ -136,6 +136,7 @@ pub fn run() {
             app_event_commands::list_app_events_between,
             heatmap_commands::heatmap,
             heatmap_commands::focus_hours,
+            heatmap_commands::focus_category_hours,
             alarm_commands::list_alarms,
             alarm_commands::add_alarm,
             alarm_commands::update_alarm,

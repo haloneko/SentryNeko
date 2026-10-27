@@ -33,6 +33,18 @@ pub struct FocusCategory {
     /// Seconds of focus filed under it.
     pub seconds: i64,
 }
+
+/// One category's focus time inside one hour, as the stacked hourly chart draws it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FocusCategoryHour {
+    /// UTC epoch seconds of the hour's start.
+    pub hour_start: i64,
+    /// The category the stretch was started under; empty for the work nobody named.
+    pub category: String,
+    /// Seconds of that hour filed under the category.
+    pub seconds: i64,
+}
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FocusFile {
     /// The category the seconds belong to; empty for the work nobody named.
@@ -160,6 +172,25 @@ impl FocusUsage {
                 Ok(FocusCategory {
                     category: row.get(0)?,
                     seconds: row.get(1)?,
+                })
+            },
+        )
+    }
+
+    /// Every non-empty bucket in `[from, to)`, oldest first; an hour that held more than one
+    /// category answers once per category, so the chart can stack them.
+    pub fn hours_by_category(db: &Db, from: i64, to: i64) -> ApiResult<Vec<FocusCategoryHour>> {
+        repository::query_all(
+            db,
+            "SELECT hour_start, category, seconds FROM focus_usage_hours
+             WHERE hour_start >= ?1 AND hour_start < ?2 AND seconds > 0
+             ORDER BY hour_start, category",
+            params![Self::hour_of(from), to],
+            |row| {
+                Ok(FocusCategoryHour {
+                    hour_start: row.get(0)?,
+                    category: row.get(1)?,
+                    seconds: row.get(2)?,
                 })
             },
         )
@@ -327,6 +358,46 @@ mod tests {
                 .expect_err("a backwards window is refused")
                 .code(),
             ApiCode::InvalidInput
+        );
+    }
+
+    #[test]
+    fn an_hour_answers_once_per_category_it_held() {
+        let db = created();
+
+        FocusUsage::record_span(&db, 3_500, 3_540, &FocusFile::new().under("writing"))
+            .expect("recorded");
+        FocusUsage::record_span(&db, 3_540, 3_560, &FocusFile::new().under("reading"))
+            .expect("recorded");
+        FocusUsage::record_span(&db, 3_560, 3_565, &unnamed()).expect("recorded");
+        FocusUsage::record_span(&db, 3_660, 3_700, &FocusFile::new().under("writing"))
+            .expect("recorded");
+
+        assert_eq!(
+            FocusUsage::hours_by_category(&db, 0, 7_200).expect("buckets"),
+            [
+                FocusCategoryHour {
+                    hour_start: 0,
+                    category: String::new(),
+                    seconds: 5,
+                },
+                FocusCategoryHour {
+                    hour_start: 0,
+                    category: "reading".to_owned(),
+                    seconds: 20,
+                },
+                FocusCategoryHour {
+                    hour_start: 0,
+                    category: "writing".to_owned(),
+                    seconds: 40,
+                },
+                FocusCategoryHour {
+                    hour_start: 3_600,
+                    category: "writing".to_owned(),
+                    seconds: 40,
+                },
+            ],
+            "oldest hour first, its categories in name order"
         );
     }
 
