@@ -134,7 +134,9 @@ stable while the collector inserts rows. The heatmap group answers the chart: `h
 window and a `granularity` (`day`, `week` or `month`) and returns one bucket per local day, Monday
 or first of the month — empty ones included — carrying the focus seconds of the hourly buckets that
 start inside them and the tasks completed there; the rules live in `docs/database.md`.
-`focus_hours` answers those buckets as one row per hour, which the hourly focus line reads. The
+`focus_hours` answers those buckets as one row per hour, which the hourly chart sums when it needs
+the day's focus total; `focus_category_hours` answers the same buckets split by category, which is
+what lets the focus chart stack like the app one. The
 alarm group
 maintains the reminders the scheduler watches: `list_alarms`, `add_alarm`, `update_alarm`,
 `set_alarm_enabled` and `delete_alarm`. `hour` and `minute` are the local wall clock and
@@ -202,6 +204,7 @@ answering with what is now in force. A registry that refuses the write is `PERMI
 | `list_app_events` | `app_event_commands` | `before: i64?`, `limit: i64` | `AppEventPage` (`{ events, more }`) | T23 |
 | `heatmap` | `heatmap_commands` | `from: i64`, `to: i64`, `granularity: "day" \| "week" \| "month"` | `HeatmapBucket[]` (`{ start, focusSeconds, completedTasks }`) | T19 |
 | `focus_hours` | `heatmap_commands` | `from: i64`, `to: i64` | `FocusHour[]` (`{ hourStart, seconds }`) | T35 |
+| `focus_category_hours` | `heatmap_commands` | `from: i64`, `to: i64` | `FocusCategoryHour[]` (`{ hourStart, category, seconds }`) | T35 |
 | `list_alarms` | `alarm_commands` | — | `Alarm[]` (`{ id, label, hour, minute, repeatDays, enabled, createdAt }`) | T17 |
 | `add_alarm` | `alarm_commands` | `label: String`, `hour: i64`, `minute: i64`, `repeatDays: i64` | `Alarm` | T17 |
 | `update_alarm` | `alarm_commands` | `id: i64`, `label: String`, `hour: i64`, `minute: i64`, `repeatDays: i64` | `Alarm` | T17 |
