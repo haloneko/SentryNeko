@@ -52,13 +52,13 @@
     },
     "hourly": {
       "error": "小时分布加载失败。",
-      "focusMinutes": "专注",
       "kind": {
         "apps": "按应用堆叠",
-        "focus": "专注时长",
+        "focus": "按分类堆叠",
         "label": "图表"
       },
       "other": "其他应用",
+      "otherCategory": "其他分类",
       "peak": "最忙的一小时 {{minutes}} 分钟",
       "title": "按小时分布",
       "total": "共 {{minutes}} 分钟"
@@ -286,6 +286,11 @@
     "increase": "增大{{label}}"
   },
   "pomodoro": {
+    "category": {
+      "label": "分类",
+      "placeholder": "这段时间在做什么",
+      "unnamed": "未分类"
+    },
     "cycle": {
       "label": "本轮进度",
       "value": "{{done}} / {{total}} 个专注"

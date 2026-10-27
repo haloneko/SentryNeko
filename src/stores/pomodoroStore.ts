@@ -8,6 +8,7 @@ import type { ApiCode, ApiResponse, NotificationOutcome } from "../types";
 import type { PomodoroDurations, PomodoroPhase, RunningPomodoro } from "../types/pomodoro";
 import {
   DEFAULT_DURATIONS,
+  MAX_CATEGORY_LENGTH,
   normalizeDurations,
   phaseAfter,
   phaseSeconds,
@@ -21,6 +22,8 @@ const { category: DURATIONS_CATEGORY, key: DURATIONS_KEY } = SETTINGS.pomodoroDu
 export interface PomodoroState {
   phase: PomodoroPhase;
   durations: PomodoroDurations;
+  /** What the next stretch is filed under; the backend keeps this exact name on the bucket. */
+  category: string;
   /** Epoch milliseconds the running phase ends at; `null` while paused or idle. */
   endsAt: number | null;
   /** Milliseconds left, kept current by `tick`. */
@@ -33,6 +36,8 @@ export interface PomodoroState {
   /** Code of the last failed call, `null` while everything is fine. */
   error: ApiCode | null;
   load: () => Promise<void>;
+  /** Names the work the next stretch is filed under; it reaches the buckets when it starts. */
+  setCategory: (category: string) => void;
   start: () => Promise<void>;
   pause: () => Promise<void>;
   reset: () => Promise<void>;
@@ -100,6 +105,7 @@ function stopTicker(): void {
 export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   phase: "focus",
   durations: DEFAULT_DURATIONS,
+  category: "",
   endsAt: null,
   remainingMs: DEFAULT_DURATIONS.focusSeconds * 1000,
   active: false,
@@ -136,6 +142,8 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
       if (left > 0) {
         set({
           active: true,
+          // The field shows what the backend is filing under, not what was last typed.
+          category: stretch.category,
           durations,
           endsAt: Date.now() + left,
           loading: false,
@@ -160,7 +168,7 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
   },
 
   start: async () => {
-    const { endsAt, phase, remainingMs } = get();
+    const { category, endsAt, phase, remainingMs } = get();
 
     if (endsAt !== null) {
       return;
@@ -171,6 +179,7 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
     // A pause stopped the previous stretch, so starting again opens a new one holding what is left
     // of the phase; a stretch is never resumed in place.
     const response = await request<RunningPomodoro>("start_pomodoro_session", {
+      category,
       phase,
       plannedSeconds: Math.max(1, Math.round(remainingMs / 1000)),
     });
@@ -182,6 +191,12 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
 
     set({ active: true, endsAt: Date.now() + get().remainingMs });
     startTicker();
+  },
+
+  setCategory: (category) => {
+    // Capped at the length the backend accepts, so the field cannot hold a name it would refuse;
+    // the trimming is left to the backend, which answers with the name it stored.
+    set({ category: category.slice(0, MAX_CATEGORY_LENGTH) });
   },
 
   pause: async () => {
@@ -328,8 +343,10 @@ export const usePomodoroStore = create<PomodoroState>((set, get) => ({
       return;
     }
 
-    // The next phase opens its own stretch and starts running, so nobody has to press anything.
+    // The next phase opens its own stretch and starts running, so nobody has to press anything;
+    // the category comes along, or the block after a break would lose the work it belongs to.
     const started = await request<RunningPomodoro>("start_pomodoro_session", {
+      category: get().category,
       phase: next,
       plannedSeconds: Math.max(1, Math.round(nextMs / 1000)),
     });

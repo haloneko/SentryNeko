@@ -291,6 +291,7 @@ mod tests {
             phase: Phase::Focus,
             started_at: 1_700_000_000,
             planned_seconds: 1_500,
+            category: "writing".to_owned(),
         })
         .expect("pushed");
 
@@ -299,5 +300,6 @@ mod tests {
         assert_eq!(pushed[0].1["phase"], serde_json::json!("focus"));
         assert_eq!(pushed[0].1["plannedSeconds"], serde_json::json!(1_500));
         assert_eq!(pushed[0].1["startedAt"], serde_json::json!(1_700_000_000));
+        assert_eq!(pushed[0].1["category"], serde_json::json!("writing"));
     }
 }

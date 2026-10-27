@@ -1,0 +1,109 @@
+/*
+ * A value written on a hairline rather than in a box: the caption sits above in the quiet capitals the
+ * panels use, the text is written on the rule, and the rule takes the accent while typing. A settled
+ * value keeps only its text and its glyph, because the line was only ever there to be written on.
+ */
+
+.line {
+  display: grid;
+  gap: 6px;
+}
+
+.label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.field {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--border-strong);
+  transition: border-color 220ms ease;
+}
+
+/* The sweep: a second hairline that grows from the left while the line is being written on. */
+.field::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 220ms ease;
+}
+
+.field:focus-within {
+  border-bottom-color: transparent;
+}
+
+.field:focus-within::after {
+  transform: scaleX(1);
+}
+
+.field[data-locked="true"] {
+  border-bottom-color: transparent;
+}
+
+/* Only a line that still takes writing offers the caret. */
+.field:not([data-locked="true"]) {
+  cursor: text;
+}
+
+.lead {
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  transition: color 220ms ease;
+}
+
+.field:focus-within .lead,
+.field[data-locked="true"] .lead {
+  color: var(--accent);
+}
+
+.input,
+.name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.input {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+}
+
+/* Lighter than a value: the line is an invitation until something is written on it. */
+.input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.72;
+}
+
+.input:focus-visible {
+  outline: none;
+}
+
+.name {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name[data-empty="true"] {
+  color: var(--text-muted);
+}

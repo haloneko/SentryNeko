@@ -258,6 +258,7 @@ fn boundary_error() -> ApiError {
 mod tests {
     use super::*;
     use crate::db::schema;
+    use crate::models::focus_usage::FocusFile;
     use crate::utils::response::ApiCode;
 
     fn created() -> Db {
@@ -294,7 +295,13 @@ mod tests {
 
     /// Stores focus seconds the way the minute tick does: into the hour holding `instant`.
     fn store_focus(db: &Db, instant: i64, seconds: i64) {
-        FocusUsage::record(db, FocusUsage::hour_of(instant), seconds).expect("focus is stored");
+        FocusUsage::record(
+            db,
+            FocusUsage::hour_of(instant),
+            seconds,
+            &FocusFile::default(),
+        )
+        .expect("focus is stored");
     }
 
     fn store_completion(db: &Db, completed_at: i64) {

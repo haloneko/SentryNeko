@@ -37,14 +37,11 @@ CREATE TABLE IF NOT EXISTS todos (
     extra        TEXT    NOT NULL DEFAULT '{}'
                  CHECK (json_valid(extra) AND json_type(extra) = 'object')
 );
-
--- One row per hour, holding how many seconds of focus fell inside it. The minute tick writes it,
--- so the shape is the guarantee: an hour can never answer with more time than it has, and a crash
--- costs the current minute, never a whole session. There is no session table to match: a focus
--- stretch lives in the backend while it runs and leaves only these seconds behind.
 CREATE TABLE IF NOT EXISTS focus_usage_hours (
-    hour_start INTEGER PRIMARY KEY CHECK (hour_start % 3600 = 0),
-    seconds    INTEGER NOT NULL DEFAULT 0 CHECK (seconds BETWEEN 0 AND 3600)
+    hour_start INTEGER NOT NULL CHECK (hour_start % 3600 = 0),
+    category   TEXT    NOT NULL DEFAULT '',
+    seconds    INTEGER NOT NULL DEFAULT 0 CHECK (seconds BETWEEN 0 AND 3600),
+    PRIMARY KEY (hour_start, category)
 ) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS app_events (

@@ -47,7 +47,7 @@ app.manage(db);
 
 | Setting | Value |
 | --- | --- |
-| File | `<app data dir>/sentryneko-<version>.db` (i.e. `%APPDATA%\com.sentryneko.desktop\sentryneko-0.1.0.db`) unless `config.json` points elsewhere |
+| File | `<app data dir>/sentryneko-<version>.db` (i.e. `%APPDATA%\com.sentryneko.desktop\sentryneko-0.2.0.db`) unless `config.json` points elsewhere |
 | Pool | 4 connections, 5 s checkout timeout |
 | Per connection | `foreign_keys = ON`, `journal_mode = WAL`, `synchronous = NORMAL`, `busy_timeout = 5000 ms` |
 | Timestamps | UTC epoch seconds |
@@ -59,7 +59,7 @@ app.manage(db);
 
 ```json
 {
-  "databasePath": "C:\\Users\\you\\AppData\\Roaming\\com.sentryneko.desktop\\sentryneko-0.1.0.db",
+  "databasePath": "C:\\Users\\you\\AppData\\Roaming\\com.sentryneko.desktop\\sentryneko-0.2.0.db",
   "language": "en-US",
   "colorMode": "system"
 }
@@ -101,7 +101,7 @@ The schema holds eight tables:
 | Table | Holds | Key columns |
 | --- | --- | --- |
 | `todos` | Tasks the user maintains | `title`, `completed`, `completed_at`, `created_at`, `updated_at`, `tag_ids`, `start_at`, `end_at`, `starred_at`, `extra`, `notes` |
-| `focus_usage_hours` | Seconds of focus inside one hour | `hour_start` (primary key), `seconds` (0–3600) |
+| `focus_usage_hours` | Seconds of focus inside one hour, filed under a category | `hour_start` + `category` (primary key), `seconds` (0–3600) |
 | `app_events` | Foreground application activity | `app_name`, `window_title`, `started_at`, `ended_at` |
 | `app_usage_hours` | Seconds one app held the foreground inside one hour | `app_name` + `hour_start` (primary key), `seconds` (0–3600) |
 | `alarms` | One-off or weekly reminders | `label`, `hour`, `minute`, `repeat_days`, `enabled`, `created_at` |
@@ -200,13 +200,15 @@ only while the buckets are still empty.
 (`collectors/focus_tick.rs`):
 
 - Starting a phase — focus, short break or long break — opens a stretch in the backend with its
-  phase, its start and its planned length. No row records the stretch: keeping it out of the
-  database is what makes a crash cost the current minute instead of the phase.
+  phase, its start, its planned length and the category it is filed under. No row records the
+  stretch: keeping it out of the database is what makes a crash cost the current minute instead of
+  the phase. The category is free text, trimmed and at most 64 characters; nothing means the work
+  nobody named, which is stored as the empty string.
 - Pausing, resting, resetting or the phase running out stops the stretch. Resuming opens a new one,
   so a pause is a real gap in the record instead of a state column.
 - Once a minute the tick settles the running stretch: every hour it covers, in full or in part,
-  receives its seconds. Only a focus stretch adds to the buckets; a break is moved forward but never
-  counts.
+  receives its seconds under the stretch's own category. Only a focus stretch adds to the buckets; a
+  break is moved forward but never counts.
 - On exit the tick is stopped and the last partial minute is written before the process ends.
 - A gap longer than one tick — the machine slept, the process was frozen — is dropped: the stretch
   still moves to `now`, so the gap is skipped once instead of being counted by every later tick.
@@ -220,7 +222,9 @@ The heatmap (`models/heatmap.rs`) rolls `focus_usage_hours` and `todos` up into 
   without filling the gaps itself.
 - Focus time is read from `focus_usage_hours`, which the minute tick keeps current: a phase still
   running is already part of the total. An hour belongs to the local day it starts in, so a stretch
-  crossing midnight stays on the day it began. Break phases never reach the buckets.
+  crossing midnight stays on the day it began. Break phases never reach the buckets. An hour is read
+  back as one total over its categories; `FocusUsage::categories` reads the same rows the other way
+  round, per category, for the windows the pomodoro page is asked about.
 - A task counts on the day `completed_at` names. `set_completed` stamps it when the box is ticked
   and clears it when the task is reopened, so renaming a finished task never moves it to another
   day.
@@ -261,7 +265,7 @@ creates a schema, whether the file is brand new or was just carried forward.
 
 ## One database file per version
 
-The version a database belongs to is written into its file name — `sentryneko-0.1.0.db` — and
+The version a database belongs to is written into its file name — `sentryneko-0.2.0.db` — and
 `config.json` records the path. Every start, `db/upgrade.rs` reads that name and compares it with
 the version compiled into the binary:
 

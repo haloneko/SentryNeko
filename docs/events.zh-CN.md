@@ -32,7 +32,7 @@ useTauriEvent<TestEventPayload>(BACKEND_EVENTS.testEvent, (payload) => {
 | `test-event` | `TestEvent` —— `{ sequence: u64 }` | `emit_test_event` 按需推送一条，`sequence` 每次递增 | T08 |
 | `notification-fallback` | `NotificationFallback` —— `{ kind, reason }` | `send_test_notification` 在系统拒绝 Toast 时推一条，前端改为在应用内显示 | T14 |
 | `app-switch` | `AppEvent` —— `{ id, appName, windowTitle, startedAt, endedAt }` | 前台采集器每次上报都把进行中那段的行重写并再推一次：同一个 `id` 带着更晚的 `endedAt` 到来，事件流因此更新一行而不是追加一行。换应用就是新行、新 `id`；一段的最后一次推送携带最终结束时刻 | T15 |
-| `pomodoro-finished` | `Running` —— `{ phase, startedAt, plannedSeconds }` | 一段被关闭：暂停、休息、重置由 `stop_pomodoro_session` 关闭，阶段自己跑完则由分钟线程关闭。另一个窗口无需询问就知道这一轮结束了；没有进行中的段时不推送 | T15 |
+| `pomodoro-finished` | `Running` —— `{ phase, startedAt, plannedSeconds, category }` | 一段被关闭：暂停、休息、重置由 `stop_pomodoro_session` 关闭，阶段自己跑完则由分钟线程关闭。另一个窗口无需询问就知道这一轮结束了；没有进行中的段时不推送。`category` 是这段秒数记在哪个名字下，开段时没带分类则为空字符串 | T15 |
 | `tray-start-pomodoro` | —（载荷为 `null`） | 托盘的 `开始番茄钟`：窗口已经先显示出来，外壳重新加载时长并从 store 启动这一轮，所以它和从页面上启动的完全一致 | T25 |
 | `alarm-triggered` | `Alarm` —— `{ id, label, hour, minute, repeatDays, enabled, createdAt }` | `services/scheduler.rs` 走到闹钟的本地时间：提示音开始，并且除非存下的默认设置是 `inApp`，Toast（或它的 `notification-fallback`）都已先发出。单次闹钟此时已自动关闭，因此载荷里 `enabled` 为 `false` | T17、T18 |
 
