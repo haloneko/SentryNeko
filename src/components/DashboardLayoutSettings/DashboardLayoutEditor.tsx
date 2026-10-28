@@ -1,13 +1,12 @@
 /** Layout editor: the real dashboard panels, dragged into shape and saved as a whole. */
 
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useLayoutEffect, useRef, useState } from "react";
 import type {
   CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import { createPortal } from "react-dom";
 
 import { useDashboardLayout } from "../../hooks/useDashboardLayout";
 import { useI18n } from "../../hooks/useI18n";
@@ -26,13 +25,13 @@ import type { DashboardWidgetId, WidgetPlacement } from "../../types/dashboard";
 import { ActionIcon } from "../ui/ActionIcon";
 import { ContextMenu } from "../ui/ContextMenu";
 import type { ContextMenuItem } from "../ui/ContextMenu";
+import { ModalDialog } from "../ui/ModalDialog";
 import { SegmentedControl } from "../ui/SegmentedControl";
 import { WidgetIcon } from "../ui/WidgetIcon";
 import { useCanvasScale } from "./useCanvasScale";
 import { useDraftLayout } from "./useDraftLayout";
 import dashboardStyles from "../../pages/Dashboard/dashboard.module.css";
 import dashboardLayoutEditorStyles from "../../pages/Dashboard/DashboardLayoutEditor.module.css";
-import todosStyles from "../../pages/Todos/todos.module.css";
 
 interface DashboardLayoutEditorProps {
   onClose: () => void;
@@ -114,7 +113,6 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
   const draft = useDraftLayout(saved);
   const { layout } = draft;
 
-  const dialogRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
   /** Latest draft for the pointer handlers, which fire between renders. */
   const layoutRef = useRef(layout);
@@ -198,52 +196,32 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
     }
   }, [layout, metrics]);
 
-  const commit = useCallback(() => {
+  /** Saves the draft and leaves; the window itself closes through the shell. */
+  const commit = (close: () => void): void => {
     void save(layoutRef.current);
-    onClose();
-  }, [onClose, save]);
+    close();
+  };
 
-  // Ctrl+S saves, Ctrl+Z undoes one step, Escape leaves the draft untouched.
-  useEffect(() => {
-    const handleKey = (event: KeyboardEvent): void => {
-      const modifier = event.ctrlKey || event.metaKey;
+  /** Ctrl+S saves, Ctrl+Z undoes one step; Escape is the shell's own. */
+  const handleShortcut = (event: KeyboardEvent, close: () => void): boolean => {
+    if (!(event.ctrlKey || event.metaKey)) {
+      return false;
+    }
 
-      if (modifier && event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        commit();
-        return;
-      }
+    if (event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      commit(close);
+      return true;
+    }
 
-      if (modifier && event.key.toLowerCase() === "z") {
-        event.preventDefault();
-        draft.undo();
-        return;
-      }
+    if (event.key.toLowerCase() === "z") {
+      event.preventDefault();
+      draft.undo();
+      return true;
+    }
 
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-      }
-    };
-
-    document.addEventListener("keydown", handleKey);
-
-    return () => {
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [commit, draft.undo, onClose]);
-
-  // The page behind must not scroll while the editor owns the window.
-  useEffect(() => {
-    const previous = document.body.style.overflow;
-
-    document.body.style.overflow = "hidden";
-    dialogRef.current?.focus();
-
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, []);
+    return false;
+  };
 
   /** One cell of travel in canvas pixels, which is the space the ghost and its rectangle live in. */
   const cellStep = metrics.cell + metrics.gap;
@@ -600,36 +578,11 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
     element.style.transform = `translate(${state.ghostX}px, ${state.ghostY}px)`;
   }, [preview]);
 
-  return createPortal(
-    <div className={dashboardLayoutEditorStyles.editorOverlay}>
-      <div
-        aria-label={t("dashboard.layout.title")}
-        aria-modal="true"
-        className={dashboardLayoutEditorStyles.editorDialog}
-        ref={dialogRef}
-        role="dialog"
-        tabIndex={-1}
-      >
-        <header className={dashboardLayoutEditorStyles.editorHead}>
-          <div className={dashboardLayoutEditorStyles.editorLead}>
-            <h2>{t("dashboard.layout.title")}</h2>
-            <p className={dashboardLayoutEditorStyles.editorSub}>{t("dashboard.layout.rowHint")}</p>
-          </div>
-          <div className={dashboardLayoutEditorStyles.editorColumns}>
-            <span className={dashboardLayoutEditorStyles.layoutLabel}>{t("dashboard.layout.columns")}</span>
-            <SegmentedControl
-              label={t("dashboard.layout.columns")}
-              onChange={(next) => {
-                draft.setColumns(Number(next));
-              }}
-              options={DASHBOARD_COLUMNS.map((value) => ({
-                label: String(value),
-                value: String(value),
-              }))}
-              value={String(layout.columns)}
-            />
-          </div>
-          <div className={dashboardLayoutEditorStyles.editorActions}>
+  return (
+    <>
+      <ModalDialog
+        actions={(close) => (
+          <>
             <button
               aria-label={t("dashboard.layout.undo")}
               className="icon-btn"
@@ -652,7 +605,7 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
             <button
               aria-label={t("dashboard.layout.cancel")}
               className="icon-btn"
-              onClick={onClose}
+              onClick={close}
               title={t("dashboard.layout.cancel")}
               type="button"
             >
@@ -663,14 +616,42 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
               className="icon-btn"
               data-variant="primary"
               disabled={!draft.dirty}
-              onClick={commit}
+              onClick={() => {
+                commit(close);
+              }}
               title={t("dashboard.layout.save")}
               type="button"
             >
               <ActionIcon name="check" />
             </button>
+          </>
+        )}
+        description={t("dashboard.layout.rowHint")}
+        error={persistenceError ? t("dashboard.layout.saveError") : null}
+        height={760}
+        note={<span className="editor-note">{t("dashboard.layout.hint")}</span>}
+        onClose={onClose}
+        onKeyDown={handleShortcut}
+        title={t("dashboard.layout.title")}
+        toolbar={
+          <div className={dashboardLayoutEditorStyles.editorColumns}>
+            <span className={dashboardLayoutEditorStyles.layoutLabel}>{t("dashboard.layout.columns")}</span>
+            <SegmentedControl
+              label={t("dashboard.layout.columns")}
+              onChange={(next) => {
+                draft.setColumns(Number(next));
+              }}
+              options={DASHBOARD_COLUMNS.map((value) => ({
+                label: String(value),
+                value: String(value),
+              }))}
+              value={String(layout.columns)}
+            />
           </div>
-        </header>
+        }
+        trailing={t("dashboard.layout.shortcuts")}
+        width={1180}
+      >
 
         <div className={dashboardLayoutEditorStyles.editorBody}>
           <div className={dashboardLayoutEditorStyles.editorCanvas}>
@@ -830,14 +811,7 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
           </aside>
         </div>
 
-        <footer className={dashboardLayoutEditorStyles.editorFoot}>
-          <span className="editor-note">{t("dashboard.layout.hint")}</span>
-          {persistenceError ? (
-            <p className={todosStyles.todoError} role="alert">{t("dashboard.layout.saveError")}</p>
-          ) : null}
-          <span className={dashboardLayoutEditorStyles.editorShortcuts}>{t("dashboard.layout.shortcuts")}</span>
-        </footer>
-      </div>
+      </ModalDialog>
       {menu === null ? null : (
         <ContextMenu
           at={menu.at}
@@ -848,7 +822,6 @@ export function DashboardLayoutEditor({ onClose }: DashboardLayoutEditorProps) {
           }}
         />
       )}
-    </div>,
-    document.body,
+    </>
   );
 }
