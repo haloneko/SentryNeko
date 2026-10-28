@@ -1,37 +1,4 @@
-.sidebar-editor {
-  width: min(560px, calc(100vw - 32px));
-  max-height: calc(100dvh - 64px);
-  padding: 0;
-  overflow: auto;
-  scrollbar-gutter: stable;
-  border: 1px solid var(--border-strong);
-  border-radius: 20px;
-  background: var(--bg);
-  color: var(--text);
-  box-shadow: 0 28px 100px rgb(0 0 0 / 40%);
-  animation: sidebar-editor-in 180ms ease-out both;
-}
-
-.sidebar-editor::backdrop { background: rgb(9 12 22 / 58%); backdrop-filter: blur(4px); }
-
-.sidebar-editor[data-closing="true"] { animation: sidebar-editor-out 160ms ease-in both; }
-
-/* Title, hint and the two icon actions share one row; the list starts right below it. */
-.sidebar-editor-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 22px 24px 16px;
-}
-
-.sidebar-editor-lead { display: grid; gap: 6px; min-width: 0; }
-
-.sidebar-editor-header h2 { margin: 0; font-size: 19px; letter-spacing: -0.01em; }
-
-.sidebar-editor-actions { display: flex; flex: none; gap: 8px; }
-
-.sidebar-editor :global(.settings-hint) { max-width: none; }
+/* The editor's rows; the window, its header and its footer come from `ui/ModalDialog`. */
 
 .sidebar-editor-list { position: relative; display: grid; gap: 6px; margin: 0; padding: 0 24px; list-style: none; }
 
@@ -116,13 +83,6 @@
 
 .sidebar-editor-row input[role="switch"]:focus-visible { outline-offset: 3px; }
 
-.sidebar-editor-footer { display: grid; gap: 8px; padding: 12px 24px 20px; }
-
-@keyframes sidebar-editor-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
-
-@keyframes sidebar-editor-out { to { opacity: 0; transform: translateY(8px) scale(0.98); } }
-
 @media (prefers-reduced-motion: reduce) {
-  .sidebar-editor{ animation: none; }
-  .sidebar-editor-row{ transition: none; }
+  .sidebar-editor-row { transition: none; }
 }

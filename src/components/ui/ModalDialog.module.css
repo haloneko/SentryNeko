@@ -1,0 +1,142 @@
+/*
+ * A modal frame: the overlay, the window, and the header and footer rows. The window carries no
+ * layout of its own beyond a single column and a scrolling body — width, spacing and what fills the
+ * body are the caller's.
+ */
+.overlay {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5);
+  background: rgb(8 10 16 / 62%);
+  backdrop-filter: blur(4px);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 28px 100px rgb(0 0 0 / 40%);
+  animation: dialog-in 180ms ease-out both;
+}
+
+.dialog:focus-visible {
+  outline: none;
+}
+
+.dialog[data-closing="true"] {
+  animation: dialog-out 160ms ease-in both;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3) var(--space-4);
+  padding: 22px 24px 16px;
+}
+
+/* Takes the room the actions leave, so the buttons stay on the heading's row. */
+.lead {
+  display: grid;
+  flex: 1 1 240px;
+  gap: 5px;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.description {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px var(--space-4);
+  padding: 12px 24px 20px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.notes {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.trailing {
+  font-variant-numeric: tabular-nums;
+}
+
+.dialog-error {
+  margin: 0;
+  color: #f2555a;
+  font-size: 12px;
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes dialog-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog {
+    animation: none;
+  }
+}
