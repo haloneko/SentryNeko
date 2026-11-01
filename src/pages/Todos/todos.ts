@@ -19,19 +19,56 @@ export function tagLookup(tags: readonly Tag[]): TagLookup {
   return new Map(tags.map((tag) => [tag.id, tag.name.toLowerCase()]));
 }
 
-/** Whether `todo` matches `query`, by title or by the name of any tag it carries. */
+/** One condition of a search: a word, and whether only a tag may answer it. */
+export interface QueryTerm {
+  /** What is looked for, lowercased. */
+  text: string;
+  /** True for a `#word`, which no title or note can satisfy. */
+  tag: boolean;
+}
+
+/**
+ * Splits what was typed into the conditions every match has to satisfy.
+ *
+ * Spaces separate conditions, so `#work report` asks for a task carrying a tag named like "work"
+ * whose title, note or tags also mention "report". A word with `#` in front is answered by tag names
+ * only; every other word is answered by the title, the note or a tag name. A lone `#` is dropped
+ * rather than treated as an empty tag, which would match everything.
+ */
+export function parseQuery(query: string): readonly QueryTerm[] {
+  return query
+    .split(/\s+/)
+    .filter((word) => word !== "" && word !== "#")
+    .map((word) => ({
+      tag: word.startsWith("#"),
+      text: (word.startsWith("#") ? word.slice(1) : word).toLowerCase(),
+    }));
+}
+
+/** Whether `todo` answers every condition in `terms`; an empty list asks for nothing. */
+function matchesTerms(todo: Todo, lookup: TagLookup, terms: readonly QueryTerm[]): boolean {
+  if (terms.length === 0) {
+    return true;
+  }
+
+  const tagNames = todo.tagIds
+    .map((id) => lookup.get(id))
+    .filter((name): name is string => name !== undefined);
+  const title = todo.title.toLowerCase();
+  const notes = todo.notes?.toLowerCase() ?? "";
+
+  return terms.every((term) =>
+    term.tag
+      ? tagNames.some((name) => name.includes(term.text))
+      : title.includes(term.text) ||
+        notes.includes(term.text) ||
+        tagNames.some((name) => name.includes(term.text)),
+  );
+}
+
+/** Whether `todo` matches `query`, by title, note or the name of any tag it carries. */
 export function matchesQuery(todo: Todo, lookup: TagLookup, query: string): boolean {
-  const needle = query.trim().toLowerCase();
-
-  if (needle === "") {
-    return true;
-  }
-
-  if (todo.title.toLowerCase().includes(needle)) {
-    return true;
-  }
-
-  return todo.tagIds.some((id) => lookup.get(id)?.includes(needle) ?? false);
+  return matchesTerms(todo, lookup, parseQuery(query));
 }
 
 /** How the page orders the tasks inside a group. */
@@ -108,8 +145,10 @@ export function searchTodos(
   query: string,
 ): readonly Todo[] {
   const lookup = tagLookup(tags);
+  // Parsed once: a list of a few hundred tasks would otherwise re-split the same words per row.
+  const terms = parseQuery(query);
 
-  return todos.filter((todo) => matchesQuery(todo, lookup, query));
+  return todos.filter((todo) => matchesTerms(todo, lookup, terms));
 }
 
 /** The two groups the list is drawn in; the backend filter decides whether both can be non-empty. */

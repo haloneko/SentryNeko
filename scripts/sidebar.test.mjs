@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { defaultSidebarLayout, normalizeSidebarLayout, reorderSidebarLayout } from "../.cache/sidebar-test/sidebar.js";
+import { defaultSidebarLayout, normalizeSidebarLayout, reorderSidebarLayout } from "../.cache/sidebar-test/types/sidebar.js";
 
 test("first launch shows every available panel in the original order", () => {
   assert.deepEqual(defaultSidebarLayout(), [

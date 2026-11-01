@@ -1,4 +1,4 @@
-/** Search field: narrows the list by title or tag while the user types. */
+/** Search field: narrows the list by title, note or tag while the user types; `#` asks for tags. */
 
 import { useEffect, useRef } from "react";
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
@@ -14,6 +14,9 @@ export interface TodoSearchProps {
 
 /** Fields a keystroke belongs to, where "/" is just a character. */
 const TYPING_TAGS = ["INPUT", "TEXTAREA", "SELECT"];
+
+/** The hidden line that spells the syntax out; the placeholder can only hint at it. */
+const SYNTAX_ID = "todo-search-syntax";
 
 export function TodoSearch({ onChange, query }: TodoSearchProps) {
   const { t } = useI18n();
@@ -50,6 +53,9 @@ export function TodoSearch({ onChange, query }: TodoSearchProps) {
 
   return (
     <div className={todosStyles.todoSearch}>
+      <p className="sr-only" id={SYNTAX_ID}>
+        {t("todo.search.hint")}
+      </p>
       <span aria-hidden="true" className={todosStyles.todoSearchGlyph}>
         <svg viewBox="0 0 16 16">
           <circle cx="7" cy="7" r="4.5" />
@@ -57,6 +63,7 @@ export function TodoSearch({ onChange, query }: TodoSearchProps) {
         </svg>
       </span>
       <input
+        aria-describedby={SYNTAX_ID}
         aria-label={t("todo.search.label")}
         className={`${todosStyles.todoInput} ${todosStyles.todoSearchInput}`}
         onChange={(event: ChangeEvent<HTMLInputElement>) => {
