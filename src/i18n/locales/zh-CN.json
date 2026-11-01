@@ -417,7 +417,8 @@
       "hint": "空格分隔条件，# 只搜标签",
       "label": "搜索任务",
       "placeholder": "搜索任务…",
-      "results": "{{count}} 项匹配"
+      "results": "{{count}} 项匹配",
+      "suggestions": "标签建议"
     },
     "select": {
       "all": "全选",

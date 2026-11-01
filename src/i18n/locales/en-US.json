@@ -417,7 +417,8 @@
       "hint": "Space separates conditions; # searches tags",
       "label": "Search tasks",
       "placeholder": "Search tasks…",
-      "results": "{{count}} matches"
+      "results": "{{count}} matches",
+      "suggestions": "Tag suggestions"
     },
     "select": {
       "all": "Select all",
