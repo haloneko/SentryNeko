@@ -14,6 +14,7 @@ import { groupTodos, matchesFilter, overdueCount, searchTodos } from "./todos";
 import { TodoFilterMenu } from "./TodoFilterMenu";
 import { TodoItem } from "./TodoItem";
 import { TodoSearch } from "./TodoSearch";
+import type { TagOption } from "./TodoSearch";
 import { TodoSortMenu } from "./TodoSortMenu";
 import todosStyles from "./todos.module.css";
 
@@ -95,6 +96,25 @@ export function TodoList() {
   // decides here: a task is ongoing or late at this minute, not when the list was loaded.
   const [sort, setSort] = useState<TodoSort>("default");
   const [tagId, setTagId] = useState<number | null>(null);
+
+  // The tags a `#` can complete to, ordered by how many tasks carry them. The order ignores what is
+  // being typed, so the list keeps its places while a name is still half-written.
+  const tagOptions = useMemo<readonly TagOption[]>(() => {
+    const counts = new Map<number, number>();
+
+    for (const todo of todos) {
+      for (const id of todo.tagIds) {
+        counts.set(id, (counts.get(id) ?? 0) + 1);
+      }
+    }
+
+    return tags
+      .map((tag) => ({ count: counts.get(tag.id) ?? 0, id: tag.id, name: tag.name }))
+      .sort(
+        (left, right) =>
+          right.count - left.count || left.name.localeCompare(right.name, language),
+      );
+  }, [language, tags, todos]);
 
   const visible = useMemo(() => {
     const searched = searchTodos(todos, tags, query);
@@ -466,7 +486,7 @@ export function TodoList() {
   return (
     <section className={todosStyles.todoPanel}>
       <div className={todosStyles.todoToolbar}>
-        <TodoSearch onChange={setQuery} query={query} />
+        <TodoSearch onChange={setQuery} query={query} tagOptions={tagOptions} />
         {/* The status switch keeps its place inside the funnel: it is the narrowing used daily. */}
         <TodoFilterMenu
           filter={filter}

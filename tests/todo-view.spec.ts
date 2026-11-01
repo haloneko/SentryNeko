@@ -108,6 +108,88 @@ test("the order also decides inside the pinned group", async ({ page }) => {
   ]);
 });
 
+test("the search reads # as tags only and spaces as conditions that all have to hold", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+
+  await page.goto("/tests/todo-view.html?theme=dark&language=en-US");
+  await expect(page.locator('[data-testid="todo-row"]')).toHaveCount(5);
+
+  const search = page.getByRole("combobox", { name: "Search tasks" });
+
+  // A word with # in front only a tag name can answer.
+  await search.fill("#work");
+  await expect.poll(() => titles(page)).toEqual(["Zebra review"]);
+
+  await search.fill("#long");
+  await expect.poll(() => titles(page)).toEqual(["Beta write-up"]);
+
+  // Without the sigil the same word still finds the task through its tag.
+  await search.fill("work");
+  await expect.poll(() => titles(page)).toEqual(["Zebra review"]);
+
+  // Two conditions narrow instead of widening: one task carries both, and no task swaps them.
+  await search.fill("#work zebra");
+  await expect.poll(() => titles(page)).toEqual(["Zebra review"]);
+
+  await search.fill("#work beta");
+  await expect(page.locator('[data-testid="todo-row"]')).toHaveCount(0);
+  await expect(page.getByText(/No tasks match/)).toBeVisible();
+
+  // Escape empties the field before it leaves the page.
+  await page.keyboard.press("Escape");
+  await expect(search).toHaveValue("");
+  await expect(page.locator('[data-testid="todo-row"]')).toHaveCount(5);
+
+  expect(errors).toEqual([]);
+});
+
+test("a # offers the tags, narrows after the pause, and completes by key or click", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+
+  await page.goto("/tests/todo-view.html?theme=dark&language=en-US");
+
+  const search = page.getByRole("combobox", { name: "Search tasks" });
+  const list = page.getByRole("listbox", { name: "Tag suggestions" });
+  const options = list.getByRole("option");
+
+  // The bare sigil offers every tag at once.
+  await search.fill("#");
+  await expect(options).toHaveCount(2);
+  await expect(options.first()).toContainText("#long-name-tag");
+
+  // Typing narrows the list once the word settles, and Escape closes it without losing the text.
+  await search.fill("#wo");
+  await expect(options).toHaveCount(1);
+  await expect(options).toContainText("#work");
+  await page.keyboard.press("Escape");
+  await expect(list).toHaveCount(0);
+  await expect(search).toHaveValue("#wo");
+
+  // Enter completes the highlighted tag and leaves the caret ready for the next condition.
+  await search.fill("#");
+  await expect(options).toHaveCount(2);
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(search).toHaveValue("#work ");
+  await expect(list).toHaveCount(0);
+  await expect(page.locator('[data-testid="todo-row"]')).toHaveCount(1);
+
+  // A click takes the other one, and the list goes with it.
+  await search.fill("#long");
+  await expect(options).toHaveCount(1);
+  await options.click();
+  await expect(search).toHaveValue("#long-name-tag ");
+  await expect.poll(() => titles(page)).toEqual(["Beta write-up"]);
+
+  expect(errors).toEqual([]);
+});
+
 test("the sort card reorders the rows and keeps the pinned task in front", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));

@@ -6,7 +6,7 @@ import {
   MAX_STACKED_SLICES,
   stackFocus,
   stackHours,
-} from "../.cache/sidebar-test/hourly.js";
+} from "../.cache/sidebar-test/types/hourly.js";
 
 const at = (hour) => new Date(2026, 9, 21, hour, 0, 0).getTime() / 1000;
 const usage = (appName, hour, minutes) => ({ appName, hourStart: at(hour), seconds: minutes * 60 });

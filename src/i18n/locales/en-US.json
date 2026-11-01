@@ -414,9 +414,11 @@
     "search": {
       "clear": "Clear search",
       "empty": "No tasks match “{{query}}”.",
+      "hint": "Space separates conditions; # searches tags",
       "label": "Search tasks",
-      "placeholder": "Search title or tag…",
-      "results": "{{count}} matches"
+      "placeholder": "Search tasks…",
+      "results": "{{count}} matches",
+      "suggestions": "Tag suggestions"
     },
     "select": {
       "all": "Select all",

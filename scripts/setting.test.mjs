@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DEFAULT_ALARM_DEFAULTS, normalizeAlarmDefaults } from "../.cache/sidebar-test/alarm.js";
-import { DEFAULT_DURATIONS, normalizeDurations } from "../.cache/sidebar-test/pomodoro.js";
-import { parseSetting, SETTINGS } from "../.cache/sidebar-test/setting.js";
+import { DEFAULT_ALARM_DEFAULTS, normalizeAlarmDefaults } from "../.cache/sidebar-test/types/alarm.js";
+import { DEFAULT_DURATIONS, normalizeDurations } from "../.cache/sidebar-test/types/pomodoro.js";
+import { parseSetting, SETTINGS } from "../.cache/sidebar-test/types/setting.js";
 
 const row = (value) => ({ key: "alarm.defaults", value, category: "alarm", updatedAt: 1 });
 
