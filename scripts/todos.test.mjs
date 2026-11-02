@@ -6,6 +6,7 @@ import {
   parseQuery,
   searchTodos,
   tagLookup,
+  withTagCondition,
 } from "../.cache/sidebar-test/pages/Todos/todos.js";
 
 const NOW = 1_790_000_000;
@@ -70,4 +71,11 @@ test("every condition has to hold, so a second word narrows rather than widens",
   assert.deepEqual(ids("#work zebra"), [1]);
   assert.deepEqual(ids("zebra"), [1, 3]);
   assert.deepEqual(ids("#work #long"), [], "two tags must both be carried");
+});
+
+test("a pressed tag joins the conditions and is never written twice", () => {
+  assert.equal(withTagCondition("", "work"), "#work");
+  assert.equal(withTagCondition("report", "work"), "report #work");
+  assert.equal(withTagCondition("#work  zebra", "work"), "#work  zebra", "already asked for");
+  assert.equal(withTagCondition("#Work", "work"), "#Work", "the comparison ignores case");
 });

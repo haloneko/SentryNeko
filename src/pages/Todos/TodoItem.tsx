@@ -16,6 +16,8 @@ import todosStyles from "./todos.module.css";
 export interface TodoItemProps {
   /** True for a task the page has not shown before, which is the only one that fades in. */
   entering: boolean;
+  /** Adds the tag to the search above the list, which is the row's way of asking for its kind. */
+  onFilterTag: (name: string) => void;
   /** True while the row plays its leaving animation; it takes no input until then. */
   leaving: boolean;
   /** Wall clock the relative timestamps are measured against. */
@@ -45,6 +47,7 @@ export const TodoItem = memo(function TodoItem({
   entering,
   leaving,
   now,
+  onFilterTag,
   onRemove,
   onRename,
   onRowRef,
@@ -246,9 +249,18 @@ export const TodoItem = memo(function TodoItem({
                 : t(`todo.time.${age.unit}`, { count: age.count })}
             </span>
             {names.map((name) => (
-              <span className={todosStyles.todoTag} key={name}>
+              <button
+                aria-label={t("todo.tags.filter", { name })}
+                className={todosStyles.todoTag}
+                key={name}
+                onClick={() => {
+                  onFilterTag(name);
+                }}
+                title={t("todo.tags.filter", { name })}
+                type="button"
+              >
                 #{name}
-              </span>
+              </button>
             ))}
           </span>
           {tagging ? (

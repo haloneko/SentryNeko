@@ -445,6 +445,7 @@
       "create": "New tag",
       "done": "Done",
       "empty": "No tags yet — create one below.",
+      "filter": "Filter #{{name}}",
       "label": "Tags",
       "name": "Tag name"
     },

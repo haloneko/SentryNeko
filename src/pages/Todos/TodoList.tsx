@@ -10,7 +10,13 @@ import { useTags } from "../../hooks/useTags";
 import { useTodoActions, useTodoList } from "../../hooks/useTodos";
 import type { Todo } from "../../types/todo";
 import type { TodoSort } from "./todos";
-import { groupTodos, matchesFilter, overdueCount, searchTodos } from "./todos";
+import {
+  groupTodos,
+  matchesFilter,
+  overdueCount,
+  searchTodos,
+  withTagCondition,
+} from "./todos";
 import { TodoFilterMenu } from "./TodoFilterMenu";
 import { TodoItem } from "./TodoItem";
 import { TodoSearch } from "./TodoSearch";
@@ -96,6 +102,12 @@ export function TodoList() {
   // decides here: a task is ongoing or late at this minute, not when the list was loaded.
   const [sort, setSort] = useState<TodoSort>("default");
   const [tagId, setTagId] = useState<number | null>(null);
+
+  // A tag on a row asks the same question a typed `#tag` does, so it goes into the same field
+  // rather than into a second kind of filter beside it.
+  const filterByTag = useCallback((name: string) => {
+    setQuery((current) => withTagCondition(current, name));
+  }, []);
 
   // The tags a `#` can complete to, ordered by how many tasks carry them. The order ignores what is
   // being typed, so the list keeps its places while a name is still half-written.
@@ -612,6 +624,7 @@ export function TodoList() {
                       entering={!placements.current.has(todo.id)}
                       leaving={leaving.has(todo.id)}
                       now={now}
+                      onFilterTag={filterByTag}
                       onRemove={handleRemove}
                       onRename={handleRename}
                       onRowRef={placeRow}

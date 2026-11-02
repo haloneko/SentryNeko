@@ -45,6 +45,24 @@ export function parseQuery(query: string): readonly QueryTerm[] {
     }));
 }
 
+/**
+ * Adds `#name` to `query` as one more condition.
+ *
+ * The tag goes in once: asking for the same tag twice would narrow nothing further, and a second
+ * click on the same row should not spell the condition out again. A tag name with a space in it is
+ * not supported — the words are split apart, exactly as they would be if typed by hand.
+ */
+export function withTagCondition(query: string, name: string): string {
+  const condition = `#${name}`;
+  const words = query.split(/\s+/).filter((word) => word !== "");
+
+  if (words.some((word) => word.toLowerCase() === condition.toLowerCase())) {
+    return query;
+  }
+
+  return [...words, condition].join(" ");
+}
+
 /** Whether `todo` answers every condition in `terms`; an empty list asks for nothing. */
 function matchesTerms(todo: Todo, lookup: TagLookup, terms: readonly QueryTerm[]): boolean {
   if (terms.length === 0) {
