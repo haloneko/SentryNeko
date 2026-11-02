@@ -190,6 +190,34 @@ test("a # offers the tags, narrows after the pause, and completes by key or clic
   expect(errors).toEqual([]);
 });
 
+test("a tag on a row asks the search above for its kind", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+
+  await page.goto("/tests/todo-view.html?theme=dark&language=en-US");
+  await expect(page.locator('[data-testid="todo-row"]')).toHaveCount(5);
+
+  const search = page.getByRole("combobox", { name: "Search tasks" });
+
+  // The row's own tag is the question; the answer lands in the search field.
+  await page.getByRole("button", { name: "Filter #work" }).click();
+  await expect(search).toHaveValue("#work");
+  await expect.poll(() => titles(page)).toEqual(["Zebra review"]);
+
+  // Pressing the same tag again does not spell it a second time.
+  await page.getByRole("button", { name: "Filter #work" }).click();
+  await expect(search).toHaveValue("#work");
+
+  // Clearing puts every row back, and another tag narrows to itself.
+  await page.getByRole("button", { name: "Clear search" }).click();
+  await expect(page.locator('[data-testid="todo-row"]')).toHaveCount(5);
+  await page.getByRole("button", { name: "Filter #long-name-tag" }).click();
+  await expect(search).toHaveValue("#long-name-tag");
+  await expect.poll(() => titles(page)).toEqual(["Beta write-up"]);
+
+  expect(errors).toEqual([]);
+});
+
 test("the sort card reorders the rows and keeps the pinned task in front", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));

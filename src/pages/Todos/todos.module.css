@@ -994,13 +994,25 @@
   font-weight: 600;
 }
 
+/* A tag is a question as well as a label: a press asks the search above for its kind. */
 .todo-tag {
   padding: 2px 8px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface-hover);
   color: var(--text-muted);
+  font: inherit;
   font-size: 11px;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.todo-tag:hover,
+.todo-tag:focus-visible {
+  border-color: var(--accent);
+  color: var(--text);
 }
 
 /* Quick actions: faint until the row is pointed at or focused, never out of reach. */
