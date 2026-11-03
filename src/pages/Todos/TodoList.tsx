@@ -81,6 +81,7 @@ export function TodoList() {
   const { language, t } = useI18n();
   const { counts, error, filter, loading, todos } = useTodoList();
   const {
+    refresh,
     remove,
     rename,
     setEndAt,
@@ -587,10 +588,18 @@ export function TodoList() {
         </div>
       </div>
 
-      {error !== null ? <p className={todosStyles.todoError}>{t("todo.error")}</p> : null}
+      {error !== null && todos.length > 0 ? <p className={todosStyles.todoError}>{t("todo.error")}</p> : null}
 
       {loading ? (
         <p className="muted">{t("todo.loading")}</p>
+      ) : error !== null && todos.length === 0 ? (
+        <div className={`empty ${todosStyles.todoEmpty}`} role="alert">
+          <span aria-hidden="true" className={todosStyles.todoEmptyIcon}><ActionIcon name="reset" /></span>
+          <p>{t("todo.error")}</p>
+          <button className="btn" onClick={() => { void refresh(); }} type="button">
+            {t("todo.retry")}
+          </button>
+        </div>
       ) : visible.length === 0 ? (
         <div className={`empty ${todosStyles.todoEmpty}`}>
           <span aria-hidden="true" className={todosStyles.todoEmptyIcon}>

@@ -223,15 +223,6 @@
 
 .pomo-primary {
   flex: 1;
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #ffffff;
-}
-
-.pomo-primary:hover {
-  border-color: var(--accent);
-  background: var(--accent);
-  filter: brightness(1.08);
 }
 
 .pomo-link {

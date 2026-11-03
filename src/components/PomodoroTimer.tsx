@@ -149,6 +149,7 @@ export function PomodoroTimer() {
         <div className={pomodoroStyles.pomoControls}>
           <button
             className={`btn ${pomodoroStyles.pomoPrimary}`}
+            data-variant="primary"
             onClick={() => {
               if (running) {
                 void pause();

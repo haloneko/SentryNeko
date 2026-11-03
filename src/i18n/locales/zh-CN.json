@@ -382,6 +382,7 @@
     "edit": "编辑任务",
     "empty": "这里还没有任务。",
     "error": "列表加载失败。",
+    "retry": "重新加载",
     "filter": {
       "all": "全部",
       "completed": "已完成",
