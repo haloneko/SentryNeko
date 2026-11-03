@@ -38,9 +38,13 @@ p {
   background: var(--accent-soft);
 }
 
-*:focus,
-*:focus-visible {
+*:focus:not(:focus-visible) {
   outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 ::-webkit-scrollbar {
@@ -110,6 +114,16 @@ p {
 .btn:hover {
   border-color: var(--accent);
   background: var(--surface-hover);
+}
+
+.btn[data-variant="primary"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn[data-variant="primary"]:hover:enabled {
+  filter: brightness(1.08);
 }
 
 .btn:active {

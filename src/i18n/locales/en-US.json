@@ -382,6 +382,7 @@
     "edit": "Edit task",
     "empty": "No tasks here.",
     "error": "The list could not be loaded.",
+    "retry": "Try again",
     "filter": {
       "all": "All",
       "completed": "Completed",
