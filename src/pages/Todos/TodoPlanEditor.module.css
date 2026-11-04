@@ -1,0 +1,124 @@
+/* The plan panel: two labelled ends, a warning when they are the wrong way round, and a quiet way out. */
+
+.fields {
+  display: grid;
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Small caps over each end: the two fields are the same control, told apart by their captions. */
+.field-label {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* A window that ends before it starts is worth a word, not a whole red box. */
+.warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #e5534b;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.warning svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The way back up to the two fields; it names the end the calendar is working on. */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  justify-self: start;
+  margin-inline-start: -6px;
+  padding: 4px 9px 4px 5px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.back:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.back svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.clear {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.clear:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.done {
+  margin-inline-start: auto;
+  padding: 7px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 120ms ease;
+}
+
+.done:hover {
+  filter: brightness(1.08);
+}
+
+.done:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

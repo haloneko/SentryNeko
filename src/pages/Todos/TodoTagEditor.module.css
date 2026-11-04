@@ -1,0 +1,181 @@
+/* The tag panel: a cloud of kinds the task can carry, and one line that makes a new kind. */
+
+/* The cloud scrolls rather than the panel, so the line that creates a tag never leaves the screen. */
+.cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 204px;
+  margin: -2px;
+  padding: 2px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding-inline: 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.chip:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* A chosen tag is a tint rather than a slab: the panel stays quiet when many are chosen at once. */
+.chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.chip svg {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.empty-state {
+  margin: 0;
+  padding: 14px 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* One outlined field holding the name, the glyph that asks for one, and the button that makes it. */
+.create {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding-inline: 11px 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.create:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.create-glyph {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.create-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+
+.create-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+.create-submit {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.create-submit:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+}
+
+.create-submit:disabled {
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.create-submit svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.done {
+  margin-inline-start: auto;
+  padding: 7px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 120ms ease;
+}
+
+.done:hover {
+  filter: brightness(1.08);
+}
+
+.done:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

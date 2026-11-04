@@ -67,6 +67,27 @@ mockIPC((command, payload) => {
       { id: 1, name: "work", createdAt: now },
       { id: 2, name: "long-name-tag", createdAt: now },
     ];
+  } else if (
+    command === "set_todo_start_at" ||
+    command === "set_todo_end_at" ||
+    command === "set_todo_tags"
+  ) {
+    const todo = todos.find((item) => item.id === Number(args.id));
+
+    if (todo !== undefined) {
+      if (command === "set_todo_tags") {
+        todo.tagIds = (args.tagIds as number[] | undefined) ?? [];
+      } else if (command === "set_todo_start_at") {
+        todo.startAt = (args.startAt as number | null) ?? null;
+      } else {
+        todo.endAt = (args.endAt as number | null) ?? null;
+      }
+
+      todo.updatedAt = Math.floor(Date.now() / 1000);
+    }
+
+    // A copy, the way the backend answers: a row only redraws when its task is a new object.
+    data = todo === undefined ? null : { ...todo };
   } else if (command === "set_todo_starred") {
     const todo = todos.find((item) => item.id === Number(args.id));
 
