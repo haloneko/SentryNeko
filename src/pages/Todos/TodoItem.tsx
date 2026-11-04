@@ -288,19 +288,6 @@ export const TodoItem = memo(function TodoItem({
             </svg>
           </button>
           <button
-            aria-label={t("todo.edit")}
-            className={todosStyles.todoAction}
-            onClick={() => {
-              openField(null);
-            }}
-            title={t("todo.edit")}
-            type="button"
-          >
-            <svg aria-hidden="true" viewBox="0 0 16 16">
-              <path d="M11.5 2.5l2 2-8 8-3 1 1-3z" />
-            </svg>
-          </button>
-          <button
             aria-expanded={planAnchor !== null}
             aria-haspopup="dialog"
             aria-label={t("todo.plan.edit")}
