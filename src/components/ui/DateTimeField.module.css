@@ -15,6 +15,14 @@
   z-index: 40;
 }
 
+/* A field near the foot of the window opens upward, so the panel is never half off the screen. */
+.date-time-field[data-flip="true"] > .due-date-panel {
+  top: auto;
+  bottom: calc(100% + 8px);
+  /* Opened upward, it also arrives from below rather than from over the field it belongs to. */
+  animation-name: due-date-in-up;
+}
+
 /* The field is one control: the box and its button share the outline, and the focus ring wraps both. */
 .date-time-row {
   display: flex;
@@ -183,6 +191,11 @@
   display: grid;
   gap: 14px;
   padding: 16px;
+}
+
+/* Set inside a panel that already pads its own body, the grid adds nothing of its own. */
+.due-date-body--inline {
+  padding: 0;
 }
 
 .due-date-grid {
@@ -415,6 +428,18 @@
   from {
     opacity: 0;
     transform: translateY(-6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes due-date-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
   }
 
   to {

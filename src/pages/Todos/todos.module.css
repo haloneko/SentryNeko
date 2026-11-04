@@ -1046,11 +1046,6 @@
   cursor: inherit;
 }
 
-.todo-row[data-selecting="true"] .todo-tag-editor,
-.todo-row[data-selecting="true"] .todo-plan-editor {
-  display: none;
-}
-
 /*
  * The fade lives on each control rather than on the row of them: a pinned task keeps its star lit
  * while the rest stay faint, and an opacity set on the container could not be undone per child.
@@ -1082,9 +1077,11 @@
   color: var(--text);
 }
 
+/* A control whose panel is open stays lit, even while the pointer is away on that panel. */
 .todo-action[aria-pressed="true"] {
   background: var(--accent-soft);
   color: var(--accent-text);
+  opacity: 1;
 }
 
 /*
@@ -1114,103 +1111,6 @@
 /* The outline becomes a solid star once the task is pinned. */
 .todo-action-star[data-starred="true"] svg {
   fill: currentColor;
-}
-
-/* The inline tag picker, opened under the title. */
-.todo-tag-editor,
-.todo-plan-editor {
-  display: grid;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
-  padding: var(--space-3);
-  border: 1px dashed var(--border-strong);
-  border-radius: 10px;
-  background: var(--bg);
-}
-
-.todo-tag-hint {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.todo-tag-choices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.todo-tag-choice {
-  padding: 3px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
-}
-
-.todo-tag-choice:hover {
-  border-color: var(--accent);
-  color: var(--text);
-}
-
-.todo-tag-choice[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #fff;
-}
-
-.todo-tag-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.todo-tag-new {
-  display: flex;
-  flex: 1;
-  min-width: 160px;
-  gap: var(--space-2);
-}
-
-.todo-tag-new .todo-input {
-  padding-block: 6px;
-  font-size: 12.5px;
-}
-
-/* The two ends of a plan sit side by side, and stack once the row is too narrow for both. */
-.todo-plan-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
-  gap: var(--space-2);
-}
-
-.todo-plan-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.todo-plan-hint {
-  flex: 1;
-  min-width: 160px;
-  color: var(--text-muted);
-  font-size: 11.5px;
-}
-
-.todo-plan-warning {
-  margin: 0;
-  color: #e5534b;
-  font-size: 11.5px;
 }
 
 .todo-error {

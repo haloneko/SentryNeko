@@ -332,6 +332,9 @@
     "no": "No",
     "yes": "Yes"
   },
+  "popover": {
+    "close": "Close"
+  },
   "settings": {
     "alarm": {
       "hint": "Changes save as you type; new alarms inherit them."
@@ -400,8 +403,10 @@
     "overdue": "{{count}} overdue",
     "placeholder": "What needs doing?",
     "plan": {
+      "clear": "Clear plan",
       "done": "Done",
       "edit": "Set times",
+      "empty": "No window yet",
       "end": "Ends",
       "endPanel": "Pick an end time",
       "from": "From {{time}}",
@@ -410,6 +415,7 @@
       "order": "The end is before the start.",
       "start": "Starts",
       "startPanel": "Pick a start time",
+      "title": "Planned window",
       "until": "Due {{time}}"
     },
     "search": {
@@ -443,10 +449,12 @@
     },
     "subtitle": "{{total}} tasks · {{remaining}} left",
     "tags": {
+      "chosen": "{{chosen}} selected",
       "create": "New tag",
       "done": "Done",
       "empty": "No tags yet — create one below.",
       "filter": "Filter #{{name}}",
+      "hint": "Picks apply right away.",
       "label": "Tags",
       "name": "Tag name"
     },

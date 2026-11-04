@@ -1,0 +1,138 @@
+/* A small floating surface: one heading, one body, one foot. *//*
+ * Fixed and mounted on `body`, like the confirmation bubble and the right-click menu: a row that
+ * clips its overflow cannot cut the panel in half. The mask is invisible — it exists only to catch
+ * the click that means "never mind".
+ */
+.popover-mask {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+}
+
+.popover {
+  position: fixed;
+  z-index: 61;
+  display: grid;
+  width: min(var(--popover-width, 340px), calc(100vw - 24px));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow:
+    0 24px 56px rgb(6 8 16 / 34%),
+    0 2px 8px rgb(8 10 18 / 18%);
+  animation: popover-in 150ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  /* The panel grows out of the corner it hangs from, not out of the middle of nowhere. */
+  transform-origin: top right;
+}
+
+.popover[data-side="top"] {
+  transform-origin: bottom right;
+}
+
+/* The panel itself takes the focus when it opens; the ring belongs to the controls inside it. */
+.popover:focus {
+  outline: none;
+}
+
+/* The heading carries a wash of the accent, so the panel reads as one object rather than a list. */
+.popover-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 15px 12px 13px 18px;
+  border-bottom: 1px solid var(--border);
+  border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0;
+  background: linear-gradient(180deg, var(--accent-soft), transparent);
+}
+
+.popover-heading {
+  min-width: 0;
+}
+
+.popover-eyebrow {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.popover-title {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.popover-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-inline-start: auto;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.popover-close:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.popover-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.popover-close svg {
+  width: 9px;
+  height: 9px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.popover-body {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px 18px;
+}
+
+/* The foot is the row of answers: quiet ones at the start, the one that ends the job at the end. */
+.popover-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px 11px 18px;
+  border-top: 1px solid var(--border);
+}
+
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover {
+    animation: none;
+  }
+}

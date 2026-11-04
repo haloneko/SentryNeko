@@ -332,6 +332,9 @@
     "no": "否",
     "yes": "是"
   },
+  "popover": {
+    "close": "关闭"
+  },
   "settings": {
     "alarm": {
       "hint": "改动即保存，新闹钟继承这里的响铃时长与通知方式。"
@@ -400,8 +403,10 @@
     "overdue": "{{count}} 项逾期",
     "placeholder": "要做什么？",
     "plan": {
+      "clear": "清除计划",
       "done": "完成",
       "edit": "设置时间",
+      "empty": "尚未设置",
       "end": "结束",
       "endPanel": "选择结束时间",
       "from": "从 {{time}} 开始",
@@ -410,6 +415,7 @@
       "order": "结束时间早于开始时间。",
       "start": "开始",
       "startPanel": "选择开始时间",
+      "title": "计划时间",
       "until": "截止 {{time}}"
     },
     "search": {
@@ -443,10 +449,12 @@
     },
     "subtitle": "共 {{total}} 个任务 · 剩 {{remaining}} 项未完成",
     "tags": {
+      "chosen": "已选 {{chosen}} 个",
       "create": "新建标签",
       "done": "完成",
       "empty": "还没有标签，先在下面新建一个。",
       "filter": "筛选 #{{name}}",
+      "hint": "点选即可生效。",
       "label": "标签",
       "name": "标签名称"
     },

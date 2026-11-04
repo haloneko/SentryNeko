@@ -65,8 +65,12 @@ export const TodoItem = memo(function TodoItem({
 }: TodoItemProps) {
   const { language, t } = useI18n();
   const [draft, setDraft] = useState<string | null>(null);
-  const [tagging, setTagging] = useState(false);
-  const [planning, setPlanning] = useState(false);
+  /**
+   * The panels are placed against the button that opened them, so the anchor *is* the open state:
+   * one value decides whether the panel draws and where it hangs from.
+   */
+  const [tagAnchor, setTagAnchor] = useState<HTMLElement | null>(null);
+  const [planAnchor, setPlanAnchor] = useState<HTMLElement | null>(null);
   const field = useRef<HTMLTextAreaElement | null>(null);
   const opened = useRef(false);
   /** Where the title was last clicked, so the caret can be put back under the same spot. */
@@ -263,32 +267,6 @@ export const TodoItem = memo(function TodoItem({
               </button>
             ))}
           </span>
-          {tagging ? (
-            <TodoTagEditor
-              onClose={() => {
-                setTagging(false);
-              }}
-              onChange={(tagIds) => {
-                onUpdateTags(todo, tagIds);
-              }}
-              tags={tags}
-              todo={todo}
-            />
-          ) : null}
-          {planning ? (
-            <TodoPlanEditor
-              onClose={() => {
-                setPlanning(false);
-              }}
-              onEndChange={(endAt) => {
-                onSetEndAt(todo, endAt);
-              }}
-              onStartChange={(startAt) => {
-                onSetStartAt(todo, startAt);
-              }}
-              todo={todo}
-            />
-          ) : null}
         </div>
         {/* The row's own controls step aside while a pick is being made: one mode, one gesture. */}
         <div className={todosStyles.todoActions} inert={selecting}>
@@ -323,12 +301,14 @@ export const TodoItem = memo(function TodoItem({
             </svg>
           </button>
           <button
+            aria-expanded={planAnchor !== null}
+            aria-haspopup="dialog"
             aria-label={t("todo.plan.edit")}
-            aria-pressed={planning}
+            aria-pressed={planAnchor !== null}
             className={todosStyles.todoAction}
-            onClick={() => {
-              setPlanning((open) => !open);
-              setTagging(false);
+            onClick={(event) => {
+              setPlanAnchor(planAnchor === null ? event.currentTarget : null);
+              setTagAnchor(null);
             }}
             title={t("todo.plan.edit")}
             type="button"
@@ -339,12 +319,14 @@ export const TodoItem = memo(function TodoItem({
             </svg>
           </button>
           <button
+            aria-expanded={tagAnchor !== null}
+            aria-haspopup="dialog"
             aria-label={t("todo.tags.label")}
-            aria-pressed={tagging}
+            aria-pressed={tagAnchor !== null}
             className={todosStyles.todoAction}
-            onClick={() => {
-              setTagging((open) => !open);
-              setPlanning(false);
+            onClick={(event) => {
+              setTagAnchor(tagAnchor === null ? event.currentTarget : null);
+              setPlanAnchor(null);
             }}
             title={t("todo.tags.label")}
             type="button"
@@ -377,6 +359,35 @@ export const TodoItem = memo(function TodoItem({
             </button>
           </Popconfirm>
         </div>
+        {/* Both panels hang off the button that opened them, so they are placed, not laid out here. */}
+        {planAnchor === null ? null : (
+          <TodoPlanEditor
+            anchor={planAnchor}
+            onClose={() => {
+              setPlanAnchor(null);
+            }}
+            onEndChange={(endAt) => {
+              onSetEndAt(todo, endAt);
+            }}
+            onStartChange={(startAt) => {
+              onSetStartAt(todo, startAt);
+            }}
+            todo={todo}
+          />
+        )}
+        {tagAnchor === null ? null : (
+          <TodoTagEditor
+            anchor={tagAnchor}
+            onClose={() => {
+              setTagAnchor(null);
+            }}
+            onChange={(tagIds) => {
+              onUpdateTags(todo, tagIds);
+            }}
+            tags={tags}
+            todo={todo}
+          />
+        )}
       </div>
     </li>
   );

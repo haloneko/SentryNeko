@@ -1,6 +1,6 @@
 /** A text field with a picker button: type a moment by hand, or choose it from the panel. */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 
 import { useI18n } from "../../hooks/useI18n";
@@ -29,6 +29,11 @@ export interface DateTimeFieldProps {
   /** Called with the chosen moment in UTC epoch seconds, or `null` when the text is cleared. */
   onChange: (value: number | null) => void;
   /**
+   * Lets a host draw the picker itself, in the same panel as the field: the button then asks the
+   * host instead of opening a bubble of its own.
+   */
+  onPickerOpen?: () => void;
+  /**
    * Heading the open panel reads. The caller owns this wording, because only it knows what the
    * field is for — a start, a due date, a reminder — while the panel itself does not. Defaults to
    * `label`, which is a sensible name for a field that stands on its own.
@@ -44,6 +49,10 @@ const YEARS_AFTER = 10;
 
 /** What an empty panel shows before the first turn: today at nine, or today's midnight. */
 const DEFAULT_HOUR = 9;
+
+/** Panel geometry: the gap to the field it hangs from, and the least air left at a window edge. */
+const PANEL_GAP = 8;
+const PANEL_EDGE = 12;
 
 const PLACEHOLDERS: Record<DateTimeMode, string> = {
   date: "YYYY-MM-DD",
@@ -392,85 +401,33 @@ function ModeIcon({ mode }: { mode: DateTimeMode }) {
   );
 }
 
-export function DateTimeField({
-  label,
+export interface DatePickerBodyProps {
+  /** True when the host already pads the space around the grid. */
+  inline?: boolean;
+  /** What the grid picks: a day, a clock time, or both. */
+  mode?: DateTimeMode;
+  /** Called with the moment the grid settles on, or `null` when it is cleared. */
+  onChange: (value: number | null) => void;
+  /** Runs after a shortcut answers, so a host that draws the grid alone can leave it. */
+  onPickDone?: () => void;
+  /** The moment being edited, or `null` while there is none. */
+  value: number | null;
+}
+
+/**
+ * The calendar itself: the day, the clock, and the two shortcuts that answer for today.
+ *
+ * A body, not a panel — the heading and the foot belong to whoever draws the box around it, so the
+ * same grid serves the bubble under a field and the panel a task opens from its row.
+ */
+export function DatePickerBody({
+  inline = false,
   mode = "datetime",
   onChange,
-  panelLabel,
+  onPickDone,
   value,
-}: DateTimeFieldProps) {
+}: DatePickerBodyProps) {
   const { language, t } = useI18n();
-  const [draft, setDraft] = useState(() => formatValue(value, mode));
-  const [invalid, setInvalid] = useState(false);
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement | null>(null);
-
-  // A stored moment is the source of truth; the text follows it unless the user is mid-edit.
-  useEffect(() => {
-    setDraft(formatValue(value, mode));
-    setInvalid(false);
-  }, [mode, value]);
-
-  useEffect(() => {
-    if (!open) {
-      return undefined;
-    }
-
-    const onPointerDown = (event: PointerEvent): void => {
-      if (root.current !== null && !root.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-
-    const onKeyDown = (event: globalThis.KeyboardEvent): void => {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
-  const commit = (): boolean => {
-    const parsed = parseDraft(draft, mode);
-
-    if (parsed.kind === "invalid") {
-      setInvalid(true);
-      return false;
-    }
-
-    setInvalid(false);
-
-    if (parsed.kind === "empty") {
-      if (value !== null) {
-        onChange(null);
-      }
-
-      setDraft("");
-      return true;
-    }
-
-    onChange(parsed.epoch);
-    setDraft(formatValue(parsed.epoch, mode));
-
-    return true;
-  };
-
-  /** Writes a moment chosen in the panel, so the text never lags behind the pick. */
-  const apply = (next: number | null): void => {
-    onChange(next);
-    setDraft(formatValue(next, mode));
-    setInvalid(false);
-  };
-
-  // The panel names itself the way its caller does; the field's own label is the fallback.
-  const heading = panelLabel ?? label;
   const shownDate = value === null ? startingPoint(mode) : new Date(value * 1000);
   const shown = {
     day: shownDate.getDate(),
@@ -487,7 +444,7 @@ export function DateTimeField({
   const currentYear = splitDay(todayDay())?.year ?? shown.year;
 
   // The lists are the same for every render of the same month, so they are kept rather than rebuilt
-  // each time the panel redraws — which it does on every keystroke in the text field beside it.
+  // each time the grid redraws — which it does on every keystroke in the text field beside it.
   const years = useMemo(() => {
     const list: number[] = [];
 
@@ -539,8 +496,247 @@ export function DateTimeField({
       0,
     );
 
-    apply(Math.floor(picked.getTime() / 1000));
+    onChange(Math.floor(picked.getTime() / 1000));
   };
+
+  return (
+    <div className={inline ? `${dateTimeFieldStyles.dueDateBody} ${dateTimeFieldStyles.dueDateBodyInline}` : dateTimeFieldStyles.dueDateBody}>
+      {withDate ? (
+        <div className={dateTimeFieldStyles.dueDateGrid}>
+          <DueSelect
+            label={t("dueDate.year")}
+            onChange={(year) => {
+              applyFields(year, shown.month, shown.day, shown.hour, shown.minute);
+            }}
+            onStep={(delta) => {
+              const index = years.indexOf(shown.year) + delta;
+              const year = years[Math.min(Math.max(index, 0), years.length - 1)];
+
+              if (year !== undefined) {
+                applyFields(year, shown.month, shown.day, shown.hour, shown.minute);
+              }
+            }}
+            options={yearOptions}
+            value={shown.year}
+          />
+          <DueSelect
+            label={t("dueDate.month")}
+            onChange={(month) => {
+              applyFields(shown.year, month, shown.day, shown.hour, shown.minute);
+            }}
+            onStep={(delta) => {
+              applyFields(
+                shown.year,
+                ((shown.month - 1 + delta + 12) % 12) + 1,
+                shown.day,
+                shown.hour,
+                shown.minute,
+              );
+            }}
+            options={monthOptions}
+            value={shown.month}
+          />
+          <DueSelect
+            label={t("dueDate.day")}
+            onChange={(day) => {
+              applyFields(shown.year, shown.month, day, shown.hour, shown.minute);
+            }}
+            onStep={(delta) => {
+              applyFields(
+                shown.year,
+                shown.month,
+                Math.min(Math.max(shown.day + delta, 1), lastDay),
+                shown.hour,
+                shown.minute,
+              );
+            }}
+            options={dayOptions}
+            value={shown.day}
+          />
+        </div>
+      ) : null}
+
+      {withTime ? (
+        <div className={dateTimeFieldStyles.dueDateTime}>
+          <div className={`${dateTimeFieldStyles.dueDateGrid} ${dateTimeFieldStyles.dueDateGridTime}`}>
+            <DueSelect
+              label={t("dueDate.hour")}
+              onChange={(hour) => {
+                applyFields(shown.year, shown.month, shown.day, hour, shown.minute);
+              }}
+              onStep={(delta) => {
+                applyFields(shown.year, shown.month, shown.day, (shown.hour + delta + 24) % 24, shown.minute);
+              }}
+              options={HOUR_OPTIONS}
+              value={shown.hour}
+            />
+            <DueSelect
+              label={t("dueDate.minute")}
+              onChange={(minute) => {
+                applyFields(shown.year, shown.month, shown.day, shown.hour, minute);
+              }}
+              onStep={(delta) => {
+                applyFields(shown.year, shown.month, shown.day, shown.hour, (shown.minute + delta + 60) % 60);
+              }}
+              options={MINUTE_OPTIONS}
+              value={shown.minute}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      <div className={dateTimeFieldStyles.dueDateQuick}>
+        {withDate
+          ? [
+              { day: todayDay(), label: t("dueDate.today") },
+              { day: shiftDay(todayDay(), 1), label: t("dueDate.tomorrow") },
+            ].map((quick) => {
+              const parts = splitDay(quick.day);
+
+              return (
+                <button
+                  aria-pressed={pickedDay === quick.day}
+                  className={dateTimeFieldStyles.dueDateChip}
+                  key={quick.label}
+                  onClick={() => {
+                    if (parts !== null) {
+                      applyFields(parts.year, parts.month, parts.day, shown.hour, shown.minute);
+                    }
+
+                    onPickDone?.();
+                  }}
+                  type="button"
+                >
+                  {quick.label}
+                </button>
+              );
+            })
+          : (
+              <button
+                className={dateTimeFieldStyles.dueDateChip}
+                onClick={() => {
+                  onChange(Math.floor(Date.now() / 60_000) * 60);
+                  onPickDone?.();
+                }}
+                type="button"
+              >
+                {t("dueDate.now")}
+              </button>
+            )}
+      </div>
+    </div>
+  );
+}
+
+export function DateTimeField({
+  label,
+  mode = "datetime",
+  onChange,
+  onPickerOpen,
+  panelLabel,
+  value,
+}: DateTimeFieldProps) {
+  const { language, t } = useI18n();
+  const [draft, setDraft] = useState(() => formatValue(value, mode));
+  const [invalid, setInvalid] = useState(false);
+  const [flip, setFlip] = useState(false);
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement | null>(null);
+  const sheet = useRef<HTMLDivElement | null>(null);
+
+  // A stored moment is the source of truth; the text follows it unless the user is mid-edit.
+  useEffect(() => {
+    setDraft(formatValue(value, mode));
+    setInvalid(false);
+  }, [mode, value]);
+
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    const onPointerDown = (event: PointerEvent): void => {
+      if (root.current !== null && !root.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const onKeyDown = (event: globalThis.KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  /*
+   * The panel hangs under the field unless the window ends sooner than the panel does: a field at
+   * the foot of the page opens upward rather than half off the screen.
+   */
+  useLayoutEffect(() => {
+    if (!open) {
+      setFlip(false);
+      return;
+    }
+
+    const field = root.current;
+    const panel = sheet.current;
+
+    if (field === null || panel === null) {
+      return;
+    }
+
+    // The panel may itself sit inside a panel, so the room is measured against the window.
+    const box = field.getBoundingClientRect();
+    const below = window.innerHeight - box.bottom - PANEL_GAP - PANEL_EDGE;
+    const above = box.top - PANEL_GAP - PANEL_EDGE;
+
+    setFlip(below < panel.offsetHeight && above > below);
+  }, [open]);
+
+  const commit = (): boolean => {
+    const parsed = parseDraft(draft, mode);
+
+    if (parsed.kind === "invalid") {
+      setInvalid(true);
+      return false;
+    }
+
+    setInvalid(false);
+
+    if (parsed.kind === "empty") {
+      if (value !== null) {
+        onChange(null);
+      }
+
+      setDraft("");
+      return true;
+    }
+
+    onChange(parsed.epoch);
+    setDraft(formatValue(parsed.epoch, mode));
+
+    return true;
+  };
+
+  /** Writes a moment chosen in the panel, so the text never lags behind the pick. */
+  const apply = (next: number | null): void => {
+    onChange(next);
+    setDraft(formatValue(next, mode));
+    setInvalid(false);
+  };
+
+  // The panel names itself the way its caller does; the field's own label is the fallback.
+  const heading = panelLabel ?? label;
+  const shownDate = value === null ? startingPoint(mode) : new Date(value * 1000);
+  const withDate = mode !== "time";
 
   const title = withDate
     ? new Intl.DateTimeFormat(language, {
@@ -554,7 +750,7 @@ export function DateTimeField({
     : null;
 
   return (
-    <div className={dateTimeFieldStyles.dateTimeField} data-invalid={invalid} ref={root}>
+    <div className={dateTimeFieldStyles.dateTimeField} data-flip={flip} data-invalid={invalid} ref={root}>
       <div className={dateTimeFieldStyles.dateTimeRow}>
         <input
           aria-invalid={invalid}
@@ -581,7 +777,13 @@ export function DateTimeField({
             if (event.key === "Escape") {
               setDraft(formatValue(value, mode));
               setInvalid(false);
-              setOpen(false);
+
+              if (open) {
+                // The pick is the innermost thing Escape can close, so it claims the key before the
+                // panel around it hears the same press.
+                event.preventDefault();
+                setOpen(false);
+              }
             }
           }}
           placeholder={PLACEHOLDERS[mode]}
@@ -589,10 +791,15 @@ export function DateTimeField({
           value={draft}
         />
         <button
-          aria-expanded={open}
+          aria-expanded={onPickerOpen === undefined ? open : false}
           aria-label={t("dueDate.open")}
           className={dateTimeFieldStyles.dateTimeTrigger}
           onClick={() => {
+            if (onPickerOpen !== undefined) {
+              onPickerOpen();
+              return;
+            }
+
             setOpen((current) => !current);
           }}
           type="button"
@@ -612,6 +819,7 @@ export function DateTimeField({
           aria-label={heading}
           className={dateTimeFieldStyles.dueDatePanel}
           data-empty={value === null}
+          ref={sheet}
           role="group"
         >
           <div className={dateTimeFieldStyles.dueDateHead}>
@@ -634,143 +842,14 @@ export function DateTimeField({
             </button>
           </div>
 
-          <div className={dateTimeFieldStyles.dueDateBody}>
-            {withDate ? (
-              <div className={dateTimeFieldStyles.dueDateGrid}>
-                <DueSelect
-                  label={t("dueDate.year")}
-                  onChange={(year) => {
-                    applyFields(year, shown.month, shown.day, shown.hour, shown.minute);
-                  }}
-                  onStep={(delta) => {
-                    const index = years.indexOf(shown.year) + delta;
-                    const year = years[Math.min(Math.max(index, 0), years.length - 1)];
-
-                    if (year !== undefined) {
-                      applyFields(year, shown.month, shown.day, shown.hour, shown.minute);
-                    }
-                  }}
-                  options={yearOptions}
-                  value={shown.year}
-                />
-                <DueSelect
-                  label={t("dueDate.month")}
-                  onChange={(month) => {
-                    applyFields(shown.year, month, shown.day, shown.hour, shown.minute);
-                  }}
-                  onStep={(delta) => {
-                    applyFields(
-                      shown.year,
-                      ((shown.month - 1 + delta + 12) % 12) + 1,
-                      shown.day,
-                      shown.hour,
-                      shown.minute,
-                    );
-                  }}
-                  options={monthOptions}
-                  value={shown.month}
-                />
-                <DueSelect
-                  label={t("dueDate.day")}
-                  onChange={(day) => {
-                    applyFields(shown.year, shown.month, day, shown.hour, shown.minute);
-                  }}
-                  onStep={(delta) => {
-                    applyFields(
-                      shown.year,
-                      shown.month,
-                      Math.min(Math.max(shown.day + delta, 1), lastDay),
-                      shown.hour,
-                      shown.minute,
-                    );
-                  }}
-                  options={dayOptions}
-                  value={shown.day}
-                />
-              </div>
-            ) : null}
-
-            {withTime ? (
-              <div className={dateTimeFieldStyles.dueDateTime}>
-                <div className={`${dateTimeFieldStyles.dueDateGrid} ${dateTimeFieldStyles.dueDateGridTime}`}>
-                  <DueSelect
-                    label={t("dueDate.hour")}
-                    onChange={(hour) => {
-                      applyFields(shown.year, shown.month, shown.day, hour, shown.minute);
-                    }}
-                    onStep={(delta) => {
-                      applyFields(
-                        shown.year,
-                        shown.month,
-                        shown.day,
-                        (shown.hour + delta + 24) % 24,
-                        shown.minute,
-                      );
-                    }}
-                    options={HOUR_OPTIONS}
-                    value={shown.hour}
-                  />
-                  <DueSelect
-                    label={t("dueDate.minute")}
-                    onChange={(minute) => {
-                      applyFields(shown.year, shown.month, shown.day, shown.hour, minute);
-                    }}
-                    onStep={(delta) => {
-                      applyFields(
-                        shown.year,
-                        shown.month,
-                        shown.day,
-                        shown.hour,
-                        (shown.minute + delta + 60) % 60,
-                      );
-                    }}
-                    options={MINUTE_OPTIONS}
-                    value={shown.minute}
-                  />
-                </div>
-              </div>
-            ) : null}
-
-            <div className={dateTimeFieldStyles.dueDateQuick}>
-              {withDate
-                ? [
-                    { day: todayDay(), label: t("dueDate.today") },
-                    { day: shiftDay(todayDay(), 1), label: t("dueDate.tomorrow") },
-                  ].map((quick) => {
-                    const parts = splitDay(quick.day);
-
-                    return (
-                      <button
-                        aria-pressed={pickedDay === quick.day}
-                        className={dateTimeFieldStyles.dueDateChip}
-                        key={quick.label}
-                        onClick={() => {
-                          if (parts !== null) {
-                            applyFields(parts.year, parts.month, parts.day, shown.hour, shown.minute);
-                          }
-
-                          setOpen(false);
-                        }}
-                        type="button"
-                      >
-                        {quick.label}
-                      </button>
-                    );
-                  })
-                : (
-                    <button
-                      className={dateTimeFieldStyles.dueDateChip}
-                      onClick={() => {
-                        apply(Math.floor(Date.now() / 60_000) * 60);
-                        setOpen(false);
-                      }}
-                      type="button"
-                    >
-                      {t("dueDate.now")}
-                    </button>
-                  )}
-            </div>
-          </div>
+          <DatePickerBody
+            mode={mode}
+            onChange={apply}
+            onPickDone={() => {
+              setOpen(false);
+            }}
+            value={value}
+          />
 
           <div className={dateTimeFieldStyles.dueDateFoot}>
             {value === null ? null : (
